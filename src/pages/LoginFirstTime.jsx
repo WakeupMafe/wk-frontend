@@ -225,11 +225,14 @@ export default function LoginFirstTime() {
         return;
       }
 
-      if (data?.email_sent) {
+      if (data?.ok) {
         await sweetAlert({
           icon: "success",
           title: "PIN reenviado",
-          text: "Revisa tu bandeja de entrada y la carpeta de spam.",
+          html: `
+            <p>Si el correo está correcto, el PIN te llegará.</p>
+            <p><b>Revisa spam</b> también.</p>
+          `,
           confirmButtonText: "Ok",
         });
 
@@ -239,8 +242,8 @@ export default function LoginFirstTime() {
 
       await sweetAlert({
         icon: "warning",
-        title: "No se pudo enviar el correo",
-        text: data?.email_error || "Revisa la configuración SMTP.",
+        title: "No se pudo reenviar",
+        text: data?.detail || data?.message || "Intenta nuevamente.",
         confirmButtonText: "Ok",
       });
     } catch (e) {

@@ -8,7 +8,7 @@ import SideDots from "../components/SideDots";
 import avatar from "../assets/avatar_bienvenida.svg";
 import gifRecuerda from "../assets/gif_recuerda.gif"; // ✅ nombre consistente
 import "./Bienvenidas.css";
-
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 export default function Cedula() {
   const [cedula, setCedula] = useState("");
   const [error, setError] = useState("");

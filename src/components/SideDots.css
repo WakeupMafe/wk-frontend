@@ -1,0 +1,37 @@
+/* src/components/AsideDots.css */
+
+.aside-dots {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 9999;
+}
+
+.aside-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #ffffff; /* inactivo */
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  padding: 0;
+  transition: ease-in-out 0.2s;
+}
+.aside-dot:hover {
+  transform: scale(1.1);
+}
+
+.aside-dot.active {
+  background: #171c34; /* activo azul */
+  border-color: #171c34;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+  transform: scale(1.15);
+}
+
+.aside-dot:hover {
+  transform: scale(1.1);
+}

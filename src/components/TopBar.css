@@ -1,0 +1,46 @@
+    /* Contenedor tipo flex alineado hacia la izquierda */
+ 
+    .top-bar-header {
+        width: 100%;
+        height: auto;
+        display: flex;
+        gap: 1.875rem;
+        align-items: center;
+    }
+       .top-bar{
+        top: 0; left: 0;
+        height: auto;
+        position: fixed;
+        
+        display: flex;
+        justify-content: left;
+        align-items: center;
+        padding: 20px;
+        z-index: 9999;
+    }   
+    .top-bar-logo{
+        height: 80px;
+        width: auto;
+
+    }
+
+    .top-bar-button{
+        border-radius: 15px;
+        border: 2px solid #2c70cc;
+        font-family: "Poppins";
+        height: 2.5rem;
+        width: auto;
+        font-size: 1.3rem;
+        padding: 0 1.2rem;
+        background-color: transparent;
+        letter-spacing: 0.05rem;
+        cursor: pointer;
+         transition: ease-in-out 0.3s
+
+       
+   }
+
+.top-bar-button:hover {
+  transform: scale(1.05);
+  border-color: #92bd4a; /* verde claro */
+}

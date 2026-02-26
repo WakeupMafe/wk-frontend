@@ -1,0 +1,84 @@
+.dir {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 1.5rem;
+}
+
+.dir__breadcrumb {
+  font-family: "Poppins", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2a44;
+  margin-bottom: 10px;
+}
+
+.dir__crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dir__sep {
+  margin: 0 10px;
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.dir__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dir__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  transition:
+    transform 0.08s ease,
+    background 0.15s ease,
+    border 0.15s ease;
+  text-align: left;
+}
+
+.dir__row:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.dir__row--active {
+  border-color: #38b000;
+  background: rgba(56, 176, 0, 0.12);
+}
+
+.dir__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  background: rgba(37, 89, 199, 0.16);
+}
+
+.dir__icon--green {
+  background: rgba(56, 176, 0, 0.18);
+}
+
+.dir__icon--blue {
+  background: rgba(37, 89, 199, 0.16);
+}
+
+.dir__label {
+  font-family: "Poppins", sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2a44;
+}

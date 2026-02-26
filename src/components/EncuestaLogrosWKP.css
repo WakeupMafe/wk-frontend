@@ -1,0 +1,138 @@
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+}
+
+.TituloEncuesta {
+  font-size: 1.8rem;
+  text-align: start;
+  font-weight: 500;
+  color: #2c70cc;
+}
+
+.textos {
+  letter-spacing: 0.04rem;
+  text-align: start;
+}
+.Secciones {
+  font-size: 1.5rem;
+  font-weight: 400;
+  margin: 0;
+  color: #2c70cc;
+}
+
+.ContentEncuesta {
+  width: 100%;
+  height: auto; /* ✅ ocupa pantalla */
+  overflow-y: auto; /* ✅ scroll vertical */
+  overflow-x: hidden;
+  padding: 2rem 1.6rem;
+  display: flex;
+  justify-content: flex-start; /* ✅ NO centrar vertical */
+  align-items: center; /* centra horizontal */
+}
+.EncuestaLogrosWrap {
+  height: auto; /* ocupa alto de pantalla */
+  overflow-y: auto; /* ✅ aparece scroll */
+  padding: 28px 16px;
+  background: #f3f7ff;
+}
+
+.EncuestaLogrosForm {
+  width: 100%;
+  margin: 0 auto;
+  background: white;
+  padding: 22px;
+  border-radius: 14px;
+}
+.contenedor-botones {
+  height: auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+  margin: 0;
+}
+.botones {
+  width: 50%;
+  border-radius: 2rem;
+  border: 2px solid #2c70cc;
+  background-color: transparent;
+  height: auto;
+  font-family: "Poppins";
+  font-weight: 400;
+  font-size: 1.1rem;
+  padding: 5px 0px;
+}
+.botones:hover {
+  border: 2px solid #457e47;
+  scale: 1.04;
+}
+
+.objetivos_especificos {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+}
+
+/* ✅ TABLETS (aprox iPad / tablets en general) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .TituloEncuesta {
+    font-size: 1.55rem; /* antes 1.8 */
+  }
+
+  .Secciones {
+    font-size: 1.2rem; /* antes 1.5 */
+  }
+
+  .textos {
+    font-size: 0.8rem;
+    letter-spacing: 0.02rem; /* un poco menos */
+  }
+
+  .ContentEncuesta {
+    padding: 2rem 2rem; /* antes 2rem 1.6rem */
+  }
+
+  .EncuestaLogrosWrap {
+    padding: 22px 14px; /* antes 28px 16px */
+  }
+
+  .EncuestaLogrosForm {
+    padding: 18px; /* antes 22px */
+    border-radius: 12px; /* antes 14px */
+  }
+
+  .contenedor-botones {
+    gap: 1.2rem; /* antes 2rem */
+    padding: 0.8rem; /* antes 1rem */
+  }
+
+  .botones {
+    font-size: 1rem; /* antes 1.1 */
+    padding: 6px 0px;
+    border-radius: 1.6rem; /* antes 2rem */
+  }
+
+  .objetivos_especificos {
+    gap: 6px; /* airecito entre selects/textos */
+  }
+
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .field__input,
+    select {
+      width: 90%;
+      max-width: 100%;
+    }
+
+    .ContentEncuesta {
+      overflow-x: hidden;
+    }
+  }
+}

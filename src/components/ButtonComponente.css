@@ -1,0 +1,36 @@
+.btn-componente {
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  padding: auto;
+  margin: 0 auto;
+  text-align: center;
+  font-family: "Poppins", sans-serif;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn--primary {
+  text-align: center;
+  margin: 0 auto;
+  background: transparent;
+  border: 2px solid #2559c7;
+  color: rgb(0, 0, 0);
+  transform: none;
+}
+
+.btn--primary:hover {
+  transform: none;
+  border: 2px solid #25c763;
+  color: rgb(0, 0, 0);
+  background-color: transparent;
+}
+/* Eliminar el scale por defecto */
+.btn-componente,
+.btn-componente:hover,
+.btn-componente:focus,
+.btn-componente:active {
+  transform: none !important;
+  scale: 1 !important; /* ✅ mata la propiedad scale */
+}

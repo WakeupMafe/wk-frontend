@@ -1,0 +1,47 @@
+/* src/components/FloatingFolders.css */
+
+.ff-wrap {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  padding: 30px 40px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+}
+
+.ff-folders {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 80px; /* separacion como tu imagen */
+  width: 100%;
+}
+
+.ff-folder {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+.ff-icon {
+  width: 140px; /* ajusta según tu carpeta */
+  height: auto;
+  display: block;
+}
+
+.ff-title {
+  font-family: "Poppins", sans-serif;
+  font-size: 18px;
+  color: #0f172a;
+  margin: 0;
+}
+
+/* opcional: accesibilidad al tab */
+.ff-folder:focus-visible {
+  outline: 2px solid #2559c7;
+  outline-offset: 6px;
+  border-radius: 12px;
+}

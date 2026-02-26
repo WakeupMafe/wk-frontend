@@ -1,0 +1,72 @@
+.field {
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 18px;
+}
+
+.field__label {
+  font-family: "Poppins", sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  color: #1f2a44;
+  margin: 0;
+}
+
+.field__req {
+  color: #d11;
+  font-weight: 700;
+}
+
+.field__input {
+  height: 44px;
+  border-radius: 12px;
+  border: 2px solid #b7cdfa;
+  outline: none;
+  padding: 10px 14px;
+  font-family: "Poppins", sans-serif;
+  font-size: 16px;
+  color: #1f2a44;
+
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.field__input:focus {
+  border-color: #7fa8ff;
+}
+
+.field__input--error {
+  border-color: #ff6b6b;
+}
+
+.field__error {
+  margin: 0;
+  font-family: "Poppins", sans-serif;
+  font-size: 13px;
+  color: #ff3b3b;
+}
+/* =========================
+   TABLETS (≤ 1024px)
+   ========================= */
+@media (max-width: 1024px) {
+  .field {
+    width: 95%; /* un poquito más ancho */
+    margin-bottom: 14px; /* menos separación vertical */
+    gap: 1px;
+  }
+
+  .field__label {
+    font-size: 17px; /* antes 20px */
+  }
+
+  .field__input {
+    height: 40px; /* antes 44px */
+    font-size: 14px; /* antes 16px */
+    padding: 8px 12px;
+  }
+
+  .field__error {
+    font-size: 12px; /* ligeramente más pequeño */
+  }
+}

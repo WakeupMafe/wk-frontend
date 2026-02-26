@@ -1,0 +1,44 @@
+.page-encuestas {
+  position: relative; /* importante: que NO sea static */
+  z-index: 9999; /* lo subimos por encima del fondo */
+  width: 100%;
+  height: 100vh;
+  padding: 10px 10px;
+  display: flex;
+  gap: 0.2rem;
+  flex-direction: column;
+  margin: 0 auto;
+}
+.content-autorizados {
+  width: 100%;
+  height: auto;
+  display: flex;
+  margin: 0 auto;
+}
+.contenedorOpcionesEncuestas {
+  width: auto;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.contenedorOpcionesEncuestas {
+  isolation: isolate;
+}
+/* ✅ Solo afecta cuando estamos dentro de la página de Encuestas */
+.page-encuestas {
+  position: relative;
+  z-index: 9999; /* pone TODO el contenido arriba */
+  min-height: 100vh;
+}
+
+/* ✅ Solo para esta página: asegúrate que el fondo quede detrás */
+.page-encuestas .welcome-bg {
+  z-index: 0 !important;
+}
+
+/* ✅ y que el contenido quede encima */
+.page-encuestas .contenedorOpcionesEncuestas {
+  position: relative;
+  z-index: 1;
+}

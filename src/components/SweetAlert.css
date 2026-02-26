@@ -1,0 +1,51 @@
+/* ===== SWEET ALERT CUSTOM ===== */
+
+.swal2-popup {
+  font-family: "Poppins";
+  border-radius: 20px;
+  padding: 1.8rem;
+}
+
+/* Título */
+.swal2-title {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #0b1729;
+  margin-bottom: 0.4rem;
+}
+
+/* Texto */
+.swal2-html-container {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #4d617e;
+  margin-top: 0.2rem;
+}
+
+/* Botón confirmar */
+.swal2-confirm {
+  font-family: "Poppins", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.55rem 1.6rem;
+  border-radius: 999px;
+  background-color: #4a82bd !important;
+  box-shadow: 0 6px 14px rgba(74, 130, 189, 0.35);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Hover botón */
+.swal2-confirm:hover {
+  transform: scale(1.1);
+  background-color: #1b9fe6 !important;
+}
+
+/* Icono success */
+.swal2-success-ring {
+  border-color: #4a82bd !important;
+}
+
+.swal2-success-line-tip,
+.swal2-success-line-long {
+  background-color: #4a82bd !important;
+}

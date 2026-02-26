@@ -1,0 +1,260 @@
+.contenedor-bienvenida {
+  height: 100vh;
+  width: 100%;
+}
+.welcome-screen {
+  width: 100%;
+  display: block;
+  margin: 0 auto;
+  justify-content: center;
+  align-items: center;
+  height: auto;
+}
+/* Contenido sobre el layout de bienvenida */
+/* Contenedor general: SOLO mitad inferior de la pantalla */
+.Welcome {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 80vh; /* ✅ mitad inferior */
+  z-index: 10;
+  display: flex;
+  flex-direction: row;
+  align-items: center; /* ✅ se “pega” abajo dentro de su mitad */
+  justify-content: center;
+  margin: 0 auto;
+}
+
+/* 👇 Primer hijo: 60% */
+.Welcome > :nth-child(1) {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  flex-direction: column;
+  gap: 0px;
+  margin: 0 auto;
+  margin-left: 10px;
+  padding: 0 2rem;
+}
+
+.Welcome > :nth-child(2) {
+  width: 100%;
+  display: block;
+  justify-content: center;
+  align-items: flex-end;
+}
+.Welcome > :nth-child(2) img {
+  width: auto;
+  height: 100vh;
+}
+/* Boton de bienvenida*/
+.btn-entrar {
+  align-items: center;
+  border-radius: 20px;
+  border: 2px solid #1f3a5f;
+  font-family: "Poppins";
+  height: auto;
+  width: 50%;
+  font-size: 2rem;
+  padding: 0 1.2rem;
+  background-color: #1f3a5f;
+  letter-spacing: 0.05rem;
+  color: white;
+  cursor: pointer;
+  box-shadow: 2px 5px 2px rgba(31, 58, 95, 0.4);
+  transition: ease-in-out 0.3s;
+  /* Animacion de hover */
+}
+.btn-entrar:hover {
+  scale: 1.05;
+  box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
+}
+
+.btn-entrar-bienvenida {
+  align-items: center;
+  border-radius: 20px;
+  border: 2px solid #1f3a5f;
+  font-family: "Poppins";
+  height: auto;
+  width: 60%;
+  font-size: 2rem;
+  padding: 0 1.2rem;
+  background-color: #1f3a5f;
+  letter-spacing: 0.05rem;
+  color: white;
+  cursor: pointer;
+  box-shadow: 2px 5px 2px rgba(31, 58, 95, 0.4);
+  transition: ease-in-out 0.3s;
+  /* Animacion de hover */
+}
+.btn-entrar-bienvenida:hover {
+  scale: 1.05;
+  box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
+}
+h1 {
+  font-size: 5rem;
+  font-weight: 400;
+  margin: 0rem;
+  gap: 0rem;
+  line-height: 1;
+}
+h2 {
+  line-height: 1.1;
+  font-size: 1.8rem;
+  font-weight: 300;
+  margin-top: 0;
+  gap: 0rem;
+}
+
+/* Estilo de la pagina de Cedula */
+
+.cedula-h2 {
+  font-size: 1rem;
+  font-weight: 300;
+  margin: 0rem;
+  gap: 0rem;
+  line-height: 1.1;
+}
+.titulo-recuerda {
+  font-size: 5rem;
+  font-weight: 400;
+  margin: 0rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gif-recuerda {
+  width: 72px;
+  height: auto;
+  object-fit: contain;
+  margin-top: -10px;
+}
+.negritas {
+  font-weight: 600;
+}
+
+/* Estilo de la pagina de PIN */
+/* ===== PIN INPUT CON OJITO ===== */
+
+.pin-wrap {
+  position: relative;
+  width: 50%;
+  height: auto;
+  margin: 0 auto; /* igual que .input-cedula */
+}
+
+/* El input sigue usando tu clase original */
+.pin-wrap .input-cedula {
+  width: 100%;
+  padding-right: 1rem;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem; /* espacio para el ojito */
+}
+
+/* Botón del ojito */
+.pin-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #0b1729;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Hover suave */
+.pin-eye:hover {
+  opacity: 0.8;
+}
+
+/* Evita que el foco del botón rompa el diseño */
+.pin-eye:focus {
+  outline: none;
+}
+
+.input-cedula {
+  width: 50%;
+  height: 3rem;
+  box-sizing: border-box;
+  outline: none;
+  border: 2px solid #d54391;
+  border-radius: 20px;
+  font-family: "Poppins";
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  margin-top: 10px;
+  padding-left: 0.7rem;
+
+  transition: 0.2s ease-in-out;
+  letter-spacing: 0.2rem;
+}
+.input-cedula::placeholder {
+  letter-spacing: 0.2rem;
+  color: #0b1729;
+}
+.input-error-text {
+  line-height: 1;
+  margin: 0px;
+  font-size: 0.9rem;
+  color: #cc2c2c;
+  padding: 0;
+  gap: 0px;
+}
+.input-cedula:focus {
+  scale: 1.01;
+  border-color: #4a82bd; /* verde claro */
+  box-shadow: 0 0 8px rgba(74, 141, 189, 0.6);
+}
+.input-cedula.value {
+  margin-left: 10px;
+}
+
+.gif-pin {
+  width: 70px;
+  height: auto;
+  object-fit: contain;
+}
+
+/* =========================
+   TABLETS (768px – 1024px)
+========================= */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .Welcome {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    gap: 0px;
+  }
+
+  .Welcome > :nth-child(1) {
+    width: 100%;
+    margin-left: 0;
+    padding: 0 1rem;
+    height: 20vh;
+  }
+
+  .Welcome > :nth-child(2) {
+    width: 100%;
+    height: 70vh;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    margin-top: auto;
+  }
+
+  .Welcome > :nth-child(2) img {
+    height: 70vh;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
+}

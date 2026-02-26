@@ -55,7 +55,7 @@ export default function App() {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch("http://127.0.0.1:8000/", { signal: controller.signal })
+    fetch(`${API_URL}/`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Backend ${res.status}`);
         return res.json();

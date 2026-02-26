@@ -32,7 +32,7 @@ export default function Cedula() {
     try {
       setError("");
 
-      const res = await fetch("http://127.0.0.1:8000/verificacion/cedula", {
+      const res = await fetch(`${API_URL}/verificacion/cedula`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cedula: cedula }), // ✅ string

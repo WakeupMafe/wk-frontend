@@ -136,3 +136,29 @@ body,
     }
   }
 }
+.objetivo-card {
+  background: #ffffff;
+  border: 0.0625rem solid rgba(31, 42, 68, 0.12);
+  border-radius: 1rem;
+  padding: 1.1rem 1.1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 0.35rem 1rem rgba(31, 42, 68, 0.06);
+}
+
+.objetivo-card__title {
+  margin: 0 0 0.8rem 0;
+  font-family: "Poppins", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1f2a44;
+}
+
+.objetivo-card__title span {
+  font-weight: 700;
+}
+
+.objetivo-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}

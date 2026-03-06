@@ -61,17 +61,30 @@ body,
 .botones {
   width: 50%;
   border-radius: 2rem;
-  border: 2px solid #2c70cc;
-  background-color: transparent;
+  border: 2px solid #4a8dbd;
+  background-color: #4a8dbd;
+  color: white;
   height: auto;
   font-family: "Poppins";
-  font-weight: 400;
+  font-weight: 500;
   font-size: 1.1rem;
-  padding: 5px 0px;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: all 0.25s ease;
 }
+
+/* Hover */
 .botones:hover {
-  border: 2px solid #457e47;
-  scale: 1.04;
+  transform: scale(1.04);
+  background-color: #5da2d6;
+  border-color: #5da2d6;
+}
+
+/* Estado enviado */
+.botonenvio {
+  background-color: #4caf50;
+  border: 2px solid #4caf50;
+  color: white;
 }
 
 .objetivos_especificos {

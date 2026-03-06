@@ -579,7 +579,7 @@ export default function EncuestaLogrosWKP() {
         )}
 
         <div className="contenedor-botones">
-          <button className="botones" type="submit">
+          <button className="botones botonenvio" type="submit">
             Enviar
           </button>
 

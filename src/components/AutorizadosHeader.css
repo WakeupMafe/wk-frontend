@@ -148,3 +148,54 @@
     line-height: 0.5rem;
   }
 }
+/* CELULARES */
+@media (max-width: 767px) {
+  .AutorizadosCabecera {
+    border: 2px solid rgba(189, 190, 194, 0.573);
+    border-radius: 0.75rem;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 0.6rem;
+    padding: 0.8rem 0.6rem;
+  }
+
+  /* Avatar */
+  .AutorizadosCabecera > :nth-child(1) {
+    width: 100%;
+    height: auto;
+  }
+
+  .logoavatar {
+    width: 80px;
+    height: auto;
+  }
+
+  /* Textos */
+  .AutorizadosCabecera > :nth-child(2) {
+    width: 100%;
+    padding: 0.4rem 0.8rem;
+    align-items: center;
+    text-align: center;
+  }
+
+  .titulo,
+  .numEncuestas {
+    font-size: 1rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  /* Home */
+  .AutorizadosCabecera > :nth-child(3) {
+    width: 100%;
+    height: auto;
+    padding: 0.3rem;
+  }
+
+  .logohome {
+    width: 52px;
+    height: auto;
+  }
+}

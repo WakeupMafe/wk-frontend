@@ -258,3 +258,79 @@ h2 {
     display: block;
   }
 }
+/* =========================
+   MOBILE (hasta 767px)
+========================= */
+@media (max-width: 767px) {
+  .Welcome {
+    flex-direction: column;
+    height: auto;
+    padding: 1rem 0;
+    gap: 1rem;
+  }
+
+  .Welcome > :nth-child(1) {
+    width: 100%;
+    margin-left: 0;
+    padding: 0 1.2rem;
+  }
+
+  .Welcome > :nth-child(2) {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+  }
+
+  .Welcome > :nth-child(2) img {
+    width: 85%;
+    height: auto;
+    max-height: 45vh;
+    object-fit: contain;
+  }
+
+  /* TITULOS */
+
+  h1 {
+    font-size: 2.5rem;
+    line-height: 1.1;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  .titulo-recuerda {
+    font-size: 2.2rem;
+    gap: 8px;
+  }
+
+  .gif-recuerda {
+    width: 48px;
+  }
+
+  /* BOTONES */
+
+  .btn-entrar,
+  .btn-entrar-bienvenida {
+    width: 90%;
+    font-size: 1.2rem;
+    padding: 0.6rem 1rem;
+  }
+
+  /* INPUTS */
+
+  .input-cedula {
+    width: 90%;
+    font-size: 1rem;
+    height: 2.6rem;
+  }
+
+  .pin-wrap {
+    width: 90%;
+  }
+
+  .gif-pin {
+    width: 50px;
+  }
+}

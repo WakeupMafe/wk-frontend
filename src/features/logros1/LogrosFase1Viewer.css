@@ -1,0 +1,242 @@
+.lf1viewer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.lf1viewer__tableWrap {
+  width: 100%;
+  background: #eef4ff;
+  border: 1px solid #d7e5ff;
+  border-radius: 1.75rem;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+
+.lf1viewer__table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.lf1viewer__head,
+.lf1viewer__row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.lf1viewer__th {
+  background: #4a83d5;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  text-align: center;
+}
+
+.lf1viewer__td {
+  background: #ffffff;
+  color: #4a83d5;
+  font-weight: 600;
+  font-size: clamp(0.92rem, 1.7vw, 1.05rem);
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  border: 1px solid #d9e7ff;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+}
+
+.lf1viewer__td--center {
+  justify-content: center;
+  text-align: center;
+}
+
+.lf1viewer__menuBox {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.lf1viewer__actionBtn {
+  border: none;
+  background: #4a83d5;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: clamp(0.9rem, 1.6vw, 1rem);
+  padding: 0.9rem 1.2rem;
+  border-radius: 0.95rem;
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.lf1viewer__actionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lf1viewer__dropdown {
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  width: 220px;
+  background: #ffffff;
+  border: 1px solid #d9e7ff;
+  border-radius: 1rem;
+  box-shadow: 0 12px 28px rgba(19, 63, 145, 0.14);
+  overflow: hidden;
+  z-index: 20;
+}
+
+.lf1viewer__dropdownItem {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #4a83d5;
+  text-align: left;
+  padding: 0.95rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lf1viewer__dropdownItem:hover {
+  background: #eef4ff;
+}
+
+.lf1viewer__error {
+  background: #fff1f1;
+  color: #b42318;
+  border: 1px solid #f7c8c8;
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  font-weight: 600;
+}
+
+.lf1viewer__detailWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lf1viewer__toggleBtn {
+  width: 100%;
+  border: none;
+  background: #4a83d5;
+  color: #ffffff;
+  padding: 1rem 1.2rem;
+  border-radius: 1rem;
+  font-size: clamp(0.95rem, 1.8vw, 1.05rem);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lf1viewer__card {
+  background: #ffffff;
+  border: 1px solid #d9e7ff;
+  border-radius: 1.5rem;
+  padding: 1.4rem;
+  box-shadow: 0 12px 30px rgba(27, 74, 167, 0.08);
+  overflow-x: auto;
+}
+
+.lf1viewer__title {
+  margin: 0 0 1rem 0;
+  color: #4a83d5;
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  font-weight: 800;
+}
+
+.lf1viewer__separator {
+  height: 1px;
+  background: #e5eefc;
+  border: none;
+  margin: 1.35rem 0;
+}
+
+.lf1viewer__kv {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) 1fr;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid #edf3ff;
+}
+
+.lf1viewer__kv--stack {
+  align-items: start;
+}
+
+.lf1viewer__k {
+  color: #44464b;
+  font-weight: 800;
+  font-size: clamp(0.95rem, 1.7vw, 1.05rem);
+}
+
+.lf1viewer__v {
+  color: #4a83d5;
+  font-size: clamp(0.94rem, 1.6vw, 1rem);
+  line-height: 1.5;
+}
+
+.lf1viewer__miniTable {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dbe8ff;
+  border-radius: 1rem;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+
+.lf1viewer__miniHead,
+.lf1viewer__miniRow {
+  display: grid;
+  grid-template-columns: 70px 1fr 1fr;
+}
+
+.lf1viewer__miniHead > div {
+  background: #eaf1ff;
+  color: #4a83d5;
+  font-weight: 800;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #dbe8ff;
+}
+
+.lf1viewer__miniRow > div {
+  padding: 0.85rem 1rem;
+  color: #324968;
+  border-bottom: 1px solid #edf3ff;
+  background: #ffffff;
+}
+
+.lf1viewer__miniRow:last-child > div {
+  border-bottom: none;
+}
+
+@media (max-width: 900px) {
+  .lf1viewer__head,
+  .lf1viewer__row {
+    grid-template-columns: 1fr;
+  }
+
+  .lf1viewer__dropdown {
+    right: 50%;
+    transform: translateX(50%);
+  }
+
+  .lf1viewer__kv {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .lf1viewer__miniHead,
+  .lf1viewer__miniRow {
+    grid-template-columns: 60px 1fr 1fr;
+  }
+}

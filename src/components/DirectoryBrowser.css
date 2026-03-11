@@ -82,3 +82,45 @@
   font-weight: 600;
   color: #1f2a44;
 }
+/* =========================
+   MOBILE (hasta 767px)
+========================= */
+@media (max-width: 767px) {
+  .dir {
+    padding: 1rem 0.8rem;
+  }
+
+  .dir__breadcrumb {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .dir__crumb {
+    gap: 6px;
+  }
+
+  .dir__sep {
+    margin: 0 6px;
+  }
+
+  .dir__list {
+    gap: 5px;
+  }
+
+  .dir__row {
+    padding: 9px 10px;
+    gap: 10px;
+    border-radius: 10px;
+  }
+
+  .dir__icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
+    border-radius: 8px;
+  }
+
+  .dir__label {
+    font-size: 0.9rem;
+  }
+}

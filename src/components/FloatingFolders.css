@@ -10,10 +10,10 @@
 }
 
 .ff-folders {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 80px; /* separacion como tu imagen */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  justify-items: center;
+  gap: 40px;
   width: 100%;
 }
 
@@ -27,7 +27,7 @@
 }
 
 .ff-icon {
-  width: 140px; /* ajusta según tu carpeta */
+  width: 140px;
   height: auto;
   display: block;
 }
@@ -39,7 +39,7 @@
   margin: 0;
 }
 
-/* opcional: accesibilidad al tab */
+/* accesibilidad */
 .ff-folder:focus-visible {
   outline: 2px solid #2559c7;
   outline-offset: 6px;

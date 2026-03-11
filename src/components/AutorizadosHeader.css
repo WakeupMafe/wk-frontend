@@ -7,6 +7,7 @@
   justify-content: space-between;
   width: 100%;
   height: auto;
+  gap: 0.5rem;
 }
 
 /* Columna 1: avatar */
@@ -14,7 +15,8 @@
   display: grid;
   place-items: center;
   width: 20%;
-  height: 100%;
+  height: auto;
+  padding: 0.5rem;
 }
 
 /* Columna 2: textos */
@@ -26,17 +28,18 @@
   justify-content: center;
   margin: 0 auto;
   width: 60%;
-  height: 100%;
-  gap: 0px;
+  height: auto;
+  gap: 0;
 }
 
 .titulo,
 .numEncuestas {
   gap: 0;
   padding: 0;
+  margin: 0;
   font-family: "Poppins", sans-serif;
   font-size: 1.5rem;
-  line-height: 0.5rem;
+  line-height: 1.1;
 }
 
 /* Columna 3: home */
@@ -46,26 +49,23 @@
   justify-content: center;
   flex-direction: column;
   width: 20%;
-  height: 100%;
-  overflow: hidden;
-  padding: 20px 20px;
+  height: auto;
+  overflow: visible;
+  padding: 0.5rem;
 }
 
 .logohome,
 .logoavatar {
-  width: 70px;
-  object-fit: contain;
+  display: block;
+  width: clamp(36px, 8vw, 64px);
+  max-width: 100%;
   height: auto;
+  object-fit: contain;
   transition: transform 0.3s ease-in-out;
 }
 
 .logohome:hover {
   transform: scale(1.05);
-}
-
-.logoavatar {
-  width: 60%;
-  height: 60%;
 }
 
 .logoavatar:hover {
@@ -87,51 +87,24 @@
     gap: 1rem;
     align-items: center;
     text-align: center;
+    padding: 0.5rem;
   }
 
   .AutorizadosCabecera > :nth-child(1) {
     width: 20%;
-    height: 100%;
-  }
-
-  .logoavatar {
-    width: 90%;
-  }
-
-  .Autorizados-titulo {
-    justify-content: flex-start;
-    align-items: flex-start;
-  }
-
-  .titulo,
-  .numEncuestas {
-    gap: 0;
-    padding: 0;
-    font-family: "Poppins", sans-serif;
-    font-size: 1.15rem;
-    line-height: 0.5rem;
-  }
-}
-
-/* TABLETS */
-@media (max-width: 1024px) {
-  .AutorizadosCabecera {
-    border: 2px solid rgba(189, 190, 194, 0.573);
-    border-radius: 0.5rem;
-    flex-direction: row;
     height: auto;
-    gap: 1rem;
-    align-items: center;
-    text-align: center;
   }
 
-  .AutorizadosCabecera > :nth-child(1) {
+  .AutorizadosCabecera > :nth-child(2) {
+    width: 60%;
+    height: auto;
+    padding: 0.8rem;
+  }
+
+  .AutorizadosCabecera > :nth-child(3) {
     width: 20%;
-    height: 100%;
-  }
-
-  .logoavatar {
-    width: 90%;
+    height: auto;
+    padding: 0.5rem;
   }
 
   .Autorizados-titulo {
@@ -141,13 +114,17 @@
 
   .titulo,
   .numEncuestas {
-    gap: 0;
-    padding: 0;
     font-family: "Poppins", sans-serif;
     font-size: 1.15rem;
-    line-height: 0.5rem;
+    line-height: 1.1;
+  }
+
+  .logohome,
+  .logoavatar {
+    width: clamp(34px, 7vw, 58px);
   }
 }
+
 /* CELULARES */
 @media (max-width: 767px) {
   .AutorizadosCabecera {
@@ -165,16 +142,13 @@
   .AutorizadosCabecera > :nth-child(1) {
     width: 100%;
     height: auto;
-  }
-
-  .logoavatar {
-    width: 80px;
-    height: auto;
+    padding: 0.2rem;
   }
 
   /* Textos */
   .AutorizadosCabecera > :nth-child(2) {
     width: 100%;
+    height: auto;
     padding: 0.4rem 0.8rem;
     align-items: center;
     text-align: center;
@@ -192,10 +166,11 @@
     width: 100%;
     height: auto;
     padding: 0.3rem;
+    overflow: visible;
   }
 
-  .logohome {
-    width: 52px;
-    height: auto;
+  .logohome,
+  .logoavatar {
+    width: clamp(42px, 18vw, 72px);
   }
 }

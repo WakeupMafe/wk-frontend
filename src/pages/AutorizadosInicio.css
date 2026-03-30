@@ -1,16 +1,34 @@
 /* AutorizadosInicio.css (solo layout de la página) */
 
+/* Envuelve fondo + contenido: crece con el scroll del documento (no recorta en móvil) */
+.autorizados-page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto !important;
+  overflow-x: hidden;
+  overflow-y: visible;
+  box-sizing: border-box;
+}
+
+/* height: auto !important evita el * { height:100% } global que fija la vista y recorta */
 .ContenidoAutorizados {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   width: 100%;
+  height: auto !important;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   z-index: 1;
-  overflow: hidden;
-  padding: 1rem;
+  overflow-x: hidden;
+  overflow-y: visible;
+  padding: clamp(0.75rem, 2.5vw, 1.5rem);
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
 }
 
 .Autorizados-botones {
@@ -39,14 +57,16 @@
   display: grid;
   margin: 0 auto;
   width: 100%;
-  height: 60%;
+  height: auto;
+  max-width: min(1100px, 100%);
+  padding-inline: clamp(0.25rem, 1vw, 0.75rem);
+  box-sizing: border-box;
 }
 
 /* TABLETS */
 @media (max-width: 1024px) {
   .ContenidoAutorizados {
     height: auto;
-    padding: 1.5rem;
   }
 
   .Autorizados-botones {

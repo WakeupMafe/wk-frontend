@@ -31,7 +31,7 @@
   width: 100%;
   min-height: 0;
   background: transparent;
-  padding: clamp(12px, 4vw, 25px);
+  padding: clamp(17px, 4vw, 30px);
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
@@ -53,7 +53,7 @@
   margin: 0 auto;
   background: #fff;
   border-radius: 16px;
-  padding: clamp(12px, 4vw, 25px);
+  padding: clamp(17px, 4vw, 30px);
   box-shadow: 0 8px 28px rgba(31, 58, 95, 0.1);
   display: grid;
   grid-template-columns: 1fr;

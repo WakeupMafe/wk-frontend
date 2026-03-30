@@ -7,7 +7,7 @@
   line-height: 1.55;
   color: #1e2a3a;
   margin: 0;
-  padding: clamp(10px, 3vw, 16px) clamp(10px, 3.5vw, 18px);
+  padding: clamp(15px, 3vw, 21px) clamp(15px, 3.5vw, 23px);
   background: linear-gradient(135deg, #f7fbff 0%, #eef4ff 100%);
   border-radius: 12px;
   border-left: 4px solid #7da1c1;

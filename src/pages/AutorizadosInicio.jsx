@@ -124,7 +124,7 @@ export default function AutorizadosInicio() {
   };
 
   return (
-    <>
+    <div className="autorizados-page">
       <WelcomeLayout image={fondo} />
 
       <div className="ContenidoAutorizados">
@@ -168,6 +168,6 @@ export default function AutorizadosInicio() {
           />
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -34,6 +34,12 @@ export function labelLimitacion(value) {
   return o?.label || value || "—";
 }
 
+/** Texto para el resumen clínico: concuerda en femenino con «limitación» (p. ej. poca). */
+export function labelLimitacionNarrativa(value) {
+  if (value === "poco") return "poca";
+  return labelLimitacion(value);
+}
+
 export function labelsActividades(values) {
   const arr = parseActividadesAfectadas(values);
   if (arr.length === 0) return "—";

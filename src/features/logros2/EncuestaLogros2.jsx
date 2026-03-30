@@ -17,7 +17,7 @@ import { sweetLoading, sweetClose } from "../../components/SweetAlert";
 import { NIVEL_MEJORA, getOpcionesNuevoObjetivo } from "./logros2Catalog";
 import {
   formatFechaEvaluacion,
-  labelLimitacion,
+  labelLimitacionNarrativa,
   labelsActividades,
   labelProblema,
   labelObjetivoPrevio,
@@ -106,7 +106,9 @@ export default function EncuestaLogros2() {
   );
 
   const fechaEval = fase1 ? formatFechaEvaluacion(fase1.created_at) : "";
-  const limLabel = fase1 ? labelLimitacion(fase1.limitacion_moverse) : "";
+  const limLabel = fase1
+    ? labelLimitacionNarrativa(fase1.limitacion_moverse)
+    : "";
   const actLabel = fase1 ? labelsActividades(fase1.actividades_afectadas) : "";
 
   const onDocChange = (e) => {

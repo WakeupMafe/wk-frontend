@@ -1,7 +1,10 @@
 import React from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
+
+import { warmupBackend } from "./lib/api/warmupBackend";
+import { alertWarning } from "./lib/alerts/appAlert";
 
 // Páginas
 import Bienvenidas from "./pages/Bienvenidas.jsx";
@@ -52,24 +55,24 @@ function SafeRoute({ children }) {
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 export default function App() {
-  const [data, setData] = useState(null);
-
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
 
-    fetch(`${API_URL}/`, { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Backend ${res.status}`);
-        return res.json();
-      })
-      .then((json) => setData(json))
-      .catch((err) => {
-        // ✅ si navegaste y se abortó, no es error real
-        if (err.name === "AbortError") return;
-        console.error("Error backend:", err);
-      });
+    (async () => {
+      const result = await warmupBackend(API_URL);
+      if (cancelled) return;
+      if (!result.ok) {
+        console.error("Warmup backend:", result.error);
+        await alertWarning({
+          title: "No se pudo conectar",
+          text: "Comprueba tu conexión a internet e intenta recargar la página en un momento.",
+        });
+      }
+    })();
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

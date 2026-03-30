@@ -1,6 +1,7 @@
 export const TIPOS_DOCUMENTO = [
   { value: "pasaporte", label: "Pasaporte" },
   { value: "cedula", label: "Cédula" },
+  { value: "tarjeta_identidad", label: "Tarjeta de identidad" },
   { value: "cedula_extranjeria", label: "Cédula de extranjería" },
 ];
 

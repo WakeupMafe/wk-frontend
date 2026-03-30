@@ -36,6 +36,7 @@ function TextField({
   placeholder,
   error,
   disabled,
+  maxLength,
 }) {
   return (
     <div className="field">
@@ -53,6 +54,7 @@ function TextField({
         required={required}
         disabled={disabled}
         placeholder={placeholder}
+        maxLength={maxLength}
         className={`field__input ${error ? "field__input--error" : ""}`}
       />
 
@@ -190,7 +192,7 @@ export default function EncuestaLogrosWKP() {
   };
 
   const onDocumentoChange = (e) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "");
+    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 11);
     setForm((prev) => ({ ...prev, documento: onlyDigits }));
   };
 
@@ -439,7 +441,8 @@ export default function EncuestaLogrosWKP() {
           onChange={onDocumentoChange}
           required
           error={errors.documento}
-          placeholder="Solo números (6 a 10 dígitos)"
+          placeholder="Solo números (6 a 11: cédula o tarjeta de identidad)"
+          maxLength={11}
         />
 
         <h3 className="Secciones">Sección 2: Estado y limitación</h3>

@@ -11,11 +11,12 @@ export function validateEncuestaLogros(form, objetivosAResponder) {
   if (!form.documento) {
     nextErrors.documento = "Digite el documento.";
   } else {
+    // Cédula, TI y CE en Colombia: 6–11 dígitos (NUIP / formatos recientes).
     if (form.documento.length < 6) {
       nextErrors.documento = "Debe tener mínimo 6 dígitos.";
     }
-    if (form.documento.length > 10) {
-      nextErrors.documento = "Debe tener máximo 10 dígitos.";
+    if (form.documento.length > 11) {
+      nextErrors.documento = "Debe tener máximo 11 dígitos.";
     }
   }
 

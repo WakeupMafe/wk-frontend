@@ -33,7 +33,7 @@
   align-items: center;
   text-align: center;
   flex-direction: column;
-  gap: 0;
+  gap: clamp(0.35rem, 2vw, 0.75rem);
   margin: 0 auto;
   margin-left: 10px;
   padding: 0 clamp(1rem, 4vw, 2rem);
@@ -110,18 +110,20 @@
   box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
 }
 
-/* Tablet + móvil: columna, avatar pegado al borde inferior del viewport */
+/* Tablet + móvil: columna; el hueco va arriba (flex-end), no entre botón y avatar */
 @media (max-width: 1024px) {
   .Welcome {
     flex-direction: column;
     align-items: stretch;
-    justify-content: flex-start;
+    /* Agrupa texto+botón+avatar abajo; el espacio sobrante queda arriba (no en el medio) */
+    justify-content: flex-end;
     height: auto;
     min-height: calc(100dvh - clamp(3.25rem, 11vw, 5.75rem));
     max-height: none;
-    padding: clamp(0.25rem, 1.5vw, 0.75rem) clamp(0.65rem, 3.5vw, 1.25rem) 0;
+    padding: clamp(3.75rem, 11vw, 5.5rem) clamp(0.65rem, 3.5vw, 1.25rem) 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    gap: clamp(0.25rem, 1.8vw, 0.65rem);
+    gap: clamp(0.35rem, 1.5vw, 0.75rem);
+    box-sizing: border-box;
   }
 
   .welcome-content {
@@ -133,18 +135,19 @@
   }
 
   .welcome-avatar {
-    margin-top: auto;
+    margin-top: 0;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     line-height: 0;
     min-height: 0;
+    flex-shrink: 0;
   }
 
   .welcome-avatar img {
-    width: min(85%, 28rem);
+    width: min(88%, 28rem);
     height: auto;
-    max-height: clamp(11rem, min(46vh, 46dvh), 26rem);
+    max-height: clamp(10rem, min(38vh, 38dvh), 24rem);
     object-fit: contain;
     object-position: bottom center;
   }

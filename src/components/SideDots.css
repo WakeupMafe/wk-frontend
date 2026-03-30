@@ -32,6 +32,17 @@
   transform: scale(1.15);
 }
 
-.aside-dot:hover {
-  transform: scale(1.1);
+/* Móvil: puntos bajo el header, no en el centro del viewport */
+@media (max-width: 767px) {
+  .aside-dots {
+    top: clamp(5.25rem, 14vh, 7.5rem);
+    right: clamp(0.65rem, 3vw, 1.25rem);
+    transform: none;
+    gap: clamp(0.5rem, 2vw, 0.75rem);
+  }
+
+  .aside-dot {
+    width: clamp(10px, 2.8vw, 12px);
+    height: clamp(10px, 2.8vw, 12px);
+  }
 }

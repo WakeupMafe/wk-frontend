@@ -1,17 +1,26 @@
-/* Agrega esto al inicio de index.css */
-* {
-  margin: 0;
-  height: 100%;
-  width: 100%;
-  padding: 0;
+/* Reset seguro: NO aplicar width/height/overflow a * (rompe móvil con scroll anidado) */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
-  overflow: auto;
-  font-family: "Poppins";
 }
 
-html,
+html {
+  margin: 0;
+  padding: 0;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 body {
   margin: 0;
   padding: 0;
-  overflow: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: "Poppins", sans-serif;
+  /* Evita “arrastre” horizontal raro en iOS cuando hay overflow residual */
+  overscroll-behavior-x: none;
 }

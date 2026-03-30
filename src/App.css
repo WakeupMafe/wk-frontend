@@ -1,11 +1,13 @@
 #root {
   width: 100%;
+  max-width: 100%;
   min-height: 100%;
   min-height: 100dvh;
   height: auto;
   margin: 0;
   padding: 0;
   font-family: "Poppins";
+  overflow-x: hidden;
 }
 
 /* Fallback mientras cargan rutas con React.lazy */

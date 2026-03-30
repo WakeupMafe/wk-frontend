@@ -11,44 +11,61 @@
   height: auto;
 }
 /* Contenido sobre el layout de bienvenida */
-/* Contenedor general: SOLO mitad inferior de la pantalla */
+/* Contenedor general: mitad inferior en escritorio; columna fluida en ≤1024px */
 .Welcome {
   position: fixed;
   left: 0;
   bottom: 0;
   width: 100%;
-  height: 80vh; /* ✅ mitad inferior */
+  height: 80vh;
   z-index: 10;
   display: flex;
   flex-direction: row;
-  align-items: center; /* ✅ se “pega” abajo dentro de su mitad */
+  align-items: center;
   justify-content: center;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 
-/* 👇 Primer hijo: 60% */
-.Welcome > :nth-child(1) {
+.welcome-content {
   width: 100%;
   display: flex;
   align-items: center;
   text-align: center;
   flex-direction: column;
-  gap: 0px;
+  gap: 0;
   margin: 0 auto;
   margin-left: 10px;
-  padding: 0 2rem;
+  padding: 0 clamp(1rem, 4vw, 2rem);
+  box-sizing: border-box;
 }
 
-.Welcome > :nth-child(2) {
+.welcome-avatar {
   width: 100%;
   display: block;
-  justify-content: center;
-  align-items: flex-end;
 }
-.Welcome > :nth-child(2) img {
+
+.welcome-avatar img {
   width: auto;
   height: 100vh;
+  display: block;
 }
+
+/* Tipografía fluida solo en pantalla de bienvenida */
+.Welcome h1 {
+  font-size: clamp(2.25rem, 5vw + 1rem, 5rem);
+  font-weight: 400;
+  margin: 0;
+  line-height: 1;
+}
+
+.Welcome h2 {
+  line-height: 1.15;
+  font-size: clamp(1.05rem, 1.2vw + 0.75rem, 1.8rem);
+  font-weight: 300;
+  margin-top: 0;
+}
+
 /* Boton de bienvenida*/
 .btn-entrar {
   align-items: center;
@@ -74,40 +91,64 @@
 
 .btn-entrar-bienvenida {
   align-items: center;
-  border-radius: 20px;
+  border-radius: clamp(14px, 2vw, 20px);
   border: 2px solid #1f3a5f;
-  font-family: "Poppins";
+  font-family: "Poppins", sans-serif;
   height: auto;
-  width: 60%;
-  font-size: 2rem;
-  padding: 0 1.2rem;
+  width: min(92%, 22rem);
+  font-size: clamp(1rem, 2.5vw + 0.5rem, 2rem);
+  padding: clamp(0.45rem, 1.2vw, 0.75rem) clamp(0.85rem, 2vw, 1.2rem);
   background-color: #1f3a5f;
   letter-spacing: 0.05rem;
   color: white;
   cursor: pointer;
   box-shadow: 2px 5px 2px rgba(31, 58, 95, 0.4);
   transition: ease-in-out 0.3s;
-  /* Animacion de hover */
 }
 .btn-entrar-bienvenida:hover {
   scale: 1.05;
   box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
 }
-h1 {
-  font-size: 5rem;
-  font-weight: 400;
-  margin: 0rem;
-  gap: 0rem;
-  line-height: 1;
-}
-h2 {
-  line-height: 1.1;
-  font-size: 1.8rem;
-  font-weight: 300;
-  margin-top: 0;
-  gap: 0rem;
-}
 
+/* Tablet + móvil: columna, avatar pegado al borde inferior del viewport */
+@media (max-width: 1024px) {
+  .Welcome {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    height: auto;
+    min-height: calc(100dvh - clamp(3.25rem, 11vw, 5.75rem));
+    max-height: none;
+    padding: clamp(0.25rem, 1.5vw, 0.75rem) clamp(0.65rem, 3.5vw, 1.25rem) 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    gap: clamp(0.25rem, 1.8vw, 0.65rem);
+  }
+
+  .welcome-content {
+    width: 100%;
+    margin-left: 0;
+    padding-left: clamp(0.75rem, 4vw, 1.5rem);
+    padding-right: clamp(0.75rem, 4vw, 1.5rem);
+    flex-shrink: 0;
+  }
+
+  .welcome-avatar {
+    margin-top: auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    line-height: 0;
+    min-height: 0;
+  }
+
+  .welcome-avatar img {
+    width: min(85%, 28rem);
+    height: auto;
+    max-height: clamp(11rem, min(46vh, 46dvh), 26rem);
+    object-fit: contain;
+    object-position: bottom center;
+  }
+}
 /* Estilo de la pagina de Cedula */
 
 .cedula-h2 {
@@ -225,81 +266,9 @@ h2 {
 }
 
 /* =========================
-   TABLETS (768px – 1024px)
-========================= */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .Welcome {
-    display: flex;
-    flex-direction: column;
-    height: auto;
-    gap: 0px;
-  }
-
-  .Welcome > :nth-child(1) {
-    width: 100%;
-    margin-left: 0;
-    padding: 0 1rem;
-    height: 20vh;
-  }
-
-  .Welcome > :nth-child(2) {
-    width: 100%;
-    height: 70vh;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    margin-top: auto;
-  }
-
-  .Welcome > :nth-child(2) img {
-    height: 70vh;
-    width: auto;
-    object-fit: contain;
-    display: block;
-  }
-}
-/* =========================
    MOBILE (hasta 767px)
 ========================= */
 @media (max-width: 767px) {
-  .Welcome {
-    flex-direction: column;
-    height: auto;
-    padding: 1rem 0;
-    gap: 1rem;
-  }
-
-  .Welcome > :nth-child(1) {
-    width: 100%;
-    margin-left: 0;
-    padding: 0 1.2rem;
-  }
-
-  .Welcome > :nth-child(2) {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-  }
-
-  .Welcome > :nth-child(2) img {
-    width: 85%;
-    height: auto;
-    max-height: 45vh;
-    object-fit: contain;
-  }
-
-  /* TITULOS */
-
-  h1 {
-    font-size: 2.5rem;
-    line-height: 1.1;
-  }
-
-  h2 {
-    font-size: 1.2rem;
-  }
-
   .titulo-recuerda {
     font-size: 2.2rem;
     gap: 8px;
@@ -311,8 +280,7 @@ h2 {
 
   /* BOTONES */
 
-  .btn-entrar,
-  .btn-entrar-bienvenida {
+  .btn-entrar {
     width: 90%;
     font-size: 1.2rem;
     padding: 0.6rem 1rem;

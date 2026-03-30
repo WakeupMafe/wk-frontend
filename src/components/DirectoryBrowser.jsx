@@ -46,8 +46,23 @@ export default function DirectoryBrowser({
               className={`dir__row ${isActive ? "dir__row--active" : ""}`}
               onClick={() => handleClick(item)}
             >
-              <span className={`dir__icon dir__icon--${accent}`}>
-                {kind === "folder" ? "📁" : "📄"}
+              <span
+                className={`dir__icon dir__icon--${accent}${
+                  item.iconSrc ? " dir__icon--asset" : ""
+                }`}
+              >
+                {item.iconSrc ? (
+                  <img
+                    src={item.iconSrc}
+                    alt=""
+                    className="dir__icon__img"
+                    draggable={false}
+                  />
+                ) : kind === "folder" ? (
+                  "📁"
+                ) : (
+                  "📄"
+                )}
               </span>
 
               <span className="dir__label">{item.label}</span>

@@ -30,20 +30,19 @@ export default function AutorizadosHeader({
       {/* Título */}
       <div className="Autorizados-titulo">
         <h2 className="titulo">
-          Bienvenid@ de nuevo <strong className="negrita">{usuario}</strong>
+          Bienvenid@ de nuevo{" "}
+          <span className="autorizados-dato">{usuario}</span>
         </h2>
 
-        {/* ✅ (por ahora no lo mostramos si no quieres) */}
         {showEncuestasCount ? (
           <h2 className="numEncuestas">
             Número de encuestas realizadas:{" "}
-            <strong className="negrita">{encuestasRealizadas}</strong>
+            <span className="autorizados-dato">{encuestasRealizadas}</span>
           </h2>
         ) : null}
 
-        {/* ✅ Mostrar sede */}
         <h2 className="numEncuestas">
-          Sede: <strong className="negrita">{sede}</strong>
+          Sede: <span className="autorizados-dato">{sede}</span>
         </h2>
       </div>
 

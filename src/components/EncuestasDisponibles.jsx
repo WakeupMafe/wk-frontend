@@ -6,6 +6,8 @@ import WelcomeLayout from "../layouts/WelcomeLayout";
 import AutorizadosHeader from "../components/AutorizadosHeader";
 
 import fondo2 from "../assets/fondo2.svg";
+import iconoLogros from "../assets/Logros.png";
+import iconoSeguimiento from "../assets/Seguimientos.png";
 
 export default function EncuestasDisponibles() {
   const navigate = useNavigate();
@@ -25,6 +27,7 @@ export default function EncuestasDisponibles() {
         kind: "file",
         accent: "green",
         route: "encuesta-logros",
+        iconSrc: iconoLogros,
       },
       {
         id: "encuesta-seguimiento",
@@ -32,6 +35,7 @@ export default function EncuestasDisponibles() {
         kind: "file",
         accent: "blue",
         route: "encuesta-seguimiento",
+        iconSrc: iconoSeguimiento,
       },
     ],
     [],

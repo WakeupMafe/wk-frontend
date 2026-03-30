@@ -78,8 +78,8 @@
 }
 
 .dir__icon {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   display: grid;
   place-items: center;
@@ -99,6 +99,22 @@
 
 .dir__icon--blue {
   background: rgba(37, 89, 199, 0.16);
+}
+
+.dir__icon--asset {
+  padding: 2px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgba(31, 42, 68, 0.12);
+}
+
+.dir__icon__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  pointer-events: none;
 }
 
 .dir__label {
@@ -139,8 +155,8 @@
   }
 
   .dir__icon {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     font-size: 0.9rem;
     border-radius: 8px;
   }

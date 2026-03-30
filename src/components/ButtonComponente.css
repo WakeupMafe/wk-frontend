@@ -1,36 +1,66 @@
 .btn-componente {
-  height: 44px;
+  box-sizing: border-box;
+  min-height: 44px;
   border-radius: 12px;
   border: none;
-  padding: auto;
-  margin: 0 auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
   text-align: center;
   font-family: "Poppins", sans-serif;
-  font-size: 1.3rem;
+  font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.1rem);
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    filter 0.2s ease,
+    transform 0.15s ease;
 }
 
-.btn--primary {
-  text-align: center;
-  margin: 0 auto;
-  background: transparent;
-  border: 2px solid #2559c7;
-  color: rgb(0, 0, 0);
-  transform: none;
+.btn-componente:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.btn--primary:hover {
-  transform: none;
-  border: 2px solid #25c763;
-  color: rgb(0, 0, 0);
-  background-color: transparent;
+/* Normal: azul grisáceo + hover verde */
+.btn--normal {
+  background: #7da1c1;
+  color: #fff;
 }
-/* Eliminar el scale por defecto */
-.btn-componente,
-.btn-componente:hover,
-.btn-componente:focus,
-.btn-componente:active {
-  transform: none !important;
-  scale: 1 !important; /* ✅ mata la propiedad scale */
+
+.btn--normal:hover:not(:disabled) {
+  background: #3d8f6b;
+  filter: brightness(1.02);
+}
+
+.btn--normal:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Prioritario / cierre importante */
+.btn--emphasis {
+  background: #1f3a5f;
+  color: #fff;
+}
+
+.btn--emphasis:hover:not(:disabled) {
+  background: #2a4d75;
+}
+
+.btn--emphasis:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Volver / secundario */
+.btn--muted {
+  background: #98a0a8;
+  color: #fff;
+}
+
+.btn--muted:hover:not(:disabled) {
+  background: #7e868e;
+}
+
+.btn--muted:active:not(:disabled) {
+  transform: scale(0.98);
 }

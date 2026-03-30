@@ -1,10 +1,15 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import SelectInput from "../../components/SelectInput";
+import AutorizadosHeader from "../../components/AutorizadosHeader";
+import Button from "../../components/ButtonComponente";
+import WelcomeLayout from "../../layouts/WelcomeLayout";
 import "../../components/SweetAlert.css";
 import "../../components/TextInput.css";
-import "../../components/EncuestaLogrosWKP.css";
+import "../../components/EncuestasDisponibles.css";
 import "./EncuestaLogros2.css";
+
+import fondo2 from "../../assets/fondo2.svg";
 
 import { alertError, alertSuccess, alertWarning } from "../../lib/alerts/appAlert";
 import { sweetLoading, sweetClose } from "../../components/SweetAlert";
@@ -71,6 +76,10 @@ export default function EncuestaLogros2() {
       }
     })();
 
+  const usuarioHeader = location.state?.usuario || "Usuario";
+  const encuestasCount =
+    location.state?.encuestasRealizadas ?? 0;
+
   const encuestadorCache =
     location.state?.cedula ||
     (() => {
@@ -109,8 +118,8 @@ export default function EncuestaLogros2() {
     const doc = docBusqueda.trim();
     if (doc.length < 6) {
       await alertWarning({
-        title: "Documento",
-        text: "Ingrese un documento válido (mínimo 6 dígitos).",
+        title: "Identificación",
+        text: "Ingrese un número de documento válido (mínimo 6 dígitos).",
       });
       return;
     }
@@ -126,10 +135,10 @@ export default function EncuestaLogros2() {
       if (!res.ok) {
         setFase1(null);
         await alertWarning({
-          title: "Sin encuesta previa",
+          title: "Sin evaluación previa",
           text:
             json?.detail ||
-            "No hay encuesta de Logros (fase 1) para este documento. Primero debe completarse esa encuesta.",
+            "No existe registro de la evaluación por logros (Fase 1) para este documento. Debe completarse primero dicha evaluación.",
         });
         return;
       }
@@ -150,7 +159,7 @@ export default function EncuestaLogros2() {
     } catch {
       await alertError({
         title: "Error",
-        text: "No se pudo consultar la encuesta anterior.",
+        text: "No fue posible recuperar la evaluación previa. Intente nuevamente.",
       });
     } finally {
       setCargando(false);
@@ -176,10 +185,10 @@ export default function EncuestaLogros2() {
     for (const s of slots) {
       const r = respuestas[String(s.slot)];
       if (!r?.nivel) {
-        next[`nivel_${s.slot}`] = "Seleccione el nivel de mejora.";
+        next[`nivel_${s.slot}`] = "Indique la evolución respecto al objetivo previo.";
       }
       if (!r?.nuevo) {
-        next[`nuevo_${s.slot}`] = "Seleccione el nuevo objetivo.";
+        next[`nuevo_${s.slot}`] = "Indique el objetivo de seguimiento.";
       }
     }
     setErrors(next);
@@ -190,16 +199,16 @@ export default function EncuestaLogros2() {
     e.preventDefault();
     if (!fase1 || !slots.length) {
       await alertWarning({
-        title: "Encuesta incompleta",
-        text: "Busque primero la encuesta anterior por documento.",
+        title: "Datos insuficientes",
+        text: "Cargue primero la evaluación previa mediante el número de documento.",
       });
       return;
     }
 
     if (!validate()) {
       await alertWarning({
-        title: "Faltan datos",
-        text: "Complete nivel de mejora y nuevo objetivo en cada síntoma.",
+        title: "Registro incompleto",
+        text: "Complete la evolución y el objetivo de seguimiento en cada ítem priorizado.",
       });
       return;
     }
@@ -220,8 +229,8 @@ export default function EncuestaLogros2() {
     }));
 
     sweetLoading({
-      title: "Enviando…",
-      text: "Guardando seguimiento de logros.",
+      title: "Registrando…",
+      text: "Guardando evaluación de seguimiento por objetivos.",
     });
 
     try {
@@ -262,13 +271,13 @@ export default function EncuestaLogros2() {
 
       if (!res2.ok) {
         await alertWarning({
-          title: "Seguimiento guardado",
-          text: "No se pudo actualizar el contador del encuestador.",
+          title: "Registro guardado",
+          text: "No se pudo actualizar el contador de encuestas del profesional.",
         });
       } else {
         await alertSuccess({
-          title: "Listo",
-          text: "Encuesta de seguimiento registrada correctamente.",
+          title: "Registro completado",
+          text: "La evaluación de seguimiento quedó registrada correctamente.",
         });
       }
 
@@ -286,56 +295,73 @@ export default function EncuestaLogros2() {
   };
 
   return (
-    <div className="ContentEncuesta">
-      <div className="logros2-wrap">
-        <div className="logros2-card">
-          <h2 className="logros2-title">Encuesta de seguimiento (Logros 2)</h2>
-          <p className="logros2-sub">
-            Conversación clínica a partir de la última evaluación por logros del
-            paciente.
-          </p>
+    <>
+      <WelcomeLayout image={fondo2} />
 
-          <TextField
-            label="Documento del paciente (misma encuesta de Logros Fase 1)"
-            name="docBusqueda"
-            value={docBusqueda}
-            onChange={onDocChange}
-            placeholder="Solo números"
-            maxLength={11}
-            required={false}
-            error={errors.docBusqueda}
+      <div className="page-encuestas page-encuesta-logros">
+        <div className="content-autorizados">
+          <AutorizadosHeader
+            usuario={usuarioHeader}
+            sede={location.state?.sede || sedeFormulario}
+            showEncuestasCount={true}
+            encuestasRealizadas={encuestasCount}
           />
+        </div>
 
-          <div className="contenedor-botones" style={{ paddingTop: 8 }}>
-            <button
-              type="button"
-              className="botones botonenvio"
-              disabled={cargando}
-              onClick={buscarEncuestaBase}
-            >
-              {cargando ? "Buscando…" : "Buscar encuesta anterior"}
-            </button>
-          </div>
+        <div className="encuesta-logros-page__main">
+          <div className="encuesta-logros-wrap">
+            <div className="encuesta-logros-card">
+              <h2 className="encuesta-logros-title">
+                Seguimiento clínico por objetivos (Logros 2)
+              </h2>
+              <p className="encuesta-logros-sub">
+                Registro estructurado a partir de la evaluación previa por logros
+                (Fase 1), para documentar evolución y nuevos objetivos terapéuticos.
+              </p>
+
+              <TextField
+                label="Número de identificación del paciente (debe coincidir con Logros Fase 1)"
+                name="docBusqueda"
+                value={docBusqueda}
+                onChange={onDocChange}
+                placeholder="Solo dígitos"
+                maxLength={11}
+                required={false}
+                error={errors.docBusqueda}
+              />
+
+              <div className="encuesta-logros-actions encuesta-logros-actions--single">
+                <Button
+                  type="button"
+                  variant="normal"
+                  disabled={cargando}
+                  onClick={buscarEncuestaBase}
+                >
+                  {cargando ? "Consultando…" : "Cargar evaluación previa"}
+                </Button>
+              </div>
 
           {fase1 && slots.length > 0 ? (
             <form onSubmit={onSubmit}>
               <div className="logros2-chat" role="region" aria-label="Resumen clínico">
                 <p style={{ margin: "0 0 0.75rem" }}>
-                  En la última <strong>evaluación por logros</strong>, realizada el{" "}
-                  <strong>{fechaEval || "—"}</strong>,{" "}
+                  En la <strong>evaluación por logros</strong> del{" "}
+                  <strong>{fechaEval || "—"}</strong>, el/la paciente{" "}
                   <strong>
                     {fase1.nombres || ""} {fase1.apellidos || ""}
                   </strong>{" "}
-                  refirió una limitación <strong>{limLabel}</strong> para moverse y
-                  realizar actividades como: <strong>{actLabel}</strong>.
+                  reportó una percepción de limitación <strong>{limLabel}</strong> para
+                  el desplazamiento y el desempeño en actividades como:{" "}
+                  <strong>{actLabel}</strong>.
                 </p>
                 <p style={{ margin: 0 }}>
-                  A partir de ahí definimos objetivos según los síntomas que eligió.
-                  A continuación, revise la mejora y el nuevo objetivo para cada uno.
+                  Con base en lo anterior se priorizaron síntomas y se definieron
+                  objetivos terapéuticos. A continuación registre, para cada ítem, la
+                  evolución observada y el objetivo de seguimiento.
                 </p>
                 {fase1.objetivo_extra?.trim() ? (
                   <p style={{ margin: "0.75rem 0 0", fontSize: "0.96rem" }}>
-                    <strong>Objetivo adicional</strong> que había planteado en esa
+                    <strong>Meta complementaria</strong> consignada en aquella
                     evaluación: {fase1.objetivo_extra.trim()}
                   </p>
                 ) : null}
@@ -358,11 +384,11 @@ export default function EncuestaLogros2() {
                       {s.slot}. {sintomaLabel}
                     </p>
                     <p className="logros2-slot__prev">
-                      <strong>Objetivo anterior:</strong> {prevObjLabel}
+                      <strong>Objetivo acordado previamente:</strong> {prevObjLabel}
                     </p>
 
                     <p className="field__label" style={{ marginBottom: 6 }}>
-                      ¿Nivel de mejora respecto a ese objetivo?{" "}
+                      Evolución respecto a dicho objetivo{" "}
                       <span className="field__req">*</span>
                     </p>
                     <div className="logros2-radio-row">
@@ -386,7 +412,7 @@ export default function EncuestaLogros2() {
                     ) : null}
 
                     <SelectInput
-                      label="Tu nuevo objetivo es"
+                      label="Objetivo de seguimiento a establecer"
                       name={`nuevo_${s.slot}`}
                       value={respuestas[String(s.slot)]?.nuevo || ""}
                       onChange={(e) => setNuevo(s.slot, e.target.value)}
@@ -398,13 +424,13 @@ export default function EncuestaLogros2() {
                 );
               })}
 
-              <div className="contenedor-botones">
-                <button className="botones botonenvio" type="submit">
-                  Enviar seguimiento
-                </button>
-                <button
+              <div className="encuesta-logros-actions">
+                <Button type="submit" variant="emphasis">
+                  Registrar evaluación de seguimiento
+                </Button>
+                <Button
                   type="button"
-                  className="botones"
+                  variant="muted"
                   onClick={() => {
                     const s = sedeParam || sedeFormulario;
                     navigate(`/sede/${encodeURIComponent(s)}/encuestas`, {
@@ -418,16 +444,19 @@ export default function EncuestaLogros2() {
                   }}
                 >
                   Volver
-                </button>
+                </Button>
               </div>
             </form>
           ) : fase1 && slots.length === 0 ? (
-            <p className="textos" style={{ marginTop: 16 }}>
-              La encuesta anterior no tiene síntomas registrados para seguimiento.
+            <p className="logros2-empty">
+              La evaluación previa no incluye síntomas priorizados susceptibles de
+              seguimiento en este formulario.
             </p>
           ) : null}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,0 +1,130 @@
+/* Shell compartido: Encuesta Logros 1 y Logros 2 (seguimiento) */
+
+.page-encuesta-logros.page-encuestas {
+  padding: 0;
+}
+
+.page-encuesta-logros {
+  position: relative;
+  z-index: 9999;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.page-encuesta-logros .welcome-bg {
+  z-index: 0 !important;
+}
+
+/* Sin fondo gris: el área del formulario es transparente; solo la tarjeta es blanca */
+.encuesta-logros-page__main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 0;
+  background: transparent;
+  padding: clamp(12px, 4vw, 25px);
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Ancho amplio tipo escritorio (foto de referencia) */
+.encuesta-logros-wrap {
+  width: 100%;
+  max-width: min(1080px, 96vw);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+.encuesta-logros-card {
+  width: 100%;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: clamp(12px, 4vw, 25px);
+  box-shadow: 0 8px 28px rgba(31, 58, 95, 0.1);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  box-sizing: border-box;
+}
+
+.encuesta-logros-title {
+  font-size: clamp(1.25rem, 1.1rem + 0.8vw, 1.55rem);
+  font-weight: 600;
+  color: #1f3a5f;
+  margin: 0;
+  text-align: center;
+}
+
+.encuesta-logros-sub {
+  margin: 0;
+  opacity: 0.88;
+  font-size: clamp(0.92rem, 0.88rem + 0.25vw, 1rem);
+  line-height: 1.45;
+  text-align: center;
+  max-width: 52ch;
+  margin-inline: auto;
+}
+
+.encuesta-logros-seccion {
+  font-size: clamp(1.15rem, 1rem + 0.5vw, 1.45rem);
+  font-weight: 600;
+  margin: clamp(0.5rem, 2vw, 1rem) 0 0.35rem;
+  color: #1f3a5f;
+  text-align: start;
+}
+
+.encuesta-logros-textos {
+  letter-spacing: 0.03rem;
+  text-align: start;
+  line-height: 1.45;
+  font-size: clamp(0.92rem, 0.88rem + 0.15vw, 1rem);
+  color: #2c3e50;
+}
+
+/* Botones alineados con ButtonComponente */
+.encuesta-logros-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 2vw, 16px);
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  padding-top: clamp(4px, 1.5vw, 12px);
+}
+
+.encuesta-logros-actions .btn-componente {
+  flex: 1 1 min(100%, 220px);
+  width: auto;
+  min-width: min(100%, 160px);
+}
+
+.encuesta-logros-actions--single .btn-componente {
+  flex: 1 1 auto;
+  max-width: min(100%, 400px);
+}
+
+@media (max-width: 480px) {
+  .encuesta-logros-actions {
+    flex-direction: column;
+  }
+
+  .encuesta-logros-actions .btn-componente {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+  }
+}

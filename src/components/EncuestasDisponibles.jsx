@@ -28,7 +28,7 @@ export default function EncuestasDisponibles() {
       },
       {
         id: "encuesta-seguimiento",
-        label: "Encuesta De Seguimiento",
+        label: "Seguimiento clínico (Logros 2)",
         kind: "file",
         accent: "blue",
         route: "encuesta-seguimiento",

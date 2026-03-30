@@ -9,8 +9,8 @@ export default function DirectoryBrowser({
 }) {
   const initialId = useMemo(() => {
     if (defaultSelectedId) return defaultSelectedId;
-    return items?.[0]?.id ?? null;
-  }, [defaultSelectedId, items]);
+    return null;
+  }, [defaultSelectedId]);
 
   const [selectedId, setSelectedId] = useState(initialId);
 

@@ -1,8 +1,15 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import SelectInput from "./SelectInput";
+import AutorizadosHeader from "./AutorizadosHeader";
+import Button from "./ButtonComponente";
+import WelcomeLayout from "../layouts/WelcomeLayout";
 import "./TextInput.css";
+import "./EncuestasDisponibles.css";
+import "./EncuestaLogrosLayout.css";
 import "./EncuestaLogrosWKP.css";
+
+import fondo2 from "../assets/fondo2.svg";
 
 import { alertError, alertSuccess, alertWarning } from "../lib/alerts/appAlert";
 import { sweetLoading, sweetClose } from "../components/SweetAlert";
@@ -145,6 +152,10 @@ function RadioGroup({
 export default function EncuestaLogrosWKP() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { sede: sedeParam } = useParams();
+
+  const usuarioHeader = location.state?.usuario || "Usuario";
+  const encuestasCount = location.state?.encuestasRealizadas ?? 0;
 
   const sedeFormulario =
     location.state?.sedeCarpeta ||
@@ -413,19 +424,48 @@ export default function EncuestaLogrosWKP() {
     }
   };
 
+  const irAEncuestas = () => {
+    const s = sedeParam || sedeFormulario;
+    navigate(`/sede/${encodeURIComponent(s)}/encuestas`, {
+      state: {
+        usuario: location.state?.usuario,
+        sede: location.state?.sede || s,
+        encuestasRealizadas: location.state?.encuestasRealizadas,
+        cedula: encuestadorCache || location.state?.cedula,
+      },
+    });
+  };
+
   return (
-    <div className="ContentEncuesta">
-      <form onSubmit={onSubmit} style={{ width: "100%", margin: "0 auto" }}>
-        <h2 className="TituloEncuesta" style={{ marginBottom: 8 }}>
-          Encuesta de Logros por Objetivos Wakeup
-        </h2>
+    <>
+      <WelcomeLayout image={fondo2} />
 
-        <p className="textos" style={{ marginTop: 0, opacity: 0.8 }}>
-          Complete la información y seleccione sus principales limitaciones para
-          proponer objetivos de rehabilitación.
-        </p>
+      <div className="page-encuestas page-encuesta-logros">
+        <div className="content-autorizados">
+          <AutorizadosHeader
+            usuario={usuarioHeader}
+            sede={location.state?.sede || sedeFormulario}
+            showEncuestasCount={true}
+            encuestasRealizadas={encuestasCount}
+          />
+        </div>
 
-        <h3 className="Secciones">Sección 1: Identificación</h3>
+        <div className="encuesta-logros-page__main">
+          <div className="encuesta-logros-wrap">
+            <div className="encuesta-logros-card">
+              <form onSubmit={onSubmit}>
+                <h2 className="encuesta-logros-title">
+                  Encuesta de Logros por Objetivos Wakeup
+                </h2>
+
+                <p className="encuesta-logros-sub">
+                  Complete la información y seleccione sus principales
+                  limitaciones para proponer objetivos de rehabilitación.
+                </p>
+
+                <h3 className="encuesta-logros-seccion">
+                  Sección 1: Identificación
+                </h3>
 
         <TextField
           label="1. Nombres completos"
@@ -478,7 +518,9 @@ export default function EncuestaLogrosWKP() {
           }
         />
 
-        <h3 className="Secciones">Sección 2: Estado y limitación</h3>
+                <h3 className="encuesta-logros-seccion">
+                  Sección 2: Estado y limitación
+                </h3>
 
         <RadioGroup
           label="5. ¿Qué tan limitada está su vida para moverse?"
@@ -519,10 +561,10 @@ export default function EncuestaLogrosWKP() {
           />
         )}
 
-        <h3 className="Secciones">Sección 3: Objetivos</h3>
+                <h3 className="encuesta-logros-seccion">Sección 3: Objetivos</h3>
 
         {objetivosAResponder.length === 0 ? (
-          <p className="textos" style={{ opacity: 0.8 }}>
+          <p className="encuesta-logros-textos" style={{ opacity: 0.85 }}>
             Seleccione al menos un problema para habilitar esta sección.
           </p>
         ) : (
@@ -554,7 +596,9 @@ export default function EncuestaLogrosWKP() {
           })
         )}
 
-        <h3 className="Secciones">Sección 4: Preguntas finales</h3>
+                <h3 className="encuesta-logros-seccion">
+                  Sección 4: Preguntas finales
+                </h3>
 
         <TextField
           label="Si su problema o síntoma no estaba en la lista y marcó otro, agregue el objetivo o meta que quiere conseguir"
@@ -614,24 +658,22 @@ export default function EncuestaLogrosWKP() {
           </>
         )}
 
-        <div className="contenedor-botones">
-          <button className="botones botonenvio" type="submit">
-            Enviar
-          </button>
-
-          <button type="button" className="botones" onClick={resetForm}>
-            Limpiar
-          </button>
-
-          <button
-            type="button"
-            className="botones"
-            onClick={() => navigate("/autorizados-inicio")}
-          >
-            Volver
-          </button>
+                <div className="encuesta-logros-actions">
+                  <Button type="submit" variant="emphasis">
+                    Enviar
+                  </Button>
+                  <Button type="button" variant="normal" onClick={resetForm}>
+                    Limpiar
+                  </Button>
+                  <Button type="button" variant="muted" onClick={irAEncuestas}>
+                    Volver
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
-      </form>
-    </div>
+      </div>
+    </>
   );
 }

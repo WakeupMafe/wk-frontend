@@ -137,7 +137,6 @@ export default function AutorizadosInicio() {
 
         <div className="Autorizados-botones">
           <ButtonC
-            width="40%"
             onClick={() =>
               navigate(`/sede/${encodeURIComponent(sede)}/encuestas`, {
                 state: {
@@ -153,10 +152,7 @@ export default function AutorizadosInicio() {
             Encuestas Disponibles
           </ButtonC>
 
-          <ButtonC
-            className="botones"
-            onClick={() => navigate("/estadisticas")}
-          >
+          <ButtonC onClick={() => navigate("/estadisticas")}>
             Estadísticas
           </ButtonC>
         </div>

@@ -1,63 +1,43 @@
-.logros2-wrap {
-  min-height: 100%;
-  background: #f0f5fb;
-  padding: 1.25rem 1rem 2.5rem;
-}
+@import "../../components/EncuestaLogrosLayout.css";
 
-.logros2-card {
-  max-width: 720px;
-  margin: 0 auto;
-  background: #fff;
-  border-radius: 16px;
-  padding: 1.5rem 1.35rem 1.75rem;
-  box-shadow: 0 8px 28px rgba(44, 112, 204, 0.08);
-}
-
-.logros2-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #2c70cc;
-  margin: 0 0 0.35rem;
-}
-
-.logros2-sub {
-  margin: 0 0 1rem;
-  opacity: 0.85;
-  font-size: 0.98rem;
-  line-height: 1.45;
-}
+/* Solo bloques propios de seguimiento (conversación + ítems) */
 
 .logros2-chat {
-  font-size: 1.02rem;
+  font-size: clamp(0.98rem, 0.95rem + 0.2vw, 1.05rem);
   line-height: 1.55;
   color: #1e2a3a;
-  margin: 0 0 1.25rem;
-  padding: 1rem 1.05rem;
+  margin: 0;
+  padding: clamp(10px, 3vw, 16px) clamp(10px, 3.5vw, 18px);
   background: linear-gradient(135deg, #f7fbff 0%, #eef4ff 100%);
   border-radius: 12px;
-  border-left: 4px solid #4a8dbd;
+  border-left: 4px solid #7da1c1;
 }
 
 .logros2-chat strong {
-  color: #1a4d8c;
+  color: #1f3a5f;
   font-weight: 600;
 }
 
 .logros2-slot {
-  margin-top: 1.35rem;
-  padding-top: 1.35rem;
+  margin: 0;
+  padding-top: clamp(12px, 3vw, 20px);
   border-top: 1px solid #e0e8f2;
 }
 
+.logros2-slot:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
 .logros2-slot__title {
-  font-size: 1.08rem;
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.08rem);
   font-weight: 600;
-  color: #2c70cc;
+  color: #1f3a5f;
   margin: 0 0 0.35rem;
 }
 
 .logros2-slot__prev {
-  font-size: 0.95rem;
+  font-size: clamp(0.9rem, 0.88rem + 0.1vw, 0.95rem);
   margin: 0 0 0.85rem;
   opacity: 0.92;
 }
@@ -65,7 +45,7 @@
 .logros2-radio-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem 1rem;
+  gap: clamp(0.4rem, 2vw, 0.65rem) clamp(0.5rem, 2vw, 1rem);
   margin: 0.5rem 0 0.85rem;
 }
 
@@ -76,9 +56,16 @@
   padding: 0.35rem 0.5rem;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.98rem;
+  font-size: clamp(0.92rem, 0.9rem + 0.1vw, 0.98rem);
 }
 
 .logros2-radio-row label:hover {
   background: #f3f7ff;
+}
+
+.logros2-empty {
+  margin: 1rem 0 0;
+  text-align: center;
+  opacity: 0.88;
+  font-size: 0.98rem;
 }

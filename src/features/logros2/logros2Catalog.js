@@ -1,15 +1,15 @@
 import { OBJETIVOS } from "../../data/encuestaLogrosCatalog";
 
-/** Nivel de mejora respecto al objetivo planteado en la evaluación anterior. */
+/** Percepción de evolución respecto al objetivo definido en la evaluación previa. */
 export const NIVEL_MEJORA = [
-  { value: "mucho", label: "Mejoró mucho" },
-  { value: "poco", label: "Mejoró poco" },
-  { value: "nada", label: "No mejoró / nada" },
+  { value: "mucho", label: "Mejora sustancial" },
+  { value: "poco", label: "Mejora leve o parcial" },
+  { value: "nada", label: "Sin cambio clínico relevante" },
 ];
 
 const CUMPLIMIENTO = {
   value: "cumplimiento_objetivo",
-  label: "Cumplimiento del objetivo planteado",
+  label: "Objetivo alcanzado (cumplimiento del planteado)",
 };
 
 /**
@@ -21,7 +21,7 @@ export function getOpcionesNuevoObjetivo(sintomaKey) {
       CUMPLIMIENTO,
       {
         value: "seguir_plan",
-        label: "Seguir trabajando en el plan acordado",
+        label: "Continuar intervención según plan establecido",
       },
     ];
   }

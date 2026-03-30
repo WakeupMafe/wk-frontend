@@ -22,8 +22,68 @@ function fetchRootWithTimeout(baseUrl, ms) {
 const MS_FIRST = 90_000;
 const MS_RETRY = 60_000;
 
+/** Compartido entre pestañas del mismo origen. */
+const STORAGE_KEY = "wk_backend_warmup";
+/** Si no hubo un warmup OK en este tiempo, se vuelve a mostrar el modal. */
+const MAX_AGE_MS = 16 * 60 * 60 * 1000;
+
+/** Clave antigua (sessionStorage); se limpia al migrar. */
+const LEGACY_SESSION_KEY = "wk_backend_warmup_ok";
+
+function readWarmTimestamp() {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    const t = data?.t;
+    if (typeof t !== "number" || Number.isNaN(t)) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    if (Date.now() - t > MAX_AGE_MS) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return t;
+  } catch {
+    return null;
+  }
+}
+
+function writeWarmNow() {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ t: Date.now() }));
+  } catch {
+    /* cuota / modo privado */
+  }
+}
+
+function clearWarm() {
+  try {
+    localStorage?.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function migrateLegacySessionStorage() {
+  try {
+    if (typeof sessionStorage === "undefined") return;
+    if (sessionStorage.getItem(LEGACY_SESSION_KEY) === "1") {
+      sessionStorage.removeItem(LEGACY_SESSION_KEY);
+      writeWarmNow();
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Primera petición al backend: en producción muestra modal + reintento (cold start Render).
+ * Tras un warmup OK, todas las pestañas comparten estado (localStorage): recargas y nuevas pestañas
+ * hacen ping silencioso sin modal; si falla, se limpia y se muestra el modal otra vez.
  * En localhost: solo intenta en silencio, sin modal.
  */
 export async function warmupBackend(apiBaseUrl) {
@@ -36,6 +96,18 @@ export async function warmupBackend(apiBaseUrl) {
       /* desarrollo: sin modal ni alerta */
     }
     return { ok: true, retried: false };
+  }
+
+  migrateLegacySessionStorage();
+
+  if (readWarmTimestamp() !== null) {
+    try {
+      await fetchRootWithTimeout(base, 20_000);
+      writeWarmNow();
+      return { ok: true, retried: false };
+    } catch {
+      clearWarm();
+    }
   }
 
   Swal.fire({
@@ -64,6 +136,7 @@ export async function warmupBackend(apiBaseUrl) {
 
   try {
     await attempt(MS_FIRST);
+    writeWarmNow();
     Swal.close();
     return { ok: true, retried: false };
   } catch {
@@ -81,6 +154,7 @@ export async function warmupBackend(apiBaseUrl) {
     Swal.showLoading();
     try {
       await attempt(MS_RETRY);
+      writeWarmNow();
       Swal.close();
       return { ok: true, retried: true };
     } catch (e2) {

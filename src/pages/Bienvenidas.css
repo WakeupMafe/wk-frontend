@@ -110,44 +110,50 @@
   box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
 }
 
-/* Tablet + móvil: columna; el hueco va arriba (flex-end), no entre botón y avatar */
+/* Tablet + móvil: texto centrado en el espacio central; avatar solo abajo (grid 1fr + auto) */
 @media (max-width: 1024px) {
   .Welcome {
-    flex-direction: column;
-    align-items: stretch;
-    /* Agrupa texto+botón+avatar abajo; el espacio sobrante queda arriba (no en el medio) */
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    align-content: stretch;
+    justify-items: stretch;
     height: auto;
     min-height: calc(100dvh - clamp(3.25rem, 11vw, 5.75rem));
     max-height: none;
     padding: clamp(3.75rem, 11vw, 5.5rem) clamp(0.65rem, 3.5vw, 1.25rem) 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    gap: clamp(0.35rem, 1.5vw, 0.75rem);
+    /* Separación mínima entre bloque centrado y avatar */
+    gap: clamp(0.35rem, 1.5vw, 0.85rem);
     box-sizing: border-box;
   }
 
   .welcome-content {
+    grid-row: 1;
+    place-self: center;
     width: 100%;
+    max-width: 100%;
     margin-left: 0;
     padding-left: clamp(0.75rem, 4vw, 1.5rem);
     padding-right: clamp(0.75rem, 4vw, 1.5rem);
-    flex-shrink: 0;
+    box-sizing: border-box;
   }
 
   .welcome-avatar {
+    grid-row: 2;
     margin-top: 0;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     line-height: 0;
     min-height: 0;
-    flex-shrink: 0;
+    align-self: end;
   }
 
   .welcome-avatar img {
     width: min(88%, 28rem);
     height: auto;
-    max-height: clamp(10rem, min(38vh, 38dvh), 24rem);
+    max-height: clamp(10rem, min(34vh, 34dvh), 22rem);
     object-fit: contain;
     object-position: bottom center;
   }

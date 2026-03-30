@@ -192,8 +192,30 @@ export default function EncuestaLogrosWKP() {
   };
 
   const onDocumentoChange = (e) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 11);
-    setForm((prev) => ({ ...prev, documento: onlyDigits }));
+    const raw = e.target.value;
+    setForm((prev) => {
+      const tipo = prev.tipoDocumento;
+      if (tipo === "registro_civil" || tipo === "pasaporte") {
+        const cleaned = raw.replace(/[^A-Za-z0-9\-]/g, "").slice(0, 30);
+        return { ...prev, documento: cleaned };
+      }
+      const onlyDigits = raw.replace(/\D/g, "").slice(0, 11);
+      return { ...prev, documento: onlyDigits };
+    });
+  };
+
+  const onTipoDocumentoChange = (e) => {
+    const value = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      tipoDocumento: value,
+      documento: "",
+    }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.documento;
+      return next;
+    });
   };
 
   const toggleArrayValue = (field, value) => {
@@ -272,8 +294,9 @@ export default function EncuestaLogrosWKP() {
     });
 
     try {
+      const tipoQ = encodeURIComponent(form.tipoDocumento || "cedula");
       const check = await fetch(
-        `${API_URL}/encuestas/exists/${encodeURIComponent(form.documento)}`,
+        `${API_URL}/encuestas/exists/${encodeURIComponent(form.documento)}?tipo_documento=${tipoQ}`,
       );
 
       const checkJson = await check.json().catch(() => ({}));
@@ -428,7 +451,7 @@ export default function EncuestaLogrosWKP() {
           label="3. Selecciona el tipo de documento"
           name="tipoDocumento"
           value={form.tipoDocumento}
-          onChange={onChange}
+          onChange={onTipoDocumentoChange}
           options={TIPOS_DOCUMENTO}
           required
           error={errors.tipoDocumento}
@@ -441,8 +464,18 @@ export default function EncuestaLogrosWKP() {
           onChange={onDocumentoChange}
           required
           error={errors.documento}
-          placeholder="Solo números (6 a 11: cédula o tarjeta de identidad)"
-          maxLength={11}
+          placeholder={
+            form.tipoDocumento === "registro_civil" ||
+            form.tipoDocumento === "pasaporte"
+              ? "Letras, números o guion (5 a 30 caracteres)"
+              : "Solo números (6 a 11: cédula, tarjeta de identidad, CE)"
+          }
+          maxLength={
+            form.tipoDocumento === "registro_civil" ||
+            form.tipoDocumento === "pasaporte"
+              ? 30
+              : 11
+          }
         />
 
         <h3 className="Secciones">Sección 2: Estado y limitación</h3>

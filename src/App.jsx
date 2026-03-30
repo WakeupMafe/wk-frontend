@@ -15,6 +15,7 @@ import AutorizadosInicio from "./pages/AutorizadosInicio.jsx";
 import EncuestasDisponibles from "./components/EncuestasDisponibles";
 import EncuestaLogrosWKP from "./components/EncuestaLogrosWKP";
 import Estadisticas from "./features/logros1/Estadisticas";
+import EncuestaLogros2 from "./features/logros2/EncuestaLogros2";
 
 function RouteError({ error }) {
   return (
@@ -135,6 +136,15 @@ export default function App() {
         element={
           <SafeRoute>
             <EncuestaLogrosWKP />
+          </SafeRoute>
+        }
+      />
+
+      <Route
+        path="/sede/:sede/encuesta-seguimiento"
+        element={
+          <SafeRoute>
+            <EncuestaLogros2 />
           </SafeRoute>
         }
       />

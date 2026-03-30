@@ -31,7 +31,7 @@ export default function EncuestasDisponibles() {
         label: "Encuesta De Seguimiento",
         kind: "file",
         accent: "blue",
-        route: "encuesta-logros", // por ahora mismo componente
+        route: "encuesta-seguimiento",
       },
     ],
     [],

@@ -3,6 +3,7 @@ export const TIPOS_DOCUMENTO = [
   { value: "cedula", label: "Cédula" },
   { value: "tarjeta_identidad", label: "Tarjeta de identidad" },
   { value: "cedula_extranjeria", label: "Cédula de extranjería" },
+  { value: "registro_civil", label: "Registro civil" },
 ];
 
 export const LIMITACION_MOVERSE = [

@@ -147,7 +147,13 @@ export default function Pin() {
         <section className="welcome-content">
           <h1 className="titulo-recuerda">
             Excelente
-            <img src={gifpin} alt="gif" className="gif-pin" />
+            <img
+              src={gifpin}
+              alt=""
+              className="gif-pin"
+              loading="lazy"
+              decoding="async"
+            />
           </h1>
 
           <h2 className="cedula-h2">
@@ -188,7 +194,12 @@ export default function Pin() {
         </section>
 
         <aside className="welcome-avatar">
-          <img src={avatar} alt="Avatar" />
+          <img
+            src={avatar}
+            alt="Avatar"
+            decoding="async"
+            fetchPriority="high"
+          />
         </aside>
       </main>
     </>

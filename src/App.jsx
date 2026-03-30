@@ -1,21 +1,30 @@
 import React from "react";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
 import { warmupBackend } from "./lib/api/warmupBackend";
 import { alertWarning } from "./lib/alerts/appAlert";
 
-// Páginas
+/* Landing: import estático para primera pintada rápida; el resto va en chunks aparte */
 import Bienvenidas from "./pages/Bienvenidas.jsx";
-import Cedula from "./pages/Cedula.jsx";
-import Pin from "./pages/Pin.jsx";
-import Login from "./pages/LoginFirstTime.jsx";
-import AutorizadosInicio from "./pages/AutorizadosInicio.jsx";
-import EncuestasDisponibles from "./components/EncuestasDisponibles";
-import EncuestaLogrosWKP from "./components/EncuestaLogrosWKP";
-import Estadisticas from "./features/logros1/Estadisticas";
-import EncuestaLogros2 from "./features/logros2/EncuestaLogros2";
+
+const Cedula = lazy(() => import("./pages/Cedula.jsx"));
+const Pin = lazy(() => import("./pages/Pin.jsx"));
+const Login = lazy(() => import("./pages/LoginFirstTime.jsx"));
+const AutorizadosInicio = lazy(() => import("./pages/AutorizadosInicio.jsx"));
+const EncuestasDisponibles = lazy(() => import("./components/EncuestasDisponibles"));
+const EncuestaLogrosWKP = lazy(() => import("./components/EncuestaLogrosWKP"));
+const Estadisticas = lazy(() => import("./features/logros1/Estadisticas"));
+const EncuestaLogros2 = lazy(() => import("./features/logros2/EncuestaLogros2"));
+
+function RouteFallback() {
+  return (
+    <div className="app-route-fallback" role="status" aria-live="polite">
+      Cargando…
+    </div>
+  );
+}
 
 function RouteError({ error }) {
   return (
@@ -77,88 +86,89 @@ export default function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <SafeRoute>
-            <Bienvenidas />
-          </SafeRoute>
-        }
-      />
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <SafeRoute>
+              <Bienvenidas />
+            </SafeRoute>
+          }
+        />
 
-      <Route
-        path="/cedula"
-        element={
-          <SafeRoute>
-            <Cedula />
-          </SafeRoute>
-        }
-      />
+        <Route
+          path="/cedula"
+          element={
+            <SafeRoute>
+              <Cedula />
+            </SafeRoute>
+          }
+        />
 
-      <Route
-        path="/pin"
-        element={
-          <SafeRoute>
-            <Pin />
-          </SafeRoute>
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <SafeRoute>
-            <Login />
-          </SafeRoute>
-        }
-      />
+        <Route
+          path="/pin"
+          element={
+            <SafeRoute>
+              <Pin />
+            </SafeRoute>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <SafeRoute>
+              <Login />
+            </SafeRoute>
+          }
+        />
 
-      <Route
-        path="/autorizados-inicio"
-        element={
-          <SafeRoute>
-            <AutorizadosInicio />
-          </SafeRoute>
-        }
-      />
+        <Route
+          path="/autorizados-inicio"
+          element={
+            <SafeRoute>
+              <AutorizadosInicio />
+            </SafeRoute>
+          }
+        />
 
-      <Route
-        path="/sede/:sede/encuestas"
-        element={
-          <SafeRoute>
-            <EncuestasDisponibles />
-          </SafeRoute>
-        }
-      />
+        <Route
+          path="/sede/:sede/encuestas"
+          element={
+            <SafeRoute>
+              <EncuestasDisponibles />
+            </SafeRoute>
+          }
+        />
 
-      <Route
-        path="/sede/:sede/encuesta-logros"
-        element={
-          <SafeRoute>
-            <EncuestaLogrosWKP />
-          </SafeRoute>
-        }
-      />
+        <Route
+          path="/sede/:sede/encuesta-logros"
+          element={
+            <SafeRoute>
+              <EncuestaLogrosWKP />
+            </SafeRoute>
+          }
+        />
 
-      <Route
-        path="/sede/:sede/encuesta-seguimiento"
-        element={
-          <SafeRoute>
-            <EncuestaLogros2 />
-          </SafeRoute>
-        }
-      />
-      <Route
-        path="/estadisticas"
-        element={
-          <SafeRoute>
-            <Estadisticas />
-          </SafeRoute>
-        }
-      />
+        <Route
+          path="/sede/:sede/encuesta-seguimiento"
+          element={
+            <SafeRoute>
+              <EncuestaLogros2 />
+            </SafeRoute>
+          }
+        />
+        <Route
+          path="/estadisticas"
+          element={
+            <SafeRoute>
+              <Estadisticas />
+            </SafeRoute>
+          }
+        />
 
-      {/* ✅ Si caes en cualquier otra ruta, no queda blanco */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

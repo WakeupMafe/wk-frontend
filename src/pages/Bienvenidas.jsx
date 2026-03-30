@@ -34,7 +34,12 @@ export default function Bienvenidas() {
         </section>
 
         <aside className="welcome-avatar">
-          <img src={avatar} alt="Avatar" />
+          <img
+            src={avatar}
+            alt="Avatar"
+            decoding="async"
+            fetchPriority="high"
+          />
         </aside>
       </main>
     </>

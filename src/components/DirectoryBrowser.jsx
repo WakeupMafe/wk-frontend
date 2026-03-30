@@ -57,6 +57,8 @@ export default function DirectoryBrowser({
                     alt=""
                     className="dir__icon__img"
                     draggable={false}
+                    loading="lazy"
+                    decoding="async"
                   />
                 ) : kind === "folder" ? (
                   "📁"

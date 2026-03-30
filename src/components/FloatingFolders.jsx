@@ -50,7 +50,9 @@ export default function FloatingFolders({ items, onFolderClick }) {
                 className="ff-icon"
                 src={active ? folderActive : folderInactive}
                 alt={active ? "Carpeta activa" : "Carpeta inactiva"}
-                draggable="false"
+                draggable={false}
+                loading="lazy"
+                decoding="async"
               />
 
               <p className="ff-title">{folder.title}</p>

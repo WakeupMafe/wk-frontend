@@ -66,7 +66,13 @@ export default function Cedula() {
         <section className="welcome-content">
           <h1 className="titulo-recuerda">
             Recuerda
-            <img src={gifRecuerda} alt="Advertencia" className="gif-recuerda" />
+            <img
+              src={gifRecuerda}
+              alt="Advertencia"
+              className="gif-recuerda"
+              loading="lazy"
+              decoding="async"
+            />
           </h1>
 
           <h2 className="cedula-h2">
@@ -96,7 +102,12 @@ export default function Cedula() {
         </section>
 
         <aside className="welcome-avatar">
-          <img src={avatar} alt="Avatar" />
+          <img
+            src={avatar}
+            alt="Avatar"
+            decoding="async"
+            fetchPriority="high"
+          />
         </aside>
       </main>
     </>

@@ -77,7 +77,13 @@ export default function AutorizadosHeader({
           onClick={irInicio}
           onKeyDown={(e) => (e.key === "Enter" ? irInicio() : null)}
         >
-          <img className="logoavatar" src={avatar} alt="Ir a inicio" />
+          <img
+            className="logoavatar"
+            src={avatar}
+            alt="Ir a inicio"
+            decoding="async"
+            loading="lazy"
+          />
         </div>
 
         <div className="Autorizados-titulo">
@@ -105,7 +111,13 @@ export default function AutorizadosHeader({
           onClick={irInicio}
           onKeyDown={(e) => (e.key === "Enter" ? irInicio() : null)}
         >
-          <img className="logohome" src={logoHome} alt="Ir al inicio" />
+          <img
+            className="logohome"
+            src={logoHome}
+            alt="Ir al inicio"
+            decoding="async"
+            loading="lazy"
+          />
         </div>
       </div>
 
@@ -139,7 +151,13 @@ export default function AutorizadosHeader({
           onClick={irInicio}
           aria-label="Ir al inicio"
         >
-          <img src={logoHome} alt="" className="autorizados-compact-home__img" />
+          <img
+            src={logoHome}
+            alt=""
+            className="autorizados-compact-home__img"
+            decoding="async"
+            loading="lazy"
+          />
         </button>
       </div>
 
@@ -178,6 +196,7 @@ export default function AutorizadosHeader({
                   className="autorizados-menu-avatar"
                   src={avatar}
                   alt=""
+                  decoding="async"
                 />
               </div>
 

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import DirectoryBrowser from "./DirectoryBrowser";
 import "./EncuestasDisponibles.css";
@@ -6,12 +6,33 @@ import WelcomeLayout from "../layouts/WelcomeLayout";
 import AutorizadosHeader from "../components/AutorizadosHeader";
 
 import fondo2 from "../assets/fondo2.svg";
-import iconoLogros from "../assets/Logros.png";
-import iconoSeguimiento from "../assets/Seguimientos.png";
 
 export default function EncuestasDisponibles() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  /** PNG grandes en chunk aparte: no bloquean el JS inicial de la ruta */
+  const [iconosEncuestas, setIconosEncuestas] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      import("../assets/Logros.png"),
+      import("../assets/Seguimientos.png"),
+    ])
+      .then(([mLogros, mSeg]) => {
+        if (!cancelled) {
+          setIconosEncuestas({
+            logros: mLogros.default,
+            seguimiento: mSeg.default,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ✅ Todo viene desde AutorizadosInicio (ya sin pin)
   const usuario = location.state?.usuario || "Usuario";
@@ -27,7 +48,7 @@ export default function EncuestasDisponibles() {
         kind: "file",
         accent: "green",
         route: "encuesta-logros",
-        iconSrc: iconoLogros,
+        iconSrc: iconosEncuestas?.logros,
       },
       {
         id: "encuesta-seguimiento",
@@ -35,10 +56,10 @@ export default function EncuestasDisponibles() {
         kind: "file",
         accent: "blue",
         route: "encuesta-seguimiento",
-        iconSrc: iconoSeguimiento,
+        iconSrc: iconosEncuestas?.seguimiento,
       },
     ],
-    [],
+    [iconosEncuestas],
   );
 
   const onItemClick = (item) => {

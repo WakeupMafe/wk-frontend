@@ -296,6 +296,8 @@ export default function LoginFirstTime() {
               src={logo}
               className="ImgLogo"
               alt="Logo"
+              decoding="async"
+              loading="lazy"
               onClick={() => navigate("/")}
             />
           </div>
@@ -311,6 +313,8 @@ export default function LoginFirstTime() {
               src={home}
               className="ImgHome"
               alt="Home"
+              decoding="async"
+              loading="lazy"
               onClick={() => navigate("/")}
             />
           </div>

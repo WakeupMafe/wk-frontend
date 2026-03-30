@@ -14,7 +14,13 @@ export default function TopBar() {
   return (
     <div className="top-bar">
       <header className="top-bar-header">
-        <img src={logo} className="top-bar-logo" />
+        <img
+          src={logo}
+          className="top-bar-logo"
+          alt=""
+          decoding="async"
+          fetchPriority="low"
+        />
         <button className="top-bar-button" onClick={handleLoginNavigation}>
           Ingreso Primera Vez
         </button>

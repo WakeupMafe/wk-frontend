@@ -5,6 +5,20 @@
   padding: 1.5rem;
 }
 
+.dir__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+
+.dir__toolbar .dir__breadcrumb {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 0;
+}
+
 .dir__breadcrumb {
   font-family: "Poppins", sans-serif;
   font-size: 20px;

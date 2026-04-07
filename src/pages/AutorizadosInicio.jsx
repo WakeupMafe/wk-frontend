@@ -13,7 +13,6 @@ export default function AutorizadosInicio() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // ✅ PIN llega por navigate(..., { state: { pin } })
   const pin = location.state?.pin || sessionStorage.getItem("wk_pin") || null;
 
   const [usuario, setUsuario] = useState("Usuario");
@@ -26,6 +25,12 @@ export default function AutorizadosInicio() {
 
   // ✅ evita pedir 2 veces
   const yaPidio = useRef(false);
+
+  useEffect(() => {
+    if (location.state?.pin) {
+      sessionStorage.setItem("wk_pin", location.state.pin);
+    }
+  }, [location.state?.pin]);
 
   useEffect(() => {
     if (!pin) {

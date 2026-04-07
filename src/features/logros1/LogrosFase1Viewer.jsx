@@ -1,15 +1,10 @@
-import { useMemo, useRef, useState, useEffect } from "react";
-import { alertSuccess } from "../../lib/alerts/appAlert";
+import { useMemo, useState } from "react";
+import Button from "../../components/ButtonComponente";
+import { Subtitle } from "../../components/typography";
 import "./LogrosFase1Viewer.css";
 
-import {
-  PROBLEMAS as SINTOMAS,
-  OBJETIVOS,
-} from "../../data/encuestaLogrosCatalog";
-import { downloadLogrosFase1Survey } from "./logrosFase1Download";
-import { downloadLogrosFase1Pdf } from "./logrosFase1DownloadPdf.jsx";
+import { buildLogrosFase1DownloadContext } from "./logrosFase1BuildContext";
 
-// Formateos
 const LIMITACION_LABELS = {
   mucho: "Mucho",
   bastante: "Bastante",
@@ -49,11 +44,9 @@ function formatUltimaVez(value) {
 
 function formatQueImpide(value) {
   if (!value) return "-";
-
   if (Array.isArray(value)) {
     return value.map((item) => QUE_IMPIDE_LABELS[item] || item).join(" - ");
   }
-
   return QUE_IMPIDE_LABELS[value] || value;
 }
 
@@ -62,146 +55,21 @@ function formatActividades(values) {
   return values.map((item) => ACTIVIDADES_LABELS[item] || item).join(" - ");
 }
 
+/**
+ * Visualización de encuesta (detalle expandible). Descargas: ver pantalla Filtros.
+ */
 export default function LogrosFase1Viewer({ paciente }) {
   const [open, setOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const row = paciente || null;
 
-  const pacienteNombre = useMemo(() => {
-    if (!row) return "Paciente";
-    return [row.nombres, row.apellidos].filter(Boolean).join(" ") || "Paciente";
-  }, [row]);
+  const ctx = useMemo(() => buildLogrosFase1DownloadContext(row), [row]);
 
-  const totalObjetivos = useMemo(() => {
-    if (!row) return 0;
-    const base = [row.objetivo_1, row.objetivo_2, row.objetivo_3].filter(
-      Boolean,
-    ).length;
-    const extra = row.objetivo_extra ? 1 : 0;
-    return base + extra;
-  }, [row]);
-
-  const actividades = useMemo(() => {
-    if (!row?.actividades_afectadas) return [];
-
-    if (Array.isArray(row.actividades_afectadas)) {
-      return row.actividades_afectadas;
-    }
-
-    try {
-      const parsed = JSON.parse(row.actividades_afectadas);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }, [row]);
-
-  const getSintomaLabel = (value) => {
-    if (!value) return "-";
-    const found = SINTOMAS.find((s) => s.value === value);
-    return found?.label || value;
-  };
-
-  const getObjetivoLabel = (sintomaValue, objetivoValue) => {
-    if (!objetivoValue) return "-";
-    const meta = OBJETIVOS[sintomaValue];
-    if (!meta) return objetivoValue;
-
-    const found = meta.opciones?.find((o) => o.value === objetivoValue);
-    return found?.label || objetivoValue;
-  };
-
-  const sintomasConObjetivos = useMemo(() => {
-    if (!row) return [];
-
-    const items = [
-      {
-        numero: 1,
-        sintomaValue: row.sintoma_1,
-        objetivoValue: row.objetivo_1,
-      },
-      {
-        numero: 2,
-        sintomaValue: row.sintoma_2,
-        objetivoValue: row.objetivo_2,
-      },
-      {
-        numero: 3,
-        sintomaValue: row.sintoma_3,
-        objetivoValue: row.objetivo_3,
-      },
-    ].filter((item) => item.sintomaValue);
-
-    return items.map((item) => ({
-      numero: item.numero,
-      sintoma: getSintomaLabel(item.sintomaValue),
-      objetivo: getObjetivoLabel(item.sintomaValue, item.objetivoValue),
-    }));
-  }, [row]);
-
-  const fechaRegistro = row?.created_at
-    ? new Date(row.created_at).toLocaleDateString("es-CO")
-    : "-";
-
-  const handleVisualizar = () => {
-    setOpen((prev) => !prev);
-    setMenuOpen(false);
-  };
-
-  const handleDescargarJson = async () => {
-    if (!row) return;
-
-    downloadLogrosFase1Survey({
-      pacienteNombre,
-      fechaRegistro,
-      totalObjetivos,
-      row,
-      actividades,
-      sintomasConObjetivos,
-    });
-
-    setMenuOpen(false);
-
-    await alertSuccess({
-      title: "Descarga iniciada",
-      text: "El archivo JSON se descargó correctamente.",
-    });
-  };
-
-  const handleDescargarPdf = async () => {
-    if (!row) return;
-
-    await downloadLogrosFase1Pdf({
-      pacienteNombre,
-      fechaRegistro,
-      totalObjetivos,
-      row,
-      actividades,
-      sintomasConObjetivos,
-    });
-
-    setMenuOpen(false);
-
-    await alertSuccess({
-      title: "Descarga iniciada",
-      text: "El archivo PDF se descargó correctamente.",
-    });
-  };
+  const pacienteNombre = ctx?.pacienteNombre ?? "Paciente";
+  const totalObjetivos = ctx?.totalObjetivos ?? 0;
+  const actividades = ctx?.actividades ?? [];
+  const sintomasConObjetivos = ctx?.sintomasConObjetivos ?? [];
+  const fechaRegistro = ctx?.fechaRegistro ?? "-";
 
   if (!row) return null;
 
@@ -223,43 +91,14 @@ export default function LogrosFase1Viewer({ paciente }) {
             </div>
 
             <div className="lf1viewer__td lf1viewer__td--center">
-              <div className="lf1viewer__menuBox" ref={menuRef}>
-                <button
-                  type="button"
-                  className="lf1viewer__actionBtn"
-                  onClick={() => setMenuOpen((prev) => !prev)}
-                >
-                  Desplegar opción ▾
-                </button>
-
-                {menuOpen ? (
-                  <div className="lf1viewer__dropdown">
-                    <button
-                      type="button"
-                      className="lf1viewer__dropdownItem"
-                      onClick={handleVisualizar}
-                    >
-                      {open ? "Ocultar visualización" : "Visualizar"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="lf1viewer__dropdownItem"
-                      onClick={handleDescargarPdf}
-                    >
-                      Descargar PDF
-                    </button>
-
-                    <button
-                      type="button"
-                      className="lf1viewer__dropdownItem"
-                      onClick={handleDescargarJson}
-                    >
-                      Descargar JSON
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+              <Button
+                variant="accent"
+                type="button"
+                className="lf1viewer__actionBtn"
+                onClick={() => setOpen((prev) => !prev)}
+              >
+                {open ? "Ocultar visualización ▾" : "Visualizar ▾"}
+              </Button>
             </div>
           </div>
         </div>
@@ -267,16 +106,19 @@ export default function LogrosFase1Viewer({ paciente }) {
 
       {open ? (
         <div className="lf1viewer__detailWrap">
-          <button
+          <Button
+            variant="accent"
             type="button"
             className="lf1viewer__toggleBtn"
             onClick={() => setOpen(false)}
           >
             ↑ Ocultar encuesta
-          </button>
+          </Button>
 
           <div className="lf1viewer__card">
-            <h3 className="lf1viewer__title">Datos principales</h3>
+            <Subtitle as="h3" className="lf1viewer__title">
+              Datos principales
+            </Subtitle>
 
             <div className="lf1viewer__kv">
               <span className="lf1viewer__k">Nombre:</span>
@@ -309,7 +151,9 @@ export default function LogrosFase1Viewer({ paciente }) {
 
             <div className="lf1viewer__separator" />
 
-            <h3 className="lf1viewer__title">Resultados de la encuesta</h3>
+            <Subtitle as="h3" className="lf1viewer__title">
+              Resultados de la encuesta
+            </Subtitle>
 
             <div className="lf1viewer__kv">
               <span className="lf1viewer__k">Limitación para moverse:</span>

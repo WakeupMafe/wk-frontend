@@ -1,0 +1,151 @@
+/**
+ * Tipografía unificada — siempre Poppins vía --font-sans.
+ * Cambiar escala o color aquí o en :root.
+ */
+:root {
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --typo-ink: #0f172a;
+  --typo-ink-soft: #1f2a44;
+  --typo-muted: #64748b;
+  --typo-meta-accent: #c2185b;
+}
+
+.typo-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.25rem, 0.9cqw, 0.45rem);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.typo-page-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(1.1rem, 2.4cqw, 1.55rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--typo-ink-soft);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.typo-page-lead {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--typo-muted);
+  font-size: clamp(0.8rem, 1.4cqw, 0.95rem);
+  font-weight: 400;
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.typo-page-meta {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.78rem, 1.35cqw, 0.92rem);
+  font-weight: 600;
+  color: var(--typo-meta-accent);
+  line-height: 1.35;
+}
+
+.typo-page-meta--neutral {
+  color: var(--typo-muted);
+  font-weight: 500;
+}
+
+.typo-page-meta--neutral strong,
+.typo-page-meta--neutral time {
+  color: #334155;
+  font-weight: 600;
+}
+
+.typo-section-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.95rem, 1.8cqw, 1.05rem);
+  font-weight: 700;
+  color: var(--typo-ink-soft);
+  line-height: 1.25;
+}
+
+.typo-subtitle {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.88rem, 1.5cqw, 0.98rem);
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.35;
+}
+
+.typo-body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.85rem, 1.4cqw, 0.95rem);
+  font-weight: 400;
+  color: var(--typo-ink);
+  line-height: 1.5;
+}
+
+.typo-muted {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.8rem, 1.35cqw, 0.9rem);
+  font-weight: 400;
+  color: var(--typo-muted);
+  line-height: 1.45;
+}
+
+.typo-caption {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.72rem, 1.2cqw, 0.82rem);
+  font-weight: 500;
+  color: var(--typo-muted);
+  line-height: 1.35;
+}
+
+.typo-error {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.8rem, 1.3cqw, 0.9rem);
+  font-weight: 500;
+  color: #b91c1c;
+  line-height: 1.4;
+}
+
+.typo-kpi-label {
+  font-family: var(--font-sans);
+  font-size: clamp(0.72rem, 1.35cqw, 0.88rem);
+  font-weight: 600;
+  color: var(--typo-ink-soft);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.typo-kpi-value {
+  font-family: var(--font-sans);
+  font-size: clamp(1.25rem, 3.5cqw, 2.1rem);
+  font-weight: 800;
+  color: #2563eb;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.typo-field-key {
+  font-family: var(--font-sans);
+  font-size: clamp(0.72rem, 1.15cqw, 0.8rem);
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+/** Etiqueta de formulario (filtros, encuestas) */
+.typo-form-label {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.8rem, 1.3cqw, 0.88rem);
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.3;
+}

@@ -1,0 +1,119 @@
+/* Resultados: búsqueda por documento + descarga (tema clínico / institucional) */
+
+.estad-res {
+  container-type: inline-size;
+  container-name: resultados;
+  min-width: 0;
+}
+
+/* Panel: alineado con sidebar estadístico (azul pizarra, sin “neón”) */
+.estad-res .estad-filtros__panel {
+  background: linear-gradient(180deg, #f4f7fb 0%, #eef2f8 100%);
+  border: 1px solid rgba(42, 79, 120, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.estad-res .estad-filtros__panel .typo-form-label.estad-filtros__lbl {
+  color: #2f5a82;
+  font-weight: 600;
+}
+
+.estad-res .estad-filtros__input,
+.estad-res .estad-filtros__select {
+  border-color: rgba(42, 79, 120, 0.18);
+}
+
+.estad-res .estad-filtros__input:focus,
+.estad-res .estad-filtros__select:focus {
+  border-color: #2f5a82;
+  box-shadow: 0 0 0 3px rgba(47, 90, 130, 0.14);
+}
+
+.estad-res .estad-filtros__divider {
+  background: rgba(42, 79, 120, 0.12);
+}
+
+/* Evita que el input/select se coman el espacio en grid de 3 columnas (desktop) */
+.estad-res .estad-filtros__field--3 .estad-filtros__input,
+.estad-res .estad-filtros__field--3 .estad-filtros__select {
+  min-width: 0;
+}
+
+/* Fila exportación: ancho mínimo legible para “PDF / CSV / Excel” */
+.estad-res .estad-filtros__field--export .estad-filtros__select {
+  min-width: min(100%, 9.5rem);
+}
+
+/* Vista previa / título */
+.estad-res .estad-filtros__viewer-title {
+  color: #243d5f;
+}
+
+/* Estado vacío: aviso tipo “notice” clínico (sin borde discontinuo chillón) */
+.estad-res .estad-filtros__empty {
+  margin-top: clamp(1rem, 2.5vw, 1.35rem);
+  padding: clamp(1rem, 2.5vw, 1.35rem) clamp(1rem, 2.5vw, 1.25rem);
+  border: 1px solid rgba(42, 79, 120, 0.12);
+  border-radius: clamp(0.65rem, 1.5vw, 0.85rem);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: inset 4px 0 0 #2f5a82;
+  text-align: left;
+  color: #475569;
+  font-size: clamp(0.88rem, 2.2cqw, 0.95rem);
+  line-height: 1.45;
+}
+
+/* —— Responsive: apilar filas (esta página no usa .estad-filtros como container) —— */
+@container resultados (max-width: 36rem) {
+  .estad-res .estad-filtros__field--2,
+  .estad-res .estad-filtros__field--3 {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.4rem 0.85rem;
+  }
+
+  .estad-res .estad-filtros__lbl {
+    align-self: start;
+    padding-top: 0.1rem;
+  }
+
+  .estad-res .estad-filtros__select {
+    max-width: 100%;
+  }
+
+  .estad-res .estad-filtros__field--3 .btn-componente {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .estad-res .estad-filtros__field--export .estad-filtros__btnIcon {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 36rem) {
+  .estad-res .estad-filtros__field--2,
+  .estad-res .estad-filtros__field--3 {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.4rem 0.85rem;
+  }
+
+  .estad-res .estad-filtros__lbl {
+    align-self: start;
+    padding-top: 0.1rem;
+  }
+
+  .estad-res .estad-filtros__select {
+    max-width: 100%;
+  }
+
+  .estad-res .estad-filtros__field--3 .btn-componente {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .estad-res .estad-filtros__field--export .estad-filtros__btnIcon {
+    justify-content: center;
+  }
+}

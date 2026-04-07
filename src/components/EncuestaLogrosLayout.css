@@ -48,6 +48,13 @@
   box-sizing: border-box;
 }
 
+.encuesta-logros-backrow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
 .encuesta-logros-card {
   width: 100%;
   margin: 0 auto;
@@ -112,6 +119,11 @@
   min-width: min(100%, 160px);
 }
 
+.encuesta-logros-actions .nav-back-btn--with-label {
+  flex: 1 1 min(100%, 220px);
+  justify-content: center;
+}
+
 .encuesta-logros-actions--single .btn-componente {
   flex: 1 1 auto;
   max-width: min(100%, 400px);
@@ -126,5 +138,11 @@
     flex: 1 1 auto;
     width: 100%;
     max-width: none;
+  }
+
+  .encuesta-logros-actions .nav-back-btn--with-label {
+    width: 100%;
+    max-width: none;
+    justify-content: center;
   }
 }

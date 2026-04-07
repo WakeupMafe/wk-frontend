@@ -1,0 +1,204 @@
+/* Layout estadísticas: grid + media query para tablet/móvil */
+
+.estad-layout {
+  container-type: inline-size;
+  container-name: estad;
+
+  display: grid;
+  grid-template-columns: minmax(0, clamp(8rem, 22vw, 15rem)) minmax(0, 1fr);
+  align-items: stretch;
+
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3f9 100%);
+}
+
+.estad-sidebar {
+  box-sizing: border-box;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  /* Azul institucional / clínico (menos saturado que el eléctrico #2563eb) */
+  background: linear-gradient(
+    180deg,
+    #3d6d9a 0%,
+    #2f5a82 42%,
+    #284a6e 100%
+  );
+  color: #fff;
+  padding: clamp(0.75rem, 2.5cqw, 1.5rem) clamp(0.5rem, 1.5cqw, 0.75rem);
+  gap: clamp(0.75rem, 2cqw, 1.5rem);
+  box-shadow: 4px 0 22px rgba(20, 45, 72, 0.32);
+}
+
+.estad-sidebar__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.estad-sidebar__icon {
+  color: #fff;
+  opacity: 0.95;
+  width: clamp(1.5rem, 4cqw, 1.75rem);
+  height: auto;
+}
+
+.estad-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.25rem, 1cqw, 0.4rem);
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+}
+
+.estad-sidebar__link {
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(0.8rem, 2.2cqw, 1rem);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  padding: clamp(0.45rem, 1.2cqw, 0.55rem) clamp(0.6rem, 1.5cqw, 0.8rem);
+  border-radius: 0.65rem;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.estad-sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.estad-sidebar__link--active {
+  background: rgba(255, 255, 255, 0.16);
+  font-weight: 700;
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.estad-sidebar__back {
+  margin-top: auto;
+  flex-shrink: 0;
+
+  width: clamp(2.5rem, 8cqw, 2.75rem);
+  height: clamp(2.5rem, 8cqw, 2.75rem);
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  color: #2f5a82;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.estad-sidebar__back:hover {
+  transform: scale(1.05);
+}
+
+.estad-main {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  padding-top: clamp(0.5rem, 2cqw, 1.5rem);
+  padding-bottom: clamp(0.75rem, 2cqw, 1.25rem);
+  /* Más aire lateral: título y contenido no pegados al borde */
+  padding-inline: clamp(1rem, 2.8cqw, 1.75rem);
+}
+
+.estad-main__inner {
+  width: 100%;
+  max-width: min(100%, 56rem);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.45rem, 1.2cqw, 0.85rem);
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+/* Scroll único bajo el header de usuario (pestañas) */
+.estad-main__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px; /* evita corte del scrollbar */
+  box-sizing: border-box;
+}
+
+/* Botón volver: solo cuando no hay barra lateral (móvil / tablet) */
+.estad-mobile-back {
+  display: none;
+}
+
+/* Tablet y móvil (misma franja que el header compacto): ocultar barra lateral */
+@media (max-width: 1024px) {
+  .estad-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .estad-sidebar {
+    display: none;
+  }
+
+  .estad-mobile-back {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-shrink: 0;
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 0.15rem;
+  }
+}
+
+/* Enlaces Dashboard / Filtros / Resultados en el panel hamburguesa */
+.estad-mobile-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.estad-mobile-nav__link {
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1f3a5f;
+  text-decoration: none;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.65rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.estad-mobile-nav__link:hover {
+  background: rgba(47, 90, 130, 0.12);
+  color: #2f5a82;
+}
+
+.estad-mobile-nav__link--active {
+  background: rgba(47, 90, 130, 0.2);
+  font-weight: 700;
+  color: #243d5f;
+}

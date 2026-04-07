@@ -158,6 +158,39 @@
     object-position: bottom center;
   }
 }
+
+/* Tablets: título, subtítulo y CTA más legibles (misma vista que móvil en ≤1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .welcome-content {
+    gap: clamp(0.65rem, 2.2vw, 1.15rem);
+    padding-left: clamp(1.25rem, 5vw, 2rem);
+    padding-right: clamp(1.25rem, 5vw, 2rem);
+  }
+
+  .Welcome h1 {
+    font-size: clamp(3rem, 5.5vw + 1.35rem, 4.25rem);
+    letter-spacing: -0.02em;
+  }
+
+  .Welcome h2 {
+    font-size: clamp(1.45rem, 2.1vw + 1rem, 2.2rem);
+    font-weight: 400;
+    max-width: min(100%, 34rem);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .Welcome h2 .negritas {
+    font-weight: 700;
+  }
+
+  .btn-entrar-bienvenida {
+    font-size: clamp(1.2rem, 1.8vw + 0.85rem, 1.65rem);
+    padding: clamp(0.65rem, 1.4vw, 0.9rem) clamp(1.15rem, 3vw, 1.65rem);
+    width: min(94%, 28rem);
+  }
+}
+
 /* Estilo de la pagina de Cedula */
 
 .cedula-h2 {

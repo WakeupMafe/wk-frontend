@@ -1,0 +1,168 @@
+.estad-filtros {
+  container-type: inline-size;
+  container-name: filtros;
+
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+
+  background: #fff;
+  border: 1px solid rgba(31, 42, 68, 0.1);
+  border-radius: clamp(0.85rem, 2vw, 1.5rem);
+  padding: clamp(0.85rem, 2.5vw, 1.75rem);
+  box-shadow: 0 12px 32px rgba(34, 73, 150, 0.06);
+}
+
+.estad-filtros__page-title {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+  font-weight: 800;
+  color: #1f2a44;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.estad-filtros__intro {
+  margin: clamp(0.35rem, 1vw, 0.5rem) 0 clamp(0.85rem, 2vw, 1.25rem);
+  color: #64748b;
+  font-size: clamp(0.8rem, 1.4vw, 0.95rem);
+  line-height: 1.45;
+}
+
+.estad-filtros__panel {
+  box-sizing: border-box;
+  min-width: 0;
+
+  background: #eef4ff;
+  border: 1px solid #dbe7ff;
+  border-radius: clamp(0.75rem, 1.5vw, 1rem);
+  padding: clamp(0.85rem, 2vw, 1.35rem);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(0.75rem, 2vw, 1.1rem);
+}
+
+/* Misma anchura de columna de etiquetas en todas las filas */
+.estad-filtros__field {
+  display: grid;
+  align-items: center;
+  gap: clamp(0.45rem, 1.5vw, 0.85rem);
+  min-width: 0;
+}
+
+.estad-filtros__field--2 {
+  grid-template-columns:
+    minmax(0, clamp(6.75rem, 24cqw, 10.5rem))
+    minmax(0, 1fr);
+}
+
+.estad-filtros__field--3 {
+  grid-template-columns:
+    minmax(0, clamp(6.75rem, 24cqw, 10.5rem))
+    minmax(0, 1fr)
+    auto;
+}
+
+/* Etiquetas del panel resultados: acento azul encima de typo-form-label */
+.estad-filtros__panel .typo-form-label.estad-filtros__lbl {
+  color: #2563eb;
+}
+
+.estad-filtros__lbl {
+  margin: 0;
+  line-height: 1.3;
+  justify-self: start;
+  align-self: center;
+  overflow-wrap: anywhere;
+}
+
+.estad-filtros__select,
+.estad-filtros__input {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+
+  font-family: "Poppins", sans-serif;
+  font-size: clamp(0.85rem, 1.4vw, 0.95rem);
+  border-radius: clamp(0.5rem, 1vw, 0.65rem);
+  border: 1px solid #cddcff;
+  padding: clamp(0.45rem, 1.2vw, 0.55rem) clamp(0.65rem, 1.5vw, 0.85rem);
+  background: #fff;
+  color: #1f2a44;
+  min-height: clamp(2.5rem, 6vw, 2.75rem);
+}
+
+.estad-filtros__select {
+  max-width: min(100%, 22rem);
+}
+
+.estad-filtros__input:focus,
+.estad-filtros__select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.estad-filtros__divider {
+  height: 1px;
+  background: rgba(37, 99, 235, 0.2);
+  margin: 0;
+  min-height: 0;
+}
+
+/* Botones: componente ButtonComponente (variantes teal / outline) */
+.estad-filtros__btnIcon svg {
+  flex-shrink: 0;
+  width: clamp(1.1rem, 3vw, 1.35rem);
+  height: auto;
+}
+
+.estad-filtros__field--3 .btn-componente {
+  flex-shrink: 0;
+}
+
+/* Contenedor estrecho: una columna, controles a ancho completo */
+@container filtros (max-width: 28rem) {
+  .estad-filtros__field--2,
+  .estad-filtros__field--3 {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .estad-filtros__lbl {
+    justify-self: start;
+  }
+
+  .estad-filtros__select {
+    max-width: 100%;
+  }
+
+  .estad-filtros__field--3 .btn-componente:last-child {
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+
+.estad-filtros__viewer {
+  margin-top: clamp(1rem, 2.5vw, 1.5rem);
+  min-width: 0;
+}
+
+.estad-filtros__viewer-title {
+  margin: 0 0 clamp(0.5rem, 1.5vw, 0.75rem);
+  color: #1f2a44;
+}
+
+.estad-filtros__empty {
+  margin-top: clamp(1rem, 2.5vw, 1.25rem);
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px dashed #c8d8fa;
+  border-radius: clamp(0.65rem, 1.5vw, 1rem);
+  background: #f9fbff;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

@@ -1,3 +1,5 @@
+@import "./components/typography/Typography.css";
+
 /* Reset seguro: NO aplicar width/height/overflow a * (rompe móvil con scroll anidado) */
 *,
 *::before,
@@ -20,7 +22,7 @@ body {
   min-height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
-  font-family: "Poppins", sans-serif;
+  font-family: var(--font-sans, "Poppins", system-ui, sans-serif);
   /* Evita “arrastre” horizontal raro en iOS cuando hay overflow residual */
   overscroll-behavior-x: none;
 }

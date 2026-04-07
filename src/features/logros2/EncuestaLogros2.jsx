@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import SelectInput from "../../components/SelectInput";
 import AutorizadosHeader from "../../components/AutorizadosHeader";
 import Button from "../../components/ButtonComponente";
+import NavBackButton from "../../components/NavBackButton";
 import WelcomeLayout from "../../layouts/WelcomeLayout";
 import "../../components/SweetAlert.css";
 import "../../components/TextInput.css";
@@ -59,7 +60,6 @@ function TextField({
 }
 
 export default function EncuestaLogros2() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { sede: sedeParam } = useParams();
 
@@ -91,6 +91,18 @@ export default function EncuestaLogros2() {
         return "";
       }
     })();
+
+  const encuestasListPath = `/sede/${encodeURIComponent(
+    sedeParam || sedeFormulario,
+  )}/encuestas`;
+
+  const encuestasListState = {
+    usuario: usuarioHeader,
+    sede: location.state?.sede || sedeFormulario,
+    encuestasRealizadas: encuestasCount,
+    cedula: encuestadorCache || location.state?.cedula,
+    pin: location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined,
+  };
 
   const [docBusqueda, setDocBusqueda] = useState("");
   const [fase1, setFase1] = useState(null);
@@ -313,6 +325,13 @@ export default function EncuestaLogros2() {
         <div className="encuesta-logros-page__main">
           <div className="encuesta-logros-wrap">
             <div className="encuesta-logros-card">
+              <div className="encuesta-logros-backrow">
+                <NavBackButton
+                  to={encuestasListPath}
+                  state={encuestasListState}
+                  ariaLabel="Volver a encuestas disponibles"
+                />
+              </div>
               <h2 className="encuesta-logros-title">
                 Seguimiento clínico por objetivos (Logros 2)
               </h2>
@@ -430,23 +449,12 @@ export default function EncuestaLogros2() {
                 <Button type="submit" variant="emphasis">
                   Registrar evaluación de seguimiento
                 </Button>
-                <Button
-                  type="button"
-                  variant="muted"
-                  onClick={() => {
-                    const s = sedeParam || sedeFormulario;
-                    navigate(`/sede/${encodeURIComponent(s)}/encuestas`, {
-                      state: {
-                        usuario: location.state?.usuario,
-                        sede: location.state?.sede || s,
-                        encuestasRealizadas: location.state?.encuestasRealizadas,
-                        cedula: encuestadorCache || location.state?.cedula,
-                      },
-                    });
-                  }}
-                >
-                  Volver
-                </Button>
+                <NavBackButton
+                  variant="icon-text"
+                  to={encuestasListPath}
+                  state={encuestasListState}
+                  ariaLabel="Volver a encuestas disponibles"
+                />
               </div>
             </form>
           ) : fase1 && slots.length === 0 ? (

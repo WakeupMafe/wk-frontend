@@ -1,10 +1,12 @@
+/* Registro primera vez: Grid + clamp (sin depender de muchos breakpoints) */
+
+/* Reset mínimo: el scroll lo gestiona .first-time-page (evita cortar contenido en móvil) */
 html,
 body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
   box-sizing: border-box;
 }
 
@@ -14,207 +16,257 @@ body {
   box-sizing: border-box;
 }
 
-.BoxGeneral {
+.BoxGeneral.first-time-page {
   display: flex;
   flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100vh;
   width: 100%;
-  height: 100vh;
-  overflow: hidden;
-  box-sizing: border-box;
-  inset: 0;
-  padding: 0;
-  margin: 0;
+  overflow-x: clip;
+  overflow-y: auto;
   position: relative;
   z-index: 1;
-}
-.Header {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  height: 20vh;
-  padding: 10px;
-  justify-content: center;
-  align-items: center;
-  margin: 0 auto;
-}
-.HeaderLogo:hover,
-.ImgHome:hover {
-  scale: 1.05;
-}
-/* Hijos del Header */
-.Header > :nth-child(1),
-.Header > :nth-child(3) {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: 20%;
-  height: 100%;
-  overflow: hidden;
-}
-/* Iamgen logo */
-.ImgLogo {
-  object-fit: contain;
-  width: auto;
-  height: 80%;
-  cursor: pointer;
-}
-.ImgHome {
-  object-fit: contain;
-  width: auto;
-  height: 60%;
-  cursor: pointer;
-}
-.Header > :nth-child(2) {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: 60%;
-  height: 100%;
+  padding-inline: clamp(0.75rem, 2vw + 0.25rem, 2rem);
+  padding-bottom: clamp(1rem, 3vw, 2rem);
 }
 
-.h2HeaderTittle {
-  text-align: center;
-  font-family: "Poppins";
-  font-size: 2rem;
-  color: #1f3a5f;
+/* ——— Cabecera: 3 columnas fluidas ——— */
+.first-time-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(0.5rem, 2vw, 1.25rem);
+  width: 100%;
+  max-width: min(100%, 56rem);
+  margin-inline: auto;
+  padding-block: clamp(0.75rem, 2.5vw, 1.5rem);
+  min-height: clamp(4rem, 12vw + 2rem, 8rem);
+}
+
+.first-time-header__brand,
+.first-time-header__home-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.first-time-header__home-wrap {
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.first-time-header__home-wrap:focus-visible {
+  outline: 2px solid #2c70cc;
+  outline-offset: 3px;
+}
+
+.first-time-header__logo {
+  object-fit: contain;
+  cursor: pointer;
+  display: block;
+  transition: transform 0.15s ease;
+}
+
+.first-time-header__logo {
+  width: clamp(2.5rem, 8vw + 1rem, 4.5rem);
+  height: auto;
+  max-height: clamp(3rem, 10vh, 5rem);
+}
+
+.first-time-header__home {
+  width: clamp(1.75rem, 5vw + 0.5rem, 2.75rem);
+  height: clamp(1.75rem, 5vw + 0.5rem, 2.75rem);
+  object-fit: contain;
+  display: block;
+  transition: transform 0.15s ease;
+}
+
+.first-time-header__logo:hover,
+.first-time-header__home-wrap:hover .first-time-header__home {
+  transform: scale(1.05);
+}
+
+.first-time-header__title-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.first-time-header__title {
   margin: 0;
-}
-.Content {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  height: 80vh;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-}
-.ColumnRight,
-.ColumnLeft {
-  display: flex;
-  width: 80%;
-  height: 100%;
-  flex-direction: column;
-  padding: 1rem;
-  margin: 0 auto;
-  justify-content: flex-start;
-  align-items: center;
-}
-/* Botones*/
-.btn {
-  height: 44px;
-  width: 40%;
-  border-radius: 12px;
-  border: none;
-  padding: 10px 14px;
-  font-family: "Poppins", sans-serif;
-  font-size: 16px;
-  cursor: pointer;
+  text-align: center;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-weight: 600;
+  color: #1f3a5f;
+  line-height: 1.2;
+  font-size: clamp(1rem, 0.85rem + 0.9vw, 2rem);
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
-.btn--primary {
+/* ——— Contenedor principal del formulario ——— */
+.first-time-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding-block: clamp(0.5rem, 2vw, 1.25rem);
+}
+
+/* Campos: auto-fit con mínimo ~22rem para que en el ancho máx. del card salgan 2 cols, no 3 */
+.first-time-form {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 22rem), 1fr)
+  );
+  gap: clamp(0.65rem, 1.8vw, 1.35rem);
+  width: 100%;
+  max-width: min(100%, 56rem);
+  margin-inline: auto;
+  align-content: start;
+}
+
+/* Campos: ancho completo de celda + tipografía fluida */
+.first-time-page .field {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.first-time-page .field__label {
+  font-size: clamp(0.8125rem, 0.75rem + 0.35vw, 1.15rem);
+}
+
+.first-time-page .field__input {
+  width: 100%;
+  min-height: clamp(2.5rem, 2rem + 1vw, 2.75rem);
+  font-size: clamp(0.875rem, 0.8rem + 0.25vw, 1rem);
+  padding: clamp(0.45rem, 1vw, 0.65rem) clamp(0.65rem, 1.5vw, 0.9rem);
+}
+
+.first-time-page .field__error {
+  font-size: clamp(0.7rem, 0.65rem + 0.2vw, 0.85rem);
+}
+
+/* ——— Fila de botones Guardar / Solicitar ——— */
+.first-time-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 10rem), 1fr)
+  );
+  gap: clamp(0.5rem, 1.5vw, 1rem);
+  padding-top: clamp(0.25rem, 1vw, 0.75rem);
+}
+
+/* ——— Verificación: código + texto orientativo ——— */
+.first-time-verify {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 15rem), 1fr)
+  );
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  align-items: start;
+  padding-top: clamp(0.35rem, 1.2vw, 1rem);
+  border-top: 1px solid rgba(31, 58, 95, 0.12);
+  margin-top: clamp(0.25rem, 1vw, 0.75rem);
+}
+
+.first-time-verify__code {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.5rem, 1.5vw, 0.85rem);
+}
+
+.first-time-verify__pin-btn {
+  width: 100%;
+}
+
+.first-time-verify__hint {
+  min-width: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(0.78rem, 0.72rem + 0.28vw, 0.95rem);
+  line-height: 1.45;
+  color: #334155;
+}
+
+.first-time-verify__hint-line {
+  margin: 0;
+  color: #1e293b;
+}
+
+.first-time-verify__cooldown {
+  font-weight: 700;
+  color: #2f6fed;
+}
+
+.first-time-verify__warn {
+  margin: 0.4rem 0 0;
+  color: #c41e1e;
+  font-weight: 600;
+}
+
+.first-time-verify__cooldown-note {
+  margin: 0.5rem 0 0;
+  font-size: clamp(0.72rem, 0.68rem + 0.2vw, 0.88rem);
+  color: #64748b;
+}
+
+/* ——— Botones ——— */
+.first-time-page .btn {
+  min-height: clamp(2.5rem, 2rem + 1vw, 3rem);
+  border-radius: clamp(0.5rem, 1vw, 0.75rem);
+  border: none;
+  padding: clamp(0.45rem, 1.2vw, 0.65rem) clamp(0.75rem, 2vw, 1rem);
+  font-family: "Poppins", sans-serif;
+  font-size: clamp(0.8125rem, 0.75rem + 0.3vw, 1rem);
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(31, 58, 95, 0.12);
+}
+
+.first-time-page .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  box-shadow: none;
+}
+
+.first-time-page .btn--primary {
   background: #2f6fed;
   color: white;
 }
 
-.btn--secondary {
-  width: auto;
+.first-time-page .btn--primary:hover:not(:disabled) {
+  transform: scale(1.02);
+  background-color: #20853d;
+}
+
+.first-time-page .btn--secondary {
   background: #e9f0ff;
   color: #2f6fed;
 }
 
-.btn--secondary:hover {
-  width: auto;
+.first-time-page .btn--secondary:hover:not(:disabled) {
   background: #97aad3;
-}
-.btn--primary:hover {
-  scale: 1.05;
-  background-color: #20853d;
+  color: #fff;
 }
 
-.cooldown-text {
-  margin-top: 8px;
-  font-size: 0.9rem;
-  color: #666;
-}
-
-.btn--ready {
-  background-color: #22c55e; /* verde */
+.first-time-page .btn--ready {
+  background-color: #22c55e;
   color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease;
 }
 
-.btn--ready:hover {
-  background-color: #16a34a; /* verde más oscuro */
-}
-
-/* =========================
-   TABLET (≤ 1024px)
-   ========================= */
-@media (max-width: 1024px) {
-  .Header {
-    height: 16vh;
-    padding: 8px;
-  }
-
-  /* Ajusta columnas laterales para que no coman tanto */
-  .Header > :nth-child(1),
-  .Header > :nth-child(3) {
-    width: 18%;
-  }
-
-  .Header > :nth-child(2) {
-    width: 64%;
-  }
-
-  /* Logos más pequeños */
-  .ImgLogo {
-    height: 65%;
-  }
-
-  .ImgHome {
-    height: 50%;
-  }
-
-  /* Título más pequeño */
-  .h2HeaderTittle {
-    font-size: 1.6rem;
-  }
-}
-
-/* =========================
-   CELULAR (≤ 600px)
-   ========================= */
-@media (max-width: 600px) {
-  .Header {
-    height: 14vh;
-    padding: 6px;
-  }
-
-  .Header > :nth-child(1),
-  .Header > :nth-child(3) {
-    width: 22%;
-  }
-
-  .Header > :nth-child(2) {
-    width: 56%;
-  }
-
-  /* Logos aún más pequeños */
-  .ImgLogo {
-    height: 55%;
-  }
-
-  .ImgHome {
-    height: 42%;
-  }
-
-  /* Título más pequeño para evitar desborde */
-  .h2HeaderTittle {
-    font-size: 1.1rem;
-    line-height: 1.1;
-  }
+.first-time-page .btn--ready:hover:not(:disabled) {
+  background-color: #16a34a;
 }

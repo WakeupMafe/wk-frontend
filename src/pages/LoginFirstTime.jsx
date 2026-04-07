@@ -16,8 +16,9 @@ import {
 import { verificarPin } from "../services/verificarPin";
 
 import logo from "../assets/logo.svg";
-import home from "../assets/home.svg";
 import fondo from "../assets/fondo2.svg";
+import { homeIconSrcForGender } from "../assets/homeIconSrc.js";
+import { inferGenderFromName } from "../lib/inferGenderFromName";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -289,12 +290,12 @@ export default function LoginFirstTime() {
     <>
       <WelcomeLayout image={fondo} />
 
-      <div className="BoxGeneral">
-        <div className="Header">
-          <div className="HeaderLogo">
+      <div className="BoxGeneral first-time-page">
+        <header className="first-time-header">
+          <div className="first-time-header__brand">
             <img
               src={logo}
-              className="ImgLogo"
+              className="first-time-header__logo"
               alt="Logo"
               decoding="async"
               loading="lazy"
@@ -302,32 +303,51 @@ export default function LoginFirstTime() {
             />
           </div>
 
-          <div className="HeaderTitle">
-            <h2 className="h2HeaderTittle">
+          <div className="first-time-header__title-wrap">
+            <h1 className="first-time-header__title">
               Bienvenidos al Sistema de Registro
-            </h2>
+            </h1>
           </div>
 
-          <div className="HeaderCasita">
+          <div
+            className="first-time-header__home-wrap"
+            role="button"
+            tabIndex={0}
+            aria-label="Ir al inicio"
+            onClick={() => navigate("/")}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate("/");
+              }
+            }}
+          >
             <img
-              src={home}
-              className="ImgHome"
-              alt="Home"
+              className="first-time-header__home"
+              src={homeIconSrcForGender(inferGenderFromName(form.nombres))}
+              alt=""
               decoding="async"
               loading="lazy"
-              onClick={() => navigate("/")}
             />
           </div>
-        </div>
+        </header>
 
-        <div className="Content">
-          <div className="ColumnLeft">
+        <main className="first-time-main">
+          <div className="first-time-form">
             <TextInput
               label="Nombres Completos"
               name="nombres"
               value={form.nombres}
               onChange={handleChange}
               error={errors.nombres}
+            />
+
+            <TextInput
+              label="Apellidos Completos"
+              name="apellidos"
+              value={form.apellidos}
+              onChange={handleChange}
+              error={errors.apellidos}
             />
 
             <TextInput
@@ -339,56 +359,6 @@ export default function LoginFirstTime() {
               error={errors.correo}
             />
 
-            <SelectInput
-              label="Sede"
-              name="sede"
-              value={form.sede}
-              onChange={handleChange}
-              options={SEDES}
-              error={errors.sede}
-            />
-
-            <button
-              className="btn btn--primary"
-              onClick={handleGuardar}
-              disabled={saving}
-            >
-              {saving ? "Guardando..." : "Guardar"}
-            </button>
-
-            <br />
-
-            <TextInput
-              label=""
-              name="codigo"
-              value={form.codigo}
-              onChange={handleChange}
-              placeholder="Ingrese Código"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleVerificarCodigo();
-                }
-              }}
-            />
-
-            <button
-              className="btn btn--primary"
-              onClick={handleVerificarCodigo}
-              disabled={!pinEnviado || !form.codigo.trim()}
-            >
-              Verificar PIN
-            </button>
-          </div>
-
-          <div className="ColumnRight">
-            <TextInput
-              label="Apellidos Completos"
-              name="apellidos"
-              value={form.apellidos}
-              onChange={handleChange}
-              error={errors.apellidos}
-            />
-
             <TextInput
               label="Celular"
               name="celular"
@@ -396,6 +366,15 @@ export default function LoginFirstTime() {
               onChange={handleChange}
               inputMode="numeric"
               error={errors.celular}
+            />
+
+            <SelectInput
+              label="Sede"
+              name="sede"
+              value={form.sede}
+              onChange={handleChange}
+              options={SEDES}
+              error={errors.sede}
             />
 
             <TextInput
@@ -408,24 +387,79 @@ export default function LoginFirstTime() {
               error={errors.cedula}
             />
 
-            <button
-              className={`btn btn--secondary ${
-                cooldown === 0 && pinEnviado ? "btn--ready" : ""
-              }`}
-              onClick={handleSolicitarCodigo}
-              disabled={!pinEnviado || cooldown > 0}
-            >
-              Solicitar Nuevo Código
-            </button>
+            <div className="first-time-actions">
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={handleGuardar}
+                disabled={saving}
+              >
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
 
-            {pinEnviado && cooldown > 0 && (
-              <p className="cooldown-text">
-                ⏳ Podrás solicitar un nuevo código en{" "}
-                <strong>{cooldown}</strong> segundos
-              </p>
-            )}
+              <button
+                type="button"
+                className={`btn btn--secondary ${
+                  cooldown === 0 && pinEnviado ? "btn--ready" : ""
+                }`}
+                onClick={handleSolicitarCodigo}
+                disabled={!pinEnviado || cooldown > 0}
+              >
+                Solicitar Nuevo Código
+              </button>
+            </div>
+
+            <section className="first-time-verify" aria-label="Verificación PIN">
+              <div className="first-time-verify__code">
+                <TextInput
+                  label=""
+                  name="codigo"
+                  value={form.codigo}
+                  onChange={handleChange}
+                  placeholder="Ingrese Código"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleVerificarCodigo();
+                    }
+                  }}
+                />
+
+                <button
+                  type="button"
+                  className="btn btn--primary first-time-verify__pin-btn"
+                  onClick={handleVerificarCodigo}
+                  disabled={!pinEnviado || !form.codigo.trim()}
+                >
+                  Verificar PIN
+                </button>
+              </div>
+
+              <div className="first-time-verify__hint">
+                <p className="first-time-verify__hint-line">
+                  Le llegará un código de 4 dígitos al correo.
+                  {pinEnviado && cooldown > 0 ? (
+                    <>
+                      {" "}
+                      <span className="first-time-verify__cooldown">
+                        {cooldown}s
+                      </span>
+                      .
+                    </>
+                  ) : null}
+                </p>
+                <p className="first-time-verify__warn">
+                  Debes guardar el PIN para futuros ingresos.
+                </p>
+                {pinEnviado && cooldown > 0 ? (
+                  <p className="first-time-verify__cooldown-note">
+                    Podrás solicitar un nuevo código cuando termine la cuenta
+                    regresiva.
+                  </p>
+                ) : null}
+              </div>
+            </section>
           </div>
-        </div>
+        </main>
       </div>
     </>
   );

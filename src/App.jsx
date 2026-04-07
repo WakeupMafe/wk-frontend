@@ -159,7 +159,7 @@ export default function App() {
           }
         />
         <Route
-          path="/estadisticas"
+          path="/estadisticas/*"
           element={
             <SafeRoute>
               <Estadisticas />

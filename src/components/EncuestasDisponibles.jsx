@@ -39,6 +39,8 @@ export default function EncuestasDisponibles() {
   const sede = location.state?.sede || "Sin sede";
   const encuestasRealizadas = location.state?.encuestasRealizadas ?? 0;
   const cedula = location.state?.cedula ?? null;
+  const pin =
+    location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined;
 
   const items = useMemo(
     () => [
@@ -92,6 +94,9 @@ export default function EncuestasDisponibles() {
             breadcrumb={[sede, "Encuestas"]}
             items={items}
             onItemClick={onItemClick}
+            backTo="/autorizados-inicio"
+            backState={pin ? { pin } : undefined}
+            backAriaLabel="Volver al inicio autorizados"
           />
         </div>
       </div>

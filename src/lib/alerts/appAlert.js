@@ -63,6 +63,35 @@ export function alertConfirm(options = {}) {
     cancelButtonText: options.cancelButtonText || "Cancelar",
   });
 }
+
+/** Toasts (esquina): avisos breves sin bloquear la pantalla — p. ej. descargas */
+const toastBase = Swal.mixin({
+  toast: true,
+  position: "top-end",
+  showConfirmButton: false,
+  timer: 4500,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.addEventListener("mouseenter", Swal.stopTimer);
+    toast.addEventListener("mouseleave", Swal.resumeTimer);
+  },
+});
+
+export function toastSuccess({ title = "Listo", text = "" } = {}) {
+  return toastBase.fire({
+    icon: "success",
+    title,
+    ...(text ? { text } : {}),
+  });
+}
+
+export function toastError({ title = "Error", text = "" } = {}) {
+  return toastBase.fire({
+    icon: "error",
+    title,
+    ...(text ? { text } : {}),
+  });
+}
 /* ================================
    ALERTA ESPECIAL: USUARIO EXISTE
 ================================ */

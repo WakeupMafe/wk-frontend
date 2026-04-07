@@ -1,18 +1,33 @@
+/* Variables: un solo sitio para el acento “clínico” y el azul legado */
+:root {
+  --btn-teal: #0f766e;
+  --btn-teal-hover: #0d9488;
+  --btn-teal-soft-bg: #ecfdf5;
+  --btn-teal-soft-border: #99f6e4;
+  --btn-accent: #4a83d5;
+  --btn-accent-hover: #3d6eb8;
+}
+
 .btn-componente {
   box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   min-height: 44px;
   border-radius: 12px;
   border: none;
   padding: 0.5rem 1rem;
   margin: 0;
   text-align: center;
-  font-family: "Poppins", sans-serif;
+  font-family: var(--font-sans, "Poppins", system-ui, sans-serif);
   font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.1rem);
   font-weight: 500;
   cursor: pointer;
   transition:
     background 0.2s ease,
     color 0.2s ease,
+    border-color 0.2s ease,
     filter 0.2s ease,
     transform 0.15s ease;
 }
@@ -20,6 +35,14 @@
 .btn-componente:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.btn--sm {
+  min-height: 38px;
+  padding: 0.4rem 0.85rem;
+  font-size: clamp(0.82rem, 0.78rem + 0.15vw, 0.95rem);
+  border-radius: 10px;
+  font-weight: 600;
 }
 
 /* Normal: azul grisáceo + hover verde */
@@ -62,5 +85,82 @@
 }
 
 .btn--muted:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Primario clínico (estadísticas, consultar) */
+.btn--teal {
+  background: var(--btn-teal);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.btn--teal:hover:not(:disabled) {
+  background: var(--btn-teal-hover);
+}
+
+.btn--teal:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Secundario con borde (descargar, exportar) */
+.btn--outline {
+  background: #fff;
+  color: var(--btn-teal);
+  border: 1px solid var(--btn-teal);
+  font-weight: 600;
+}
+
+.btn--outline:hover:not(:disabled) {
+  background: var(--btn-teal-soft-bg);
+}
+
+.btn--outline:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Trigger suave (añadir ítem) */
+.btn--tealSoft {
+  background: var(--btn-teal-soft-bg);
+  color: var(--btn-teal);
+  border: 1px solid var(--btn-teal-soft-border);
+  font-weight: 600;
+}
+
+.btn--tealSoft:hover:not(:disabled) {
+  background: #d1fae5;
+  border-color: #5eead4;
+}
+
+/* Icono / quitar chip */
+.btn--ghost {
+  background: transparent;
+  color: #64748b;
+  min-height: auto;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.35rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Azul encuesta (visor logros, tablas legacy) */
+.btn--accent {
+  background: var(--btn-accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.btn--accent:hover:not(:disabled) {
+  background: var(--btn-accent-hover);
+}
+
+.btn--accent:active:not(:disabled) {
   transform: scale(0.98);
 }

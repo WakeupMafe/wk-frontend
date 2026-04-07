@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import NavBackButton from "./NavBackButton";
 import "./DirectoryBrowser.css";
 
 export default function DirectoryBrowser({
@@ -6,6 +7,11 @@ export default function DirectoryBrowser({
   items = [],
   onItemClick,
   defaultSelectedId,
+  /** Ruta al volver (p. ej. /autorizados-inicio). Si no hay, no se muestra botón. */
+  backTo,
+  /** Estado opcional para navigate(backTo, { state }) */
+  backState,
+  backAriaLabel = "Volver",
 }) {
   const initialId = useMemo(() => {
     if (defaultSelectedId) return defaultSelectedId;
@@ -22,13 +28,24 @@ export default function DirectoryBrowser({
 
   return (
     <div className="dir">
-      <div className="dir__breadcrumb">
-        {breadcrumb.map((part, idx) => (
-          <span key={`${part}-${idx}`} className="dir__crumb">
-            {part}
-            {idx < breadcrumb.length - 1 && <span className="dir__sep">›</span>}
-          </span>
-        ))}
+      <div className="dir__toolbar">
+        {backTo ? (
+          <NavBackButton
+            to={backTo}
+            state={backState}
+            ariaLabel={backAriaLabel}
+          />
+        ) : null}
+        <div className="dir__breadcrumb">
+          {breadcrumb.map((part, idx) => (
+            <span key={`${part}-${idx}`} className="dir__crumb">
+              {part}
+              {idx < breadcrumb.length - 1 && (
+                <span className="dir__sep">›</span>
+              )}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="dir__list" role="list">

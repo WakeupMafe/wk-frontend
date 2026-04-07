@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import SelectInput from "./SelectInput";
 import AutorizadosHeader from "./AutorizadosHeader";
 import Button from "./ButtonComponente";
+import NavBackButton from "./NavBackButton";
 import WelcomeLayout from "../layouts/WelcomeLayout";
 import "./TextInput.css";
 import "./EncuestasDisponibles.css";
@@ -424,16 +425,20 @@ export default function EncuestaLogrosWKP() {
     }
   };
 
+  const encuestasListPath = `/sede/${encodeURIComponent(
+    sedeParam || sedeFormulario,
+  )}/encuestas`;
+
+  const encuestasListState = {
+    usuario: usuarioHeader,
+    sede: location.state?.sede || sedeFormulario,
+    encuestasRealizadas: encuestasCount,
+    cedula: encuestadorCache || location.state?.cedula,
+    pin: location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined,
+  };
+
   const irAEncuestas = () => {
-    const s = sedeParam || sedeFormulario;
-    navigate(`/sede/${encodeURIComponent(s)}/encuestas`, {
-      state: {
-        usuario: location.state?.usuario,
-        sede: location.state?.sede || s,
-        encuestasRealizadas: location.state?.encuestasRealizadas,
-        cedula: encuestadorCache || location.state?.cedula,
-      },
-    });
+    navigate(encuestasListPath, { state: encuestasListState });
   };
 
   return (
@@ -453,6 +458,13 @@ export default function EncuestaLogrosWKP() {
         <div className="encuesta-logros-page__main">
           <div className="encuesta-logros-wrap">
             <div className="encuesta-logros-card">
+              <div className="encuesta-logros-backrow">
+                <NavBackButton
+                  to={encuestasListPath}
+                  state={encuestasListState}
+                  ariaLabel="Volver a encuestas disponibles"
+                />
+              </div>
               <form onSubmit={onSubmit}>
                 <h2 className="encuesta-logros-title">
                   Encuesta de Logros por Objetivos Wakeup
@@ -665,9 +677,12 @@ export default function EncuestaLogrosWKP() {
                   <Button type="button" variant="normal" onClick={resetForm}>
                     Limpiar
                   </Button>
-                  <Button type="button" variant="muted" onClick={irAEncuestas}>
-                    Volver
-                  </Button>
+                  <NavBackButton
+                    variant="icon-text"
+                    to={encuestasListPath}
+                    state={encuestasListState}
+                    ariaLabel="Volver a encuestas disponibles"
+                  />
                 </div>
               </form>
             </div>

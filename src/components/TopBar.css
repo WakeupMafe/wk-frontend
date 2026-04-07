@@ -42,6 +42,20 @@
   transform: scale(1.05);
   border-color: #92bd4a; /* verde claro */
 }
+
+/* Tablets: badge “Ingreso Primera Vez” y logo un poco más presentes */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .top-bar-logo {
+    height: 90px;
+  }
+
+  .top-bar-button {
+    font-size: 1.38rem;
+    padding: 0.55rem 1.4rem;
+    min-height: 2.85rem;
+  }
+}
+
 /* CELULARES */
 @media (max-width: 767px) {
   .top-bar {

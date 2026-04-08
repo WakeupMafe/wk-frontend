@@ -12,7 +12,12 @@ import "./EncuestaLogros2.css";
 
 import fondo2 from "../../assets/fondo2.svg";
 
-import { alertError, alertSuccess, alertWarning } from "../../lib/alerts/appAlert";
+import {
+  alertError,
+  alertSuccess,
+  alertWarning,
+  toastInfo,
+} from "../../lib/alerts/appAlert";
 import { sweetLoading, sweetClose } from "../../components/SweetAlert";
 
 import { NIVEL_MEJORA, getOpcionesNuevoObjetivo } from "./logros2Catalog";
@@ -26,6 +31,14 @@ import {
 } from "./logros2Formatters";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+/** Solo Encuesta Logros 2 (seguimiento); `false` restaura POST real a `/encuestas/logros2`. */
+const SIMULATION_MODE_LOGROS2 = true;
+
+const SIMULATION_LOGROS2_TOAST_HTML = `
+<p style="margin:0;line-height:1.45;text-align:left">Operación completada correctamente.</p>
+<p style="margin:0.65rem 0 0;line-height:1.45;text-align:left"><strong>(Modo simulación)</strong> La transacción fue emulada exitosamente; no se realizó persistencia real de la información en base de datos.</p>
+`.trim();
 
 function TextField({
   label,
@@ -250,6 +263,34 @@ export default function EncuestaLogros2() {
       id_encuesta_fase1: fase1.id_int,
       items,
     };
+
+    if (SIMULATION_MODE_LOGROS2) {
+      console.log("[ENCUESTA LOGROS 2] Submit capturado");
+      console.log("[ENCUESTA LOGROS 2] Modo simulación activo");
+
+      sweetLoading({
+        title: "Registrando…",
+        text: "Guardando evaluación de seguimiento por objetivos.",
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 450));
+
+      sweetClose();
+      console.log("[ENCUESTA LOGROS 2] Persistencia omitida intencionalmente");
+
+      toastInfo({
+        html: SIMULATION_LOGROS2_TOAST_HTML,
+        timer: 4000,
+      });
+
+      setFase1(null);
+      setDocBusqueda("");
+      setRespuestas({});
+      setErrors({});
+
+      console.log("[ENCUESTA LOGROS 2] Flujo finalizado con éxito simulado");
+      return;
+    }
 
     console.log("[ENCUESTA] Payload a enviar:", payload);
     console.log("[ENCUESTA] Iniciando request...");

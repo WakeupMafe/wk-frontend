@@ -94,16 +94,24 @@ export function toastError({ title = "Error", text = "" } = {}) {
 }
 
 export function toastInfo({
-  title = "Información",
+  title,
   text = "",
+  html = "",
   timer = 4000,
 } = {}) {
-  return toastBase.fire({
+  const opts = {
     icon: "info",
-    title,
-    ...(text ? { text } : {}),
     timer,
-  });
+  };
+  if (html) {
+    opts.html = html;
+    if (title != null && String(title).trim()) opts.title = title;
+  } else {
+    opts.title =
+      title != null && String(title).trim() ? title : "Información";
+    if (text) opts.text = text;
+  }
+  return toastBase.fire(opts);
 }
 /* ================================
    ALERTA ESPECIAL: USUARIO EXISTE

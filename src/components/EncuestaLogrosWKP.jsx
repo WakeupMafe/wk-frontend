@@ -13,6 +13,7 @@ import "./EncuestaLogrosWKP.css";
 import fondo2 from "../assets/fondo2.svg";
 
 import { alertError, alertSuccess, alertWarning } from "../lib/alerts/appAlert";
+import { formatApiDetail } from "../lib/formatApiDetail";
 import { sweetLoading, sweetClose } from "../components/SweetAlert";
 
 import {
@@ -315,9 +316,12 @@ export default function EncuestaLogrosWKP() {
 
       if (!check.ok) {
         sweetClose();
+        const detalle = formatApiDetail(checkJson?.detail);
         await alertError({
-          title: "No se pudo validar",
-          text: "No fue posible validar si la encuesta ya existe. Intenta nuevamente.",
+          title: "No se pudo validar el documento",
+          text:
+            detalle ||
+            "No fue posible consultar si ya existe una encuesta para este documento. Revisa la conexión e intenta de nuevo.",
         });
         return;
       }
@@ -349,8 +353,10 @@ export default function EncuestaLogrosWKP() {
       return;
     }
 
+    const cedulaEncuestador = String(encuestadorCache).trim();
+
     const payload = {
-      encuestador: String(encuestadorCache),
+      encuestador: cedulaEncuestador,
       sede: sedeFormulario,
       nombres: form.nombres,
       apellidos: form.apellidos,
@@ -380,13 +386,39 @@ export default function EncuestaLogrosWKP() {
         body: JSON.stringify(payload),
       });
 
-      await res.json().catch(() => ({}));
+      const postJson = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         sweetClose();
+        const serverMsg = formatApiDetail(postJson?.detail);
+        if (import.meta.env.DEV) {
+          console.error("[encuesta logros1] POST /encuestas/ falló", {
+            status: res.status,
+            body: postJson,
+          });
+        }
+        const title =
+          res.status === 409
+            ? "Esta persona ya tiene encuesta"
+            : res.status === 422
+              ? "Datos del formulario no válidos"
+              : res.status === 400 || res.status === 500
+                ? "No se pudo guardar en base de datos"
+                : "No se pudo guardar la encuesta";
         await alertError({
-          title: "Error",
-          text: "No se pudo guardar la encuesta. Intenta nuevamente.",
+          title,
+          text:
+            serverMsg ||
+            `El servidor respondió con código ${res.status}. Intenta de nuevo o contacta soporte si persiste.`,
+        });
+        return;
+      }
+
+      if (postJson?.ok !== true) {
+        sweetClose();
+        await alertError({
+          title: "Respuesta inesperada del servidor",
+          text: "No se confirmó el guardado de la encuesta. No se actualizará el contador; revisa con soporte.",
         });
         return;
       }
@@ -395,32 +427,46 @@ export default function EncuestaLogrosWKP() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cedula: String(encuestadorCache),
+          cedula: cedulaEncuestador,
           incremento: 1,
         }),
       });
 
+      const incJson = await res2.json().catch(() => ({}));
       sweetClose();
 
       if (!res2.ok) {
+        const incMsg = formatApiDetail(incJson?.detail);
+        if (import.meta.env.DEV) {
+          console.warn("[encuesta logros1] encuesta guardada; falló incrementar contador", {
+            status: res2.status,
+            body: incJson,
+          });
+        }
         await alertWarning({
-          title: "Encuesta guardada",
-          text: "Pero no se pudo actualizar el contador del fisioterapeuta.",
+          title: "Encuesta guardada en base de datos",
+          text: incMsg
+            ? `Los datos del paciente ya quedaron registrados. No se pudo actualizar tu contador de encuestas: ${incMsg}`
+            : "Los datos del paciente ya quedaron registrados, pero no se pudo actualizar el contador del profesional en autorizados.",
         });
+        resetForm();
         return;
       }
 
       await alertSuccess({
-        title: "¡Listo!",
-        text: "Encuesta enviada y registro actualizado correctamente.",
+        title: "Encuesta registrada",
+        text: "Los datos se guardaron en la base de datos y se actualizó tu contador de encuestas.",
       });
 
       resetForm();
-    } catch {
+    } catch (err) {
       sweetClose();
+      if (import.meta.env.DEV) {
+        console.error("[encuesta logros1] error de red o excepción", err);
+      }
       await alertError({
         title: "Error de conexión",
-        text: "No fue posible comunicarse con el servidor. Verifica que el backend esté activo.",
+        text: "No fue posible completar el envío. Verifica que el backend esté activo y tu red.",
       });
     }
   };

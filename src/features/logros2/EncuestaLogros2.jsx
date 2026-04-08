@@ -211,6 +211,7 @@ export default function EncuestaLogros2() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    console.log("[ENCUESTA] Botón Enviar → onSubmit (preventDefault aplicado)");
     if (!fase1 || !slots.length) {
       await alertWarning({
         title: "Datos insuficientes",
@@ -242,6 +243,17 @@ export default function EncuestaLogros2() {
       nuevo_objetivo: respuestas[String(s.slot)].nuevo,
     }));
 
+    const payload = {
+      encuestador: String(encuestadorCache),
+      sede: sedeFormulario,
+      documento: docBusqueda.trim(),
+      id_encuesta_fase1: fase1.id_int,
+      items,
+    };
+
+    console.log("[ENCUESTA] Payload a enviar:", payload);
+    console.log("[ENCUESTA] Iniciando request...");
+
     sweetLoading({
       title: "Registrando…",
       text: "Guardando evaluación de seguimiento por objetivos.",
@@ -251,13 +263,7 @@ export default function EncuestaLogros2() {
       const res = await fetch(`${API_URL}/encuestas/logros2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          encuestador: String(encuestadorCache),
-          sede: sedeFormulario,
-          documento: docBusqueda.trim(),
-          id_encuesta_fase1: fase1.id_int,
-          items,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json().catch(() => ({}));

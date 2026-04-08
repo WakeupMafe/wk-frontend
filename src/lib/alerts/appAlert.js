@@ -92,6 +92,19 @@ export function toastError({ title = "Error", text = "" } = {}) {
     ...(text ? { text } : {}),
   });
 }
+
+export function toastInfo({
+  title = "Información",
+  text = "",
+  timer = 4000,
+} = {}) {
+  return toastBase.fire({
+    icon: "info",
+    title,
+    ...(text ? { text } : {}),
+    timer,
+  });
+}
 /* ================================
    ALERTA ESPECIAL: USUARIO EXISTE
 ================================ */

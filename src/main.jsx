@@ -1,4 +1,5 @@
 import "./index.css";
+import "./components/SweetAlert.css";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";

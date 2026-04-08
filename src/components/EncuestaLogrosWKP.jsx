@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import SelectInput from "./SelectInput";
 import AutorizadosHeader from "./AutorizadosHeader";
@@ -46,6 +46,9 @@ function TextField({
   error,
   disabled,
   maxLength,
+  onFocus,
+  onBlur,
+  hint,
 }) {
   return (
     <div className="field">
@@ -60,12 +63,28 @@ function TextField({
         name={name}
         value={value}
         onChange={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
         required={required}
         disabled={disabled}
         placeholder={placeholder}
         maxLength={maxLength}
         className={`field__input ${error ? "field__input--error" : ""}`}
+        aria-describedby={
+          hint ? `${name}-hint` : undefined
+        }
       />
+
+      {hint ? (
+        <p
+          id={`${name}-hint`}
+          className="encuesta-logros-hint"
+          role="status"
+          aria-live="polite"
+        >
+          {hint}
+        </p>
+      ) : null}
 
       {error ? <p className="field__error">{error}</p> : null}
     </div>
@@ -186,6 +205,46 @@ export default function EncuestaLogrosWKP() {
 
   const [form, setForm] = useState(() => createInitialForm());
   const [errors, setErrors] = useState({});
+  const [showNombresHint, setShowNombresHint] = useState(false);
+  const nombrePacienteHintShownRef = useRef(false);
+  const nombreHintTimeoutRef = useRef(null);
+
+  const PACIENTE_NOMBRE_COMPLETO_HINT =
+    "Por estándares de calidad de datos, se requiere el registro de nombres y apellidos completos del paciente (dos nombres y dos apellidos), cuando corresponda.";
+
+  const clearNombreHintTimer = () => {
+    if (nombreHintTimeoutRef.current != null) {
+      clearTimeout(nombreHintTimeoutRef.current);
+      nombreHintTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(
+    () => () => {
+      if (nombreHintTimeoutRef.current != null) {
+        clearTimeout(nombreHintTimeoutRef.current);
+        nombreHintTimeoutRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const onNombresFocus = () => {
+    if (nombrePacienteHintShownRef.current) return;
+    nombrePacienteHintShownRef.current = true;
+    setShowNombresHint(true);
+    clearNombreHintTimer();
+    nombreHintTimeoutRef.current = window.setTimeout(() => {
+      setShowNombresHint(false);
+      nombreHintTimeoutRef.current = null;
+    }, 8000);
+  };
+
+  const onNombresBlur = () => {
+    nombrePacienteHintShownRef.current = false;
+    clearNombreHintTimer();
+    setShowNombresHint(false);
+  };
 
   const problemasSeleccionados = form.problemasTop;
 
@@ -292,6 +351,7 @@ export default function EncuestaLogrosWKP() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    console.log("[ENCUESTA] Botón Enviar → onSubmit (preventDefault aplicado)");
 
     if (!validate()) {
       await alertWarning({
@@ -373,6 +433,9 @@ export default function EncuestaLogrosWKP() {
       ultimaVez: form.ultimaVez || null,
       queImpide: form.queImpide,
     };
+
+    console.log("[ENCUESTA] Payload a enviar:", payload);
+    console.log("[ENCUESTA] Iniciando request...");
 
     sweetLoading({
       title: "Enviando encuesta...",
@@ -530,6 +593,9 @@ export default function EncuestaLogrosWKP() {
           name="nombres"
           value={form.nombres}
           onChange={onChange}
+          onFocus={onNombresFocus}
+          onBlur={onNombresBlur}
+          hint={showNombresHint ? PACIENTE_NOMBRE_COMPLETO_HINT : undefined}
           required
           error={errors.nombres}
           placeholder="Ej: María Fernanda"

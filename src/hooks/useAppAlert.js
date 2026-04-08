@@ -5,6 +5,7 @@ import {
   alertWarning,
   alertInfo,
   alertConfirm,
+  toastInfo,
 } from "../lib/alerts/appAlert";
 
 export function useAppAlert() {
@@ -15,6 +16,7 @@ export function useAppAlert() {
     alertWarning,
     alertInfo,
     alertConfirm,
+    toastInfo,
   };
 }
 export async function alertUsuarioYaExiste({ onReenviarPin } = {}) {

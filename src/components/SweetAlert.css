@@ -1,5 +1,13 @@
 /* ===== SWEET ALERT CUSTOM ===== */
 
+/*
+ * Stacking: SweetAlert2 usa z-index 1060 por defecto; el layout de encuestas y el
+ * menú de AutorizadosHeader usan 9999–100041, lo que dejaba modales/toasts detrás.
+ */
+div:where(.swal2-container) {
+  z-index: 200000 !important;
+}
+
 .swal2-popup {
   font-family: "Poppins";
   border-radius: 20px;

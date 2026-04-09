@@ -9,9 +9,7 @@ import { sweetAlert } from "../components/SweetAlert";
 import avatar from "../assets/avatar_bienvenida.svg";
 import gifpin from "../assets/gif_pin.gif";
 import "./Bienvenidas.css";
-
-// ✅ Un solo punto de verdad para backend
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { apiUrl } from "../lib/api/baseUrl";
 
 export default function Pin() {
   const navigate = useNavigate();
@@ -81,7 +79,7 @@ export default function Pin() {
         pin: pinLimpio,
       });
 
-      const res = await fetch(`${API_URL}/verificacion/pin`, {
+      const res = await fetch(apiUrl("/verificacion/pin"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -12,6 +12,7 @@ import {
   alertWarning,
   alertUsuarioYaExiste,
 } from "../lib/alerts/appAlert";
+import { apiUrl } from "../lib/api/baseUrl";
 
 import { verificarPin } from "../services/verificarPin";
 
@@ -19,8 +20,6 @@ import logo from "../assets/logo.svg";
 import fondo from "../assets/fondo2.svg";
 import { homeIconSrcForGender } from "../assets/homeIconSrc.js";
 import { inferGenderFromName } from "../lib/inferGenderFromName";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const SEDES = [
   { value: "Poblado", label: "Poblado" },
@@ -125,7 +124,7 @@ export default function LoginFirstTime() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/verificacion/reenviar-pin`, {
+      const res = await fetch(apiUrl("/verificacion/reenviar-pin"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -181,7 +180,7 @@ export default function LoginFirstTime() {
     try {
       setSaving(true);
 
-      const checkRes = await fetch(`${API_URL}/verificacion/cedula`, {
+      const checkRes = await fetch(apiUrl("/verificacion/cedula"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -212,7 +211,7 @@ export default function LoginFirstTime() {
         return;
       }
 
-      const res = await fetch(`${API_URL}/verificacion/registro-inicial`, {
+      const res = await fetch(apiUrl("/verificacion/registro-inicial"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -30,7 +30,7 @@ import {
 import { ENUNCIADOS_OBJETIVOS } from "../data/encuestaLogrosEnunciados";
 import { validateEncuestaLogros } from "../components/forms/validate";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { apiUrl } from "../lib/api/baseUrl";
 
 function createInitialForm() {
   return JSON.parse(JSON.stringify(INITIAL_FORM));
@@ -369,7 +369,7 @@ export default function EncuestaLogrosWKP() {
     try {
       const tipoQ = encodeURIComponent(form.tipoDocumento || "cedula");
       const check = await fetch(
-        `${API_URL}/encuestas/exists/${encodeURIComponent(form.documento)}?tipo_documento=${tipoQ}`,
+        `${apiUrl(`/encuestas/exists/${encodeURIComponent(form.documento)}`)}?tipo_documento=${tipoQ}`,
       );
 
       const checkJson = await check.json().catch(() => ({}));
@@ -443,7 +443,7 @@ export default function EncuestaLogrosWKP() {
     });
 
     try {
-      const res = await fetch(`${API_URL}/encuestas/`, {
+      const res = await fetch(apiUrl("/encuestas/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -486,7 +486,7 @@ export default function EncuestaLogrosWKP() {
         return;
       }
 
-      const res2 = await fetch(`${API_URL}/autorizados/incrementar-encuesta`, {
+      const res2 = await fetch(apiUrl("/autorizados/incrementar-encuesta"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

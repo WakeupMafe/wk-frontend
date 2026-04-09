@@ -30,7 +30,7 @@ import {
   buildSlotsFromFase1,
 } from "./logros2Formatters";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { apiUrl } from "../../lib/api/baseUrl";
 
 /** Solo Encuesta Logros 2 (seguimiento); `false` restaura POST real a `/encuestas/logros2`. */
 const SIMULATION_MODE_LOGROS2 = true;
@@ -155,7 +155,7 @@ export default function EncuestaLogros2() {
     setErrors({});
     try {
       const res = await fetch(
-        `${API_URL}/verificacion/logros-fase1/${encodeURIComponent(doc)}`,
+        `${apiUrl(`/verificacion/logros-fase1/${encodeURIComponent(doc)}`)}`,
       );
       const json = await res.json().catch(() => ({}));
 
@@ -301,7 +301,7 @@ export default function EncuestaLogros2() {
     });
 
     try {
-      const res = await fetch(`${API_URL}/encuestas/logros2`, {
+      const res = await fetch(apiUrl("/encuestas/logros2"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -321,7 +321,7 @@ export default function EncuestaLogros2() {
         return;
       }
 
-      const res2 = await fetch(`${API_URL}/autorizados/incrementar-encuesta`, {
+      const res2 = await fetch(apiUrl("/autorizados/incrementar-encuesta"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

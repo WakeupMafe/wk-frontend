@@ -11,8 +11,7 @@ import {
 import SedePieChart from "./SedePieChart";
 import ProfesionalesBarRank from "./ProfesionalesBarRank";
 import "./EstadisticasKpiPage.css";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { apiUrl, getApiBase } from "../../../lib/api/baseUrl";
 
 /** Logs en consola en local (Vite dev o hostname localhost/127.0.0.1) */
 function debugEstadisticas(label, payload) {
@@ -53,8 +52,8 @@ export default function EstadisticasKpiPage() {
       setLoading(true);
       setErr(null);
       try {
-        const url = `${API_URL}/encuestas/estadisticas-generales`;
-        debugEstadisticas("GET", { url, API_URL });
+        const url = apiUrl("/encuestas/estadisticas-generales");
+        debugEstadisticas("GET", { url, apiBase: getApiBase() || "(same-origin)" });
         const res = await fetch(url);
         const rawText = await res.text();
         let json = {};

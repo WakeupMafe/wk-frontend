@@ -7,6 +7,14 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    // Con `netlify dev` abre el puerto que muestre Netlify (p. ej. 8888) para API + Vite.
+    // Si solo usas `npm run dev`, levanta `netlify dev` en paralelo o define VITE_API_URL.
+    proxy: {
+      "^/(verificacion|encuestas|autorizados)(/|$)": {
+        target: "http://127.0.0.1:8888",
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     rollupOptions: {

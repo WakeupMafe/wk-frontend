@@ -8,7 +8,8 @@ import SideDots from "../components/SideDots";
 import avatar from "../assets/avatar_bienvenida.svg";
 import gifRecuerda from "../assets/gif_recuerda.gif"; // ✅ nombre consistente
 import "./Bienvenidas.css";
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { apiUrl } from "../lib/api/baseUrl";
+
 export default function Cedula() {
   const [cedula, setCedula] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export default function Cedula() {
     try {
       setError("");
 
-      const res = await fetch(`${API_URL}/verificacion/cedula`, {
+      const res = await fetch(apiUrl("/verificacion/cedula"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cedula: cedula }), // ✅ string

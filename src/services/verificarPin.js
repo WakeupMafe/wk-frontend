@@ -1,7 +1,5 @@
 import { sweetAlert } from "../components/SweetAlert";
-
-// ✅ Un solo punto de verdad para el backend
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { apiUrl } from "../lib/api/baseUrl";
 
 function limpiarCedula(value) {
   return String(value ?? "")
@@ -39,11 +37,11 @@ export async function verificarPin({ cedula, pin, navigate }) {
     }
 
     console.log("✅ verificarPin.js -> enviando", {
-      url: `${API_URL}/verificacion/pin`,
+      url: apiUrl("/verificacion/pin"),
       body: { cedula: cedulaLimpia, pin: pinLimpio },
     });
 
-    const res = await fetch(`${API_URL}/verificacion/pin`, {
+    const res = await fetch(apiUrl("/verificacion/pin"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cedula: cedulaLimpia, pin: pinLimpio }),

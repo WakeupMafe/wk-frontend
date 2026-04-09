@@ -20,7 +20,7 @@ import {
 } from "./compendioDownload";
 import "./EstadisticasFiltrosAggregate.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { apiUrl } from "../../../lib/api/baseUrl";
 
 const SEDES = [
   { value: "", label: "Todas las sedes" },
@@ -121,7 +121,7 @@ export default function EstadisticasFiltros() {
       }
 
       const res = await fetch(
-        `${API_URL}/encuestas/listado-filtrado?${params.toString()}`,
+        `${apiUrl("/encuestas/listado-filtrado")}?${params.toString()}`,
       );
       const json = await res.json().catch(() => ({}));
 

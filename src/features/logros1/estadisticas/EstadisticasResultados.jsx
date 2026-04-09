@@ -24,7 +24,7 @@ import { downloadLogrosFase1Xlsx } from "../logrosFase1DownloadXlsx";
 import "./EstadisticasFiltros.css";
 import "./EstadisticasResultados.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { apiUrl } from "../../../lib/api/baseUrl";
 
 const FORMATOS = [
   { value: "pdf", label: "PDF" },
@@ -74,7 +74,7 @@ export default function EstadisticasResultados() {
 
     try {
       const res = await fetch(
-        `${API_URL}/verificacion/logros-fase1/${encodeURIComponent(documento)}`,
+        apiUrl(`/verificacion/logros-fase1/${encodeURIComponent(documento)}`),
       );
 
       const json = await res.json().catch(() => ({}));

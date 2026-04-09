@@ -62,14 +62,12 @@ class ErrorBoundary extends React.Component {
 function SafeRoute({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-
 export default function App() {
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      const result = await warmupBackend(API_URL);
+      const result = await warmupBackend();
       if (cancelled) return;
       if (!result.ok) {
         console.error("Warmup backend:", result.error);

@@ -1,3 +1,42 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# API → función única (misma semántica de rutas /verificacion, /encuestas, /autorizados).
+# __path transporta la ruta original; el resto de query params se conserva en la petición.
+
+[[redirects]]
+  from = "/verificacion"
+  to = "/.netlify/functions/api?__path=/verificacion"
+  status = 200
+
+[[redirects]]
+  from = "/verificacion/*"
+  to = "/.netlify/functions/api?__path=/verificacion/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/encuestas"
+  to = "/.netlify/functions/api?__path=/encuestas"
+  status = 200
+
+[[redirects]]
+  from = "/encuestas/*"
+  to = "/.netlify/functions/api?__path=/encuestas/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/autorizados"
+  to = "/.netlify/functions/api?__path=/autorizados"
+  status = 200
+
+[[redirects]]
+  from = "/autorizados/*"
+  to = "/.netlify/functions/api?__path=/autorizados/:splat"
+  status = 200
+
+# SPA (archivos estáticos existentes tienen prioridad sobre esto)
 [[redirects]]
   from = "/*"
   to = "/index.html"

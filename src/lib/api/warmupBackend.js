@@ -1,5 +1,6 @@
 import Swal from "sweetalert2";
 import "../../components/SweetAlert.css";
+import { apiUrl, getApiBase } from "./baseUrl";
 
 function isLocalApiUrl(baseUrl) {
   try {
@@ -10,10 +11,10 @@ function isLocalApiUrl(baseUrl) {
   }
 }
 
-function fetchRootWithTimeout(baseUrl, ms) {
+function fetchPinTestWithTimeout(url, ms) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), ms);
-  return fetch(`${baseUrl.replace(/\/$/, "")}/`, {
+  return fetch(url, {
     method: "GET",
     signal: controller.signal,
   }).finally(() => clearTimeout(id));
@@ -81,19 +82,20 @@ function migrateLegacySessionStorage() {
 }
 
 /**
- * Primera petición al backend: en producción muestra modal + reintento (cold start Render).
- * Tras un warmup OK, todas las pestañas comparten estado (localStorage): recargas y nuevas pestañas
- * hacen ping silencioso sin modal; si falla, se limpia y se muestra el modal otra vez.
- * En localhost: solo intenta en silencio, sin modal.
+ * Ping ligero al backend.
+ * - Mismo origen (Netlify) o API local explícita: intento silencioso a `GET /verificacion/pin-test`.
+ * - API remota explícita (p. ej. URL absoluta no local): modal + reintento (cold start de PaaS).
  */
-export async function warmupBackend(apiBaseUrl) {
-  const base = String(apiBaseUrl || "").trim() || "http://127.0.0.1:8000";
+export async function warmupBackend() {
+  const base = getApiBase();
+  const pingUrl = apiUrl("/verificacion/pin-test");
+  const explicitRemote = Boolean(base) && !isLocalApiUrl(base);
 
-  if (isLocalApiUrl(base)) {
+  if (!explicitRemote) {
     try {
-      await fetchRootWithTimeout(base, 15_000);
+      await fetchPinTestWithTimeout(pingUrl, 20_000);
     } catch {
-      /* desarrollo: sin modal ni alerta */
+      /* desarrollo / Netlify: sin modal */
     }
     return { ok: true, retried: false };
   }
@@ -102,7 +104,7 @@ export async function warmupBackend(apiBaseUrl) {
 
   if (readWarmTimestamp() !== null) {
     try {
-      await fetchRootWithTimeout(base, 20_000);
+      await fetchPinTestWithTimeout(pingUrl, 20_000);
       writeWarmNow();
       return { ok: true, retried: false };
     } catch {
@@ -129,7 +131,7 @@ export async function warmupBackend(apiBaseUrl) {
   });
 
   const attempt = async (timeoutMs) => {
-    const res = await fetchRootWithTimeout(base, timeoutMs);
+    const res = await fetchPinTestWithTimeout(pingUrl, timeoutMs);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res;
   };

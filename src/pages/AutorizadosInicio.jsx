@@ -7,7 +7,7 @@ import ButtonC from "../components/ButtonComponente";
 import FloatingFolders from "../components/FloatingFolders.jsx";
 import AutorizadosHeader from "../components/AutorizadosHeader";
 import { sweetAlert } from "../components/SweetAlert";
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { apiUrl } from "../lib/api/baseUrl";
 
 export default function AutorizadosInicio() {
   const location = useLocation();
@@ -70,7 +70,7 @@ export default function AutorizadosInicio() {
 
       try {
         const res = await fetch(
-          `${API_URL}/autorizados/pin/${encodeURIComponent(pin)}`,
+          apiUrl(`/autorizados/pin/${encodeURIComponent(pin)}`),
         );
         const data = await res.json().catch(() => ({}));
 

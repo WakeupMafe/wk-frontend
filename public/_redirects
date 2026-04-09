@@ -1,1 +1,12 @@
-/*    /index.html   200
+# Orden importa: las primeras coincidencias ganan. Sin las reglas API arriba,
+# el catch-all SPA /* envía también POST /verificacion/* a index.html → 404 en producción.
+# Debe coincidir con netlify.toml (mismo destino).
+
+/verificacion /.netlify/functions/api?__path=/verificacion 200
+/verificacion/* /.netlify/functions/api?__path=/verificacion/:splat 200
+/encuestas /.netlify/functions/api?__path=/encuestas 200
+/encuestas/* /.netlify/functions/api?__path=/encuestas/:splat 200
+/autorizados /.netlify/functions/api?__path=/autorizados 200
+/autorizados/* /.netlify/functions/api?__path=/autorizados/:splat 200
+
+/* /index.html 200

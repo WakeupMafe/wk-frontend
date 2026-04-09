@@ -1,11 +1,13 @@
 /**
  * Base de la API HTTP.
  *
- * Producción (build Vite): siempre cadena vacía → rutas relativas al mismo origen
- * (Netlify reescribe `/verificacion`, `/encuestas`, `/autorizados` a Functions).
- * Así no importa si en el panel de Netlify quedó un `VITE_API_URL` antiguo (p. ej. Render).
+ * Producción (build Vite): siempre "" → rutas relativas al mismo origen (Netlify rewrites).
  *
- * Desarrollo: opcional `VITE_API_URL` (p. ej. Python en :8000 o `netlify dev` vía proxy).
+ * Desarrollo:
+ * - Recomendado: `npx netlify dev` desde la raíz del repo y abrir la URL que muestra la CLI
+ *   (mismo origen para React y Functions). Deja VITE_API_URL sin definir.
+ * - Solo `npm run dev` (Vite :5173): sin proxy a Functions; define VITE_API_URL si la API
+ *   corre en otro sitio (p. ej. http://127.0.0.1:8000 para el backend Python).
  */
 export function getApiBase() {
   if (import.meta.env.PROD) {

@@ -1,19 +1,54 @@
 import type { HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { corsHeaders, pickCorsOrigin } from "./cors";
 
+/**
+ * Ruta lógica de la app (/verificacion/..., /encuestas/...).
+ * Prioridad: __path (query) → rawQuery → path directo (netlify dev / proxies).
+ */
 export function getLogicalPath(event: HandlerEvent): string {
-  const raw = event.queryStringParameters?.__path;
-  if (raw) {
+  const fromQs = event.queryStringParameters?.__path;
+  if (fromQs) {
     try {
-      return decodeURIComponent(raw);
+      return decodeURIComponent(fromQs);
     } catch {
-      return raw;
+      return fromQs;
     }
   }
-  const path = event.path || "";
-  if (path.startsWith("/.netlify/functions/api")) {
-    return path.replace("/.netlify/functions/api", "") || "/";
+
+  const multi = event.multiValueQueryStringParameters?.__path?.[0];
+  if (multi) {
+    try {
+      return decodeURIComponent(multi);
+    } catch {
+      return multi;
+    }
   }
+
+  if (event.rawQuery) {
+    try {
+      const params = new URLSearchParams(event.rawQuery);
+      const p = params.get("__path");
+      if (p) return p.split("?")[0];
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const path = (event.path || "").split("?")[0];
+
+  if (
+    path.startsWith("/verificacion") ||
+    path.startsWith("/encuestas") ||
+    path.startsWith("/autorizados")
+  ) {
+    return path;
+  }
+
+  if (path.startsWith("/.netlify/functions/api")) {
+    const rest = path.replace("/.netlify/functions/api", "") || "/";
+    return rest === "" ? "/" : rest;
+  }
+
   return path || "/";
 }
 

@@ -167,13 +167,35 @@ export async function handleVerificacion(
     }
 
     if (path === "/verificacion/cedula" && method === "POST") {
+      console.log("[verificacion/cedula] handler entrada", {
+        path,
+        method,
+        bodyType:
+          body === null ? "null" : Array.isArray(body) ? "array" : typeof body,
+      });
+
       const data = body as { cedula?: string } | null;
       const cedulaStr = onlyDigits(String(data?.cedula ?? ""));
+      console.log("[verificacion/cedula] validación dígitos", {
+        cedulaStr: cedulaStr || "(vacío)",
+        okLength: cedulaStr.length > 0,
+      });
+
       if (!cedulaStr) {
+        console.log("[verificacion/cedula] respuesta 400: cédula vacía tras limpiar");
         return jsonResponse(400, errBody("Cédula inválida"), origin);
       }
+
       const cedula = toIntOr400(cedulaStr);
-      const supabase = getSupabase();
+      console.log("[verificacion/cedula] cedula numérica", { cedula });
+
+      let supabase;
+      try {
+        supabase = getSupabase();
+      } catch (e) {
+        console.error("[verificacion/cedula] fallo al crear cliente Supabase:", e);
+        throw e;
+      }
 
       const resp = await supabase
         .from("autorizados")
@@ -183,6 +205,12 @@ export async function handleVerificacion(
         .maybeSingle();
 
       if (resp.error) {
+        console.error("[verificacion/cedula] error Supabase SELECT:", {
+          message: resp.error.message,
+          code: resp.error.code,
+          details: resp.error.details,
+          hint: resp.error.hint,
+        });
         return jsonResponse(
           400,
           errBody({ where: "SUPABASE SELECT", error: resp.error.message }),
@@ -191,17 +219,13 @@ export async function handleVerificacion(
       }
 
       const row = resp.data;
-      return jsonResponse(
-        200,
-        {
-          ok: !!row,
-          exists: !!row,
-          message: row
-            ? "Cédula encontrada"
-            : "Cédula no encontrada",
-        },
-        origin,
-      );
+      const out = {
+        ok: !!row,
+        exists: !!row,
+        message: row ? "Cédula encontrada" : "Cédula no encontrada",
+      };
+      console.log("[verificacion/cedula] respuesta 200", out);
+      return jsonResponse(200, out, origin);
     }
 
     if (path === "/verificacion/pin" && method === "POST") {

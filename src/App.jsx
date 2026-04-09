@@ -1,10 +1,7 @@
 import React from "react";
-import { useEffect, lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
-
-import { warmupBackend } from "./lib/api/warmupBackend";
-import { alertWarning } from "./lib/alerts/appAlert";
 
 /* Landing: import estático para primera pintada rápida; el resto va en chunks aparte */
 import Bienvenidas from "./pages/Bienvenidas.jsx";
@@ -63,26 +60,6 @@ function SafeRoute({ children }) {
   return <ErrorBoundary>{children}</ErrorBoundary>;
 }
 export default function App() {
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      const result = await warmupBackend();
-      if (cancelled) return;
-      if (!result.ok) {
-        console.error("Warmup backend:", result.error);
-        await alertWarning({
-          title: "No se pudo conectar",
-          text: "Comprueba tu conexión a internet e intenta recargar la página en un momento.",
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>

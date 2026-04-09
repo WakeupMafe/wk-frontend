@@ -2,6 +2,12 @@ import Swal from "sweetalert2";
 import "../../components/SweetAlert.css";
 import { apiUrl, getApiBase } from "./baseUrl";
 
+const WARMUP_SECONDS = 70;
+const MS_FIRST = WARMUP_SECONDS * 1000;
+const MS_RETRY = WARMUP_SECONDS * 1000;
+
+const COUNTDOWN_ID = "wk-warmup-countdown";
+
 function isLocalApiUrl(baseUrl) {
   try {
     const u = new URL(baseUrl);
@@ -19,9 +25,6 @@ function fetchPinTestWithTimeout(url, ms) {
     signal: controller.signal,
   }).finally(() => clearTimeout(id));
 }
-
-const MS_FIRST = 90_000;
-const MS_RETRY = 60_000;
 
 /** Compartido entre pestañas del mismo origen. */
 const STORAGE_KEY = "wk_backend_warmup";
@@ -81,6 +84,57 @@ function migrateLegacySessionStorage() {
   }
 }
 
+function warmupHtml(secondParagraph) {
+  return `
+      <p style="margin:0.35em 0 0.65em;font-size:1.05rem;line-height:1.45;">
+        Se encuentran <strong>dormidos</strong> cuando llevan un tiempo sin uso; necesitan unos segundos para volver a estar listos.
+      </p>
+      <p style="margin:0.65em 0 0;opacity:0.9;font-size:1rem;line-height:1.45;">
+        ${secondParagraph}
+      </p>
+      <p
+        id="${COUNTDOWN_ID}"
+        style="margin:0.85em 0 0;font-size:1.5rem;font-weight:600;letter-spacing:0.02em;color:#3085d6;line-height:1.2;"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        ${WARMUP_SECONDS}
+      </p>
+      <p style="margin:0.2em 0 0;opacity:0.8;font-size:0.95rem;">segundos restantes</p>
+    `;
+}
+
+/**
+ * Cuenta atrás de WARMUP_SECONDS → 0 cada segundo. Devuelve el id de intervalo.
+ */
+function startCountdown() {
+  let s = WARMUP_SECONDS;
+  const getEl = () => document.getElementById(COUNTDOWN_ID);
+  const node0 = getEl();
+  if (node0) node0.textContent = String(s);
+  const intervalId = setInterval(() => {
+    s -= 1;
+    const node = getEl();
+    if (node) node.textContent = String(Math.max(0, s));
+    if (s <= 0) clearInterval(intervalId);
+  }, 1000);
+  return intervalId;
+}
+
+let tid = null;
+
+function clearCountdown() {
+  if (tid != null) {
+    clearInterval(tid);
+    tid = null;
+  }
+}
+
+function scheduleCountdown() {
+  clearCountdown();
+  tid = startCountdown();
+}
+
 /**
  * Ping ligero al backend.
  * - Mismo origen (Netlify) o API local explícita: intento silencioso a `GET /verificacion/pin-test`.
@@ -114,19 +168,13 @@ export async function warmupBackend() {
 
   Swal.fire({
     title: "Estamos conectando los servidores",
-    html: `
-      <p style="margin:0.35em 0 0.65em;font-size:1.05rem;line-height:1.45;">
-        Se encuentran <strong>dormidos</strong> cuando llevan un tiempo sin uso; necesitan unos segundos para volver a estar listos.
-      </p>
-      <p style="margin:0.65em 0 0;opacity:0.9;font-size:1rem;line-height:1.45;">
-        Espera un momento…
-      </p>
-    `,
+    html: warmupHtml("Espera un momento…"),
     allowOutsideClick: false,
     allowEscapeKey: false,
     showConfirmButton: false,
     didOpen: () => {
       Swal.showLoading();
+      scheduleCountdown();
     },
   });
 
@@ -138,28 +186,29 @@ export async function warmupBackend() {
 
   try {
     await attempt(MS_FIRST);
+    clearCountdown();
     writeWarmNow();
     Swal.close();
     return { ok: true, retried: false };
   } catch {
+    clearCountdown();
     Swal.update({
       title: "Reintentando conexión",
-      html: `
-        <p style="margin:0.35em 0 0.65em;font-size:1.05rem;line-height:1.45;">
-          El primer intento tardó demasiado; los servidores aún pueden estar despertando.
-        </p>
-        <p style="margin:0.65em 0 0;opacity:0.9;font-size:1rem;line-height:1.45;">
-          Hacemos un <strong>segundo intento automático</strong>. Espera un momento…
-        </p>
-      `,
+      html: warmupHtml(
+        "Hacemos un <strong>segundo intento automático</strong>. Espera un momento…",
+      ),
     });
     Swal.showLoading();
+    setTimeout(() => scheduleCountdown(), 0);
+
     try {
       await attempt(MS_RETRY);
+      clearCountdown();
       writeWarmNow();
       Swal.close();
       return { ok: true, retried: true };
     } catch (e2) {
+      clearCountdown();
       Swal.close();
       return { ok: false, retried: true, error: e2 };
     }

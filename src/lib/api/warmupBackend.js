@@ -25,7 +25,7 @@ const MS_RETRY = 60_000;
 /** Compartido entre pestañas del mismo origen. */
 const STORAGE_KEY = "wk_backend_warmup";
 /** Si no hubo un warmup OK en este tiempo, se vuelve a mostrar el modal. */
-const MAX_AGE_MS = 16 * 60 * 60 * 1000;
+const MAX_AGE_MS = 4 * 60 * 60 * 1000;
 
 /** Clave antigua (sessionStorage); se limpia al migrar. */
 const LEGACY_SESSION_KEY = "wk_backend_warmup_ok";

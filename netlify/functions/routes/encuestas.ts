@@ -136,6 +136,16 @@ function safeIlikeFragment(s: string | null | undefined): string | null {
   return t.replace(/%/g, "").replace(/_/g, "");
 }
 
+/** Minúsculas, sin diacríticos, espacios colapsados (tolerancia tipo unaccent + ILIKE). */
+function normalizeForPatientSearch(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function rankingAutorizadosDesdeTabla(
   supabase: ReturnType<typeof getSupabase>,
   limit = 50,
@@ -301,8 +311,9 @@ async function crearEncuesta(
     }
   }
 
-  const objetivosReales = objetivosOrdenados.filter((o): o is string => o != null);
-  const objetivosSeleccionados = objetivosReales.length;
+  const objetivosSeleccionados = objetivosOrdenados.filter(
+    (o): o is string => o != null && String(o).trim() !== "",
+  ).length;
   if (objetivosSeleccionados < 1) {
     return jsonResponse(
       400,
@@ -311,7 +322,8 @@ async function crearEncuesta(
     );
   }
 
-  const objCols = aColumnaFija(objetivosReales, 3);
+  /* Mantener objetivo_i alineado con sintoma_i (no comprimir nulls: evita desajuste en Logros 2). */
+  const objCols = aColumnaFija(objetivosOrdenados, 3);
   const sinCols = aColumnaFija(sintomasOrdenados, 3);
 
   const row = {
@@ -377,7 +389,7 @@ async function crearLogros2(
     );
   }
 
-  const NIVELES = new Set(["mucho", "poco", "nada"]);
+  const NIVELES = new Set(["mucho", "poco", "nada", "desmejoria"]);
 
   for (const it of items) {
     const slot = it.slot;
@@ -386,7 +398,7 @@ async function crearLogros2(
       return jsonResponse(
         400,
         errBody(
-          `Nivel de mejora inválido en síntoma ${slot}: use mucho, poco o nada.`,
+          `Nivel de mejora inválido en síntoma ${slot}: use mucho, poco, nada o desmejoria.`,
         ),
         origin,
       );
@@ -507,6 +519,163 @@ export async function handleEncuestas(
       return await crearLogros2(
         (body as Record<string, unknown>) || {},
         origin,
+      );
+    }
+
+    /**
+     * Logros 2 — buscar paciente Fase 1. Versión mínima (Netlify):
+     * - Solo dígitos (≥5): eq(documento) sin ilike.
+     * - Texto (≥4 letras): OR ilike por palabra en nombres/apellidos + AND en memoria
+     *   sobre nombres+apellidos normalizado (nombre en una columna y apellido en otra).
+     */
+    if (path === "/encuestas/buscar-logros1" && method === "GET") {
+      const LOG = "[API buscar-logros1]";
+      const qIn = query?.q ?? "";
+      const qRaw = safeIlikeFragment(query?.q);
+      const qTrim = (qRaw || "").trim();
+
+      console.log(`${LOG} q_in=`, JSON.stringify(qIn));
+      console.log(`${LOG} q_clean=`, JSON.stringify(qRaw));
+      if (!qTrim) {
+        return jsonResponse(400, errBody("Indique texto de búsqueda."), origin);
+      }
+
+      const soloLetras = qTrim.replace(/[^\p{L}]/gu, "");
+      const soloDigitosInput = /^\d+$/.test(qTrim);
+      const qDigits = qTrim.replace(/\D/g, "");
+      const puedeDoc = soloDigitosInput && qDigits.length >= 5;
+      const puedeNombre = soloLetras.length >= 4;
+
+      if (!puedeNombre && !puedeDoc) {
+        console.log(
+          `${LOG} rechazo: letras=${soloLetras.length} soloDigitos=${soloDigitosInput} digitos=${qDigits.length}`,
+        );
+        return jsonResponse(
+          400,
+          errBody(
+            "Use al menos 4 letras (nombre o apellido) o solo dígitos (≥5) para cédula.",
+          ),
+          origin,
+        );
+      }
+
+      const filtrarSede = query?.filtrar_sede === "1";
+      const sedeClean = query?.sede?.trim() || undefined;
+      const maxResults = Math.min(
+        40,
+        Math.max(5, parseInt(query?.limit ?? "25", 10) || 25),
+      );
+
+      const cols =
+        "id_int,documento,nombres,apellidos,tipo_documento,sede,created_at";
+      const supabase = getSupabase();
+
+      function seguimientosBase() {
+        let b = supabase.from("wakeup_seguimientos").select(cols);
+        if (filtrarSede && sedeClean) b = b.eq("sede", sedeClean);
+        return b;
+      }
+
+      /** Cada token (normalizado sin tildes) debe aparecer en nombre+apellidos. */
+      function filaCumpleTokens(
+        nombres: unknown,
+        apellidos: unknown,
+        tokens: string[],
+      ): boolean {
+        const nom = normalizeForPatientSearch(
+          `${String(nombres ?? "").trim()} ${String(apellidos ?? "").trim()}`,
+        );
+        if (!nom) return false;
+        for (const tok of tokens) {
+          const t = normalizeForPatientSearch(tok);
+          if (t.length < 2) continue;
+          if (!nom.includes(t)) return false;
+        }
+        return true;
+      }
+
+      let modo: "documento_eq" | "texto_tokens" = "texto_tokens";
+      let rowsRaw: Row[] = [];
+      let filterDesc = "";
+
+      if (puedeDoc) {
+        modo = "documento_eq";
+        const n = Number(qDigits);
+        const docEq: number | string =
+          Number.isSafeInteger(n) && String(n) === qDigits ? n : qDigits;
+        filterDesc = `documento.eq(${JSON.stringify(docEq)})`;
+        console.log(`${LOG} modo=documento_eq filtro=${filterDesc}`);
+        const res = await seguimientosBase().eq("documento", docEq).limit(20);
+        if (res.error) {
+          console.log(`${LOG} error supabase=`, res.error.message);
+          return jsonResponse(
+            400,
+            errBody({ where: "buscar-logros1", error: res.error.message }),
+            origin,
+          );
+        }
+        rowsRaw = (res.data || []) as Row[];
+      } else {
+        modo = "texto_tokens";
+        const tokens = qTrim
+          .split(/\s+/)
+          .map((t) => t.replace(/%/g, "").replace(/_/g, ""))
+          .filter((t) => t.length >= 2);
+        const orParts: string[] = [];
+        for (const t of tokens) {
+          orParts.push(`nombres.ilike.%${t}%`, `apellidos.ilike.%${t}%`);
+        }
+        filterDesc = `or(${orParts.join(",")}).limit(200)`;
+        console.log(`${LOG} modo=texto_tokens tokens=`, JSON.stringify(tokens));
+        console.log(`${LOG} filtro=`, filterDesc);
+        const res = await seguimientosBase()
+          .or(orParts.join(","))
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (res.error) {
+          console.log(`${LOG} error supabase=`, res.error.message);
+          return jsonResponse(
+            400,
+            errBody({ where: "buscar-logros1", error: res.error.message }),
+            origin,
+          );
+        }
+        rowsRaw = (res.data || []) as Row[];
+        const antes = rowsRaw.length;
+        rowsRaw = rowsRaw.filter((r) =>
+          filaCumpleTokens(r.nombres, r.apellidos, tokens),
+        );
+        console.log(
+          `${LOG} filas_supabase=${antes} tras_and_memoria=${rowsRaw.length}`,
+        );
+      }
+
+      const preview = rowsRaw.slice(0, 3).map((r) => ({
+        id_int: r.id_int,
+        documento: r.documento,
+        nombres: r.nombres,
+        apellidos: r.apellidos,
+      }));
+      console.log(`${LOG} primeros=`, JSON.stringify(preview));
+
+      rowsRaw.sort((a, b) => {
+        const ta = String(a.created_at ?? "");
+        const tb = String(b.created_at ?? "");
+        return tb.localeCompare(ta);
+      });
+
+      const out = rowsRaw.slice(0, maxResults);
+
+      return jsonResponse(
+        200,
+        {
+          ok: true,
+          resultados: out,
+          total_escaneadas: rowsRaw.length,
+          _debug: { modo, filtro: filterDesc },
+        },
+        origin,
+        { "Cache-Control": "no-store" },
       );
     }
 

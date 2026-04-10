@@ -69,3 +69,68 @@
   opacity: 0.88;
   font-size: 0.98rem;
 }
+
+/* Búsqueda combobox (nombre / cédula → Fase 1) */
+.logros2-patient-search.field {
+  position: relative;
+}
+
+.logros2-patient-search__control {
+  position: relative;
+}
+
+.logros2-patient-search__input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.logros2-patient-search__dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  max-height: min(280px, 42vh);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #b8cfe8;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(31, 58, 95, 0.14);
+}
+
+.logros2-patient-search__hint {
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.92rem;
+  color: #4a5f78;
+}
+
+.logros2-patient-search__option {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: #1e2a3a;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.logros2-patient-search__option:hover,
+.logros2-patient-search__option:focus-visible {
+  background: #eef4ff;
+  outline: none;
+}
+
+.logros2-patient-search__help {
+  margin: 0.45rem 0 0;
+  font-size: clamp(0.85rem, 0.82rem + 0.15vw, 0.92rem);
+  color: #4a5f78;
+  line-height: 1.45;
+}

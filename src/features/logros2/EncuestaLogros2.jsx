@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import SelectInput from "../../components/SelectInput";
 import AutorizadosHeader from "../../components/AutorizadosHeader";
@@ -25,9 +25,11 @@ import {
   formatFechaEvaluacion,
   labelLimitacionNarrativa,
   labelsActividades,
-  labelProblema,
-  labelObjetivoPrevio,
+  mapSymptomLabel,
   buildSlotsFromFase1,
+  normalizeFase1Row,
+  labelsQueImpide,
+  mapLastTimeLabel,
 } from "./logros2Formatters";
 
 import { apiUrl } from "../../lib/api/baseUrl";
@@ -154,6 +156,14 @@ export default function EncuestaLogros2() {
   };
 
   const [docBusqueda, setDocBusqueda] = useState("");
+  /** Texto libre en el campo de búsqueda (nombre, apellido o cédula). */
+  const [busquedaTexto, setBusquedaTexto] = useState("");
+  const [sugerencias, setSugerencias] = useState([]);
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+  const [buscandoSugerencias, setBuscandoSugerencias] = useState(false);
+  const busquedaWrapRef = useRef(null);
+  const skipBusquedaRef = useRef(false);
+
   const [fase1, setFase1] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [errors, setErrors] = useState({});
@@ -166,25 +176,43 @@ export default function EncuestaLogros2() {
     [fase1],
   );
 
+  /** Alineado con API buscar-logros1: ≥4 letras o ≥5 dígitos (sin barrer tablas enteras). */
+  const busquedaCumpleMinimo = useMemo(() => {
+    const q = busquedaTexto.trim();
+    const digitos = q.replace(/\D/g, "").length;
+    const letras = q.replace(/[^\p{L}]/gu, "").length;
+    return letras >= 4 || digitos >= 5;
+  }, [busquedaTexto]);
+
   const fechaEval = fase1 ? formatFechaEvaluacion(fase1.created_at) : "";
   const limLabel = fase1
     ? labelLimitacionNarrativa(fase1.limitacion_moverse)
     : "";
   const actLabel = fase1 ? labelsActividades(fase1.actividades_afectadas) : "";
 
-  const onDocChange = (e) => {
-    const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 11);
-    setDocBusqueda(onlyDigits);
+  const documentoDesdeCampos = () => {
+    const d = docBusqueda.replace(/\D/g, "").trim();
+    if (d.length >= 6) return d;
+    return busquedaTexto.replace(/\D/g, "").trim();
   };
 
-  const buscarEncuestaBase = async () => {
-    const doc = docBusqueda.trim();
+  const etiquetaFilaPaciente = (r) => {
+    const nom = `${r.nombres || ""} ${r.apellidos || ""}`.trim() || "Sin nombre";
+    const doc = String(r.documento ?? "");
+    const sedeR = String(r.sede ?? "").trim();
+    return `${nom} · Doc. ${doc}${sedeR ? ` · ${sedeR}` : ""}`;
+  };
+
+  const cargarFase1PorDocumento = async (docRaw) => {
+    const doc = String(docRaw || "")
+      .replace(/\D/g, "")
+      .trim();
     if (doc.length < 6) {
       await alertWarning({
         title: "Identificación",
-        text: "Ingrese un número de documento válido (mínimo 6 dígitos).",
+        text: "Se requiere un documento numérico válido (mínimo 6 dígitos). Seleccione una opción de la lista o escriba la cédula completa.",
       });
-      return;
+      return false;
     }
 
     setCargando(true);
@@ -203,43 +231,155 @@ export default function EncuestaLogros2() {
             json?.detail ||
             "No existe registro de la evaluación por logros (Fase 1) para este documento. Debe completarse primero dicha evaluación.",
         });
-        return;
+        return false;
       }
 
       const row = json?.data;
       if (!row) {
         setFase1(null);
-        return;
+        return false;
       }
 
-      setFase1(row);
-      const built = buildSlotsFromFase1(row);
+      setDocBusqueda(doc);
+      const normalized = normalizeFase1Row(row);
+      setFase1(normalized);
+      const built = buildSlotsFromFase1(normalized);
       const init = {};
       for (const s of built) {
         init[String(s.slot)] = { nivel: "", nuevo: "" };
       }
       setRespuestas(init);
+      setMostrarSugerencias(false);
+      return true;
     } catch {
       await alertError({
         title: "Error",
         text: "No fue posible recuperar la evaluación previa. Intente nuevamente.",
       });
+      return false;
     } finally {
       setCargando(false);
     }
   };
 
-  const setNivel = (slot, value) => {
-    setRespuestas((prev) => ({
-      ...prev,
-      [String(slot)]: { ...prev[String(slot)], nivel: value },
-    }));
+  const buscarEncuestaBase = async () => {
+    const doc = documentoDesdeCampos();
+    await cargarFase1PorDocumento(doc);
+  };
+
+  const seleccionarPaciente = (r) => {
+    const doc = String(r.documento ?? "").replace(/\D/g, "").trim();
+    skipBusquedaRef.current = true;
+    setBusquedaTexto(etiquetaFilaPaciente(r));
+    setDocBusqueda(doc);
+    setMostrarSugerencias(false);
+    setSugerencias([]);
+    void cargarFase1PorDocumento(doc);
+  };
+
+  useEffect(() => {
+    if (skipBusquedaRef.current) {
+      skipBusquedaRef.current = false;
+      setSugerencias([]);
+      setBuscandoSugerencias(false);
+      return;
+    }
+    const q = busquedaTexto.trim();
+    const letras = q.replace(/[^\p{L}]/gu, "").length;
+    const digitos = q.replace(/\D/g, "").length;
+    console.log("[L2 BUSQUEDA] texto(raw)=", JSON.stringify(busquedaTexto));
+    console.log("[L2 BUSQUEDA] texto(trim)=", JSON.stringify(q));
+    console.log("[L2 BUSQUEDA] letras=", letras);
+    console.log("[L2 BUSQUEDA] digitos=", digitos);
+    console.log("[L2 BUSQUEDA] cumpleMinimo=", busquedaCumpleMinimo);
+    if (!busquedaCumpleMinimo) {
+      setSugerencias([]);
+      setBuscandoSugerencias(false);
+      return;
+    }
+
+    const ctrl = new AbortController();
+    const t = window.setTimeout(async () => {
+      setBuscandoSugerencias(true);
+      try {
+        const params = new URLSearchParams({
+          q,
+          limit: "25",
+        });
+        const url = apiUrl(`/encuestas/buscar-logros1?${params.toString()}`);
+        console.log(
+          "[L2 BUSQUEDA] t=",
+          new Date().toISOString(),
+          "llamando endpoint…",
+        );
+        console.log("[L2 BUSQUEDA] url=", url);
+        const res = await fetch(url, { signal: ctrl.signal });
+        const text = await res.text();
+        let json = {};
+        try {
+          json = JSON.parse(text);
+        } catch {
+          json = {};
+        }
+        console.log("[L2 BUSQUEDA] resp status=", res.status, "body(raw)=", text);
+        console.log("[L2 BUSQUEDA] json.ok=", json?.ok, "resultados.len=", Array.isArray(json?.resultados) ? json.resultados.length : "n/a");
+        console.log("[L2 BUSQUEDA] _debug=", json?._debug);
+        if (!res.ok) {
+          setSugerencias([]);
+          return;
+        }
+        setSugerencias(Array.isArray(json?.resultados) ? json.resultados : []);
+      } catch (e) {
+        console.log("[L2 BUSQUEDA] fetch error=", e?.name, e?.message);
+        if (e?.name !== "AbortError") setSugerencias([]);
+      } finally {
+        setBuscandoSugerencias(false);
+      }
+    }, 320);
+
+    return () => {
+      window.clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [busquedaTexto, busquedaCumpleMinimo]);
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (!busquedaWrapRef.current?.contains(e.target)) {
+        setMostrarSugerencias(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  const setNivel = (slotDef, value) => {
+    if (!slotDef) return;
+    const slot = String(slotDef.slot);
+    setRespuestas((prev) => {
+      const cur = prev[slot] || { nivel: "", nuevo: "" };
+      const next = { ...cur, nivel: value };
+      if (value === "nada") {
+        if (slotDef.inputMode === "select" && slotDef.objetivoPrevioKey) {
+          next.nuevo = slotDef.objetivoPrevioKey;
+        } else if (slotDef.inputMode === "text") {
+          const t = String(slotDef.objetivoPrevioLabel || "").trim();
+          if (t && t !== "—") next.nuevo = t;
+        } else if (slotDef.objetivoPrevioKey) {
+          next.nuevo = slotDef.objetivoPrevioKey;
+        }
+      }
+      return { ...prev, [slot]: next };
+    });
   };
 
   const setNuevo = (slot, value) => {
     setRespuestas((prev) => ({
       ...prev,
-      [String(slot)]: { ...prev[String(slot)], nuevo: value },
+      [String(slot)]: {
+        ...(prev[String(slot)] || { nivel: "", nuevo: "" }),
+        nuevo: value,
+      },
     }));
   };
 
@@ -248,10 +388,12 @@ export default function EncuestaLogros2() {
     for (const s of slots) {
       const r = respuestas[String(s.slot)];
       if (!r?.nivel) {
-        next[`nivel_${s.slot}`] = "Indique la evolución respecto al objetivo previo.";
+        next[`nivel_${s.slot}`] =
+          "Seleccione la evolución respecto al objetivo acordado previamente.";
       }
-      if (!r?.nuevo) {
-        next[`nuevo_${s.slot}`] = "Indique el objetivo de seguimiento.";
+      if (!String(r?.nuevo ?? "").trim()) {
+        next[`nuevo_${s.slot}`] =
+          "Indique el objetivo de seguimiento o a establecer.";
       }
     }
     setErrors(next);
@@ -264,7 +406,7 @@ export default function EncuestaLogros2() {
     if (!fase1 || !slots.length) {
       await alertWarning({
         title: "Datos insuficientes",
-        text: "Cargue primero la evaluación previa mediante el número de documento.",
+        text: "Cargue primero la evaluación previa: búsqueda por nombre o cédula, o use el botón Cargar evaluación previa.",
       });
       return;
     }
@@ -272,7 +414,7 @@ export default function EncuestaLogros2() {
     if (!validate()) {
       await alertWarning({
         title: "Registro incompleto",
-        text: "Complete la evolución y el objetivo de seguimiento en cada ítem priorizado.",
+        text: "Complete la evolución respecto al objetivo acordado y el objetivo de seguimiento o a establecer en cada ítem.",
       });
       return;
     }
@@ -292,10 +434,14 @@ export default function EncuestaLogros2() {
       nuevo_objetivo: respuestas[String(s.slot)].nuevo,
     }));
 
+    const docPaciente = String(docBusqueda || documentoDesdeCampos() || "")
+      .replace(/\D/g, "")
+      .trim();
+
     const payload = {
       encuestador: String(encuestadorCache),
       sede: sedeFormulario,
-      documento: docBusqueda.trim(),
+      documento: docPaciente,
       id_encuesta_fase1: fase1.id_int,
       items,
     };
@@ -321,6 +467,9 @@ export default function EncuestaLogros2() {
 
       setFase1(null);
       setDocBusqueda("");
+      setBusquedaTexto("");
+      setSugerencias([]);
+      setMostrarSugerencias(false);
       setRespuestas({});
       setErrors({});
 
@@ -380,6 +529,9 @@ export default function EncuestaLogros2() {
 
       setFase1(null);
       setDocBusqueda("");
+      setBusquedaTexto("");
+      setSugerencias([]);
+      setMostrarSugerencias(false);
       setRespuestas({});
       setErrors({});
     } catch {
@@ -418,23 +570,95 @@ export default function EncuestaLogros2() {
                 />
               </div>
               <h2 className="encuesta-logros-title">
-                Seguimiento clínico por objetivos (Logros 2)
+                Evaluación de Resultados Clínicos – Fase 2
               </h2>
               <p className="encuesta-logros-sub">
-                Registro estructurado a partir de la evaluación previa por logros
-                (Fase 1), para documentar evolución y nuevos objetivos terapéuticos.
+                📄 Medición de resultados terapéuticos alcanzados por el paciente,
+                basada en criterios funcionales y clínicos previamente definidos.
               </p>
 
-              <TextField
-                label="Número de identificación del paciente (debe coincidir con Logros Fase 1)"
-                name="docBusqueda"
-                value={docBusqueda}
-                onChange={onDocChange}
-                placeholder="Solo dígitos"
-                maxLength={11}
-                required={false}
-                error={errors.docBusqueda}
-              />
+              <div
+                className="logros2-patient-search field"
+                ref={busquedaWrapRef}
+              >
+                <label
+                  className="field__label"
+                  htmlFor="logros2-busqueda-paciente"
+                >
+                  Buscar paciente (debe existir evaluación Logros Fase 1)
+                </label>
+                <div className="logros2-patient-search__control">
+                  <input
+                    id="logros2-busqueda-paciente"
+                    name="logros2-busqueda-paciente"
+                    type="text"
+                    className={`field__input logros2-patient-search__input${errors.docBusqueda ? " field__input--error" : ""}`}
+                    value={busquedaTexto}
+                    onChange={(e) => {
+                      setBusquedaTexto(e.target.value);
+                      setMostrarSugerencias(true);
+                    }}
+                    onFocus={() => setMostrarSugerencias(true)}
+                    placeholder="Mín. 4 letras o 5 dígitos de cédula"
+                    autoComplete="off"
+                    aria-autocomplete="list"
+                    aria-expanded={
+                      mostrarSugerencias && busquedaCumpleMinimo
+                    }
+                    aria-controls="logros2-sugerencias-lista"
+                  />
+                  {mostrarSugerencias && busquedaCumpleMinimo ? (
+                    <ul
+                      id="logros2-sugerencias-lista"
+                      className="logros2-patient-search__dropdown"
+                      role="listbox"
+                    >
+                      {buscandoSugerencias ? (
+                        <li
+                          className="logros2-patient-search__hint"
+                          role="presentation"
+                        >
+                          Buscando…
+                        </li>
+                      ) : null}
+                      {!buscandoSugerencias && sugerencias.length === 0 ? (
+                        <li
+                          className="logros2-patient-search__hint"
+                          role="presentation"
+                        >
+                          No hay coincidencias con ese texto. Pruebe otras
+                          letras o más dígitos del documento, o use{" "}
+                          <strong>Cargar evaluación previa</strong> con la cédula
+                          completa (6–11 dígitos).
+                        </li>
+                      ) : null}
+                      {sugerencias.map((r) => (
+                        <li key={String(r.id_int)}>
+                          <button
+                            type="button"
+                            role="option"
+                            className="logros2-patient-search__option"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => seleccionarPaciente(r)}
+                          >
+                            {etiquetaFilaPaciente(r)}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+                {errors.docBusqueda ? (
+                  <p className="field__error">{errors.docBusqueda}</p>
+                ) : null}
+                <p className="logros2-patient-search__help">
+                  Escriba al menos <strong>4 letras</strong> del nombre o
+                  apellido, o al menos <strong>5 dígitos</strong> de la cédula,
+                  para buscar en la base de datos. Luego elija una fila o use{" "}
+                  <strong>Cargar evaluación previa</strong> con la cédula
+                  completa (6–11 dígitos).
+                </p>
+              </div>
 
               <div className="encuesta-logros-actions encuesta-logros-actions--single">
                 <Button
@@ -452,49 +676,65 @@ export default function EncuestaLogros2() {
               <div className="logros2-chat" role="region" aria-label="Resumen clínico">
                 <p style={{ margin: "0 0 0.75rem" }}>
                   En la <strong>evaluación por logros</strong> del{" "}
-                  <strong>{fechaEval || "—"}</strong>, el/la paciente{" "}
+                  <strong>{fechaEval || "—"}</strong>, la persona evaluada{" "}
                   <strong>
                     {fase1.nombres || ""} {fase1.apellidos || ""}
                   </strong>{" "}
                   reportó una percepción de limitación <strong>{limLabel}</strong> para
-                  el desplazamiento y el desempeño en actividades como:{" "}
+                  desplazarse y desempeñar actividades como:{" "}
                   <strong>{actLabel}</strong>.
                 </p>
                 <p style={{ margin: 0 }}>
-                  Con base en lo anterior se priorizaron síntomas y se definieron
-                  objetivos terapéuticos. A continuación registre, para cada ítem, la
-                  evolución observada y el objetivo de seguimiento.
+                  Con base en ello se priorizaron síntomas y se definieron objetivos
+                  terapéuticos. Registre, para cada ítem, la evolución clínica y el
+                  objetivo de seguimiento.
                 </p>
-                {fase1.objetivo_extra?.trim() ? (
+                {String(fase1.objetivo_extra || "").trim() ? (
                   <p style={{ margin: "0.75rem 0 0", fontSize: "0.96rem" }}>
-                    <strong>Meta complementaria</strong> consignada en aquella
-                    evaluación: {fase1.objetivo_extra.trim()}
+                    <strong>Meta complementaria consignada en aquella evaluación:</strong>{" "}
+                    {String(fase1.objetivo_extra).trim()}
+                  </p>
+                ) : null}
+                {String(fase1.adicional_no_puede || "").trim() ? (
+                  <p style={{ margin: "0.65rem 0 0", fontSize: "0.96rem" }}>
+                    <strong>Actividad adicional mencionada:</strong>{" "}
+                    {String(fase1.adicional_no_puede).trim()}
+                    {fase1.ultima_vez ? (
+                      <>
+                        {" "}
+                        <strong>Última vez que la realizó:</strong>{" "}
+                        {mapLastTimeLabel(fase1.ultima_vez)}.
+                      </>
+                    ) : null}{" "}
+                    {labelsQueImpide(fase1.que_impide) !== "—" ? (
+                      <>
+                        <strong>Factores que limitan:</strong>{" "}
+                        {labelsQueImpide(fase1.que_impide)}.
+                      </>
+                    ) : null}
                   </p>
                 ) : null}
               </div>
 
               {slots.map((s) => {
+                const sintomaBase = mapSymptomLabel(s.sintoma);
                 const sintomaLabel =
-                  s.sintoma === "otro" && fase1.otro_sintoma
-                    ? `${labelProblema(s.sintoma)} (${fase1.otro_sintoma})`
-                    : labelProblema(s.sintoma);
-
-                const prevObjLabel = labelObjetivoPrevio(
-                  s.sintoma,
-                  s.objetivoPrevio,
-                );
+                  s.sintoma === "otro" && s.otroSintomaText
+                    ? `${sintomaBase}: ${s.otroSintomaText}`
+                    : sintomaBase;
 
                 return (
                   <div className="logros2-slot" key={s.slot}>
                     <p className="logros2-slot__title">
-                      {s.slot}. {sintomaLabel}
+                      Ítem {s.slot}: {sintomaLabel}
                     </p>
                     <p className="logros2-slot__prev">
-                      <strong>Objetivo acordado previamente:</strong> {prevObjLabel}
+                      <strong>Objetivo acordado previamente:</strong>{" "}
+                      {s.objetivoPrevioLabel}
                     </p>
 
                     <p className="field__label" style={{ marginBottom: 6 }}>
-                      Evolución respecto a dicho objetivo{" "}
+                      <strong>Evolución respecto a dicho objetivo</strong>{" "}
                       <span className="field__req">*</span>
                     </p>
                     <div className="logros2-radio-row">
@@ -507,7 +747,7 @@ export default function EncuestaLogros2() {
                             checked={
                               respuestas[String(s.slot)]?.nivel === opt.value
                             }
-                            onChange={() => setNivel(s.slot, opt.value)}
+                            onChange={() => setNivel(s, opt.value)}
                           />
                           {opt.label}
                         </label>
@@ -517,15 +757,30 @@ export default function EncuestaLogros2() {
                       <p className="field__error">{errors[`nivel_${s.slot}`]}</p>
                     ) : null}
 
-                    <SelectInput
-                      label="Objetivo de seguimiento a establecer"
-                      name={`nuevo_${s.slot}`}
-                      value={respuestas[String(s.slot)]?.nuevo || ""}
-                      onChange={(e) => setNuevo(s.slot, e.target.value)}
-                      options={getOpcionesNuevoObjetivo(s.sintoma)}
-                      required
-                      error={errors[`nuevo_${s.slot}`]}
-                    />
+                    {s.inputMode === "select" ? (
+                      <SelectInput
+                        label="Objetivo de seguimiento o a establecer"
+                        name={`nuevo_${s.slot}`}
+                        value={respuestas[String(s.slot)]?.nuevo || ""}
+                        onChange={(e) => setNuevo(s.slot, e.target.value)}
+                        options={getOpcionesNuevoObjetivo(
+                          s.sintoma,
+                          s.objetivoPrevioKey,
+                        )}
+                        required
+                        error={errors[`nuevo_${s.slot}`]}
+                      />
+                    ) : (
+                      <TextField
+                        label="Objetivo de seguimiento o a establecer"
+                        name={`nuevo_${s.slot}`}
+                        value={respuestas[String(s.slot)]?.nuevo || ""}
+                        onChange={(e) => setNuevo(s.slot, e.target.value)}
+                        required
+                        placeholder="Describa el objetivo de seguimiento"
+                        error={errors[`nuevo_${s.slot}`]}
+                      />
+                    )}
                   </div>
                 );
               })}

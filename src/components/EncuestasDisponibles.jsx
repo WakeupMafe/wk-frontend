@@ -82,7 +82,7 @@ export default function EncuestasDisponibles() {
       },
       {
         id: "encuesta-seguimiento",
-        label: "Seguimiento clínico (Logros 2)",
+        label: "Evaluación de Resultados Clínicos – Fase 2",
         kind: "file",
         accent: "blue",
         route: "encuesta-seguimiento",

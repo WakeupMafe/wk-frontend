@@ -3,6 +3,10 @@ import { useEffect, useState } from "react";
 import Button from "../../../components/ButtonComponente";
 import AutorizadosHeader from "../../../components/AutorizadosHeader";
 import NavBackButton from "../../../components/NavBackButton";
+import {
+  WK_PERFIL_ACTUALIZADO,
+  readAutorizadoCache,
+} from "../../../lib/autorizadoPerfilEvents";
 import "./EstadisticasLayout.css";
 import "./EstadisticasPage.css";
 
@@ -10,19 +14,31 @@ export default function EstadisticasLayout() {
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState("Usuario");
   const [sede, setSede] = useState("Sin sede");
+  const [correo, setCorreo] = useState("");
   const [encuestasRealizadas, setEncuestasRealizadas] = useState(0);
 
   useEffect(() => {
-    const cached = sessionStorage.getItem("wk_autorizado");
-    if (!cached) return;
-    try {
-      const data = JSON.parse(cached);
+    const data = readAutorizadoCache();
+    if (data && Object.keys(data).length) {
       setUsuario(data.usuario || "Usuario");
       setSede(data.sede || "Sin sede");
+      setCorreo(String(data.correo ?? "").trim());
       setEncuestasRealizadas(data.encuestasRealizadas || 0);
-    } catch {
-      // ignore
     }
+  }, []);
+
+  useEffect(() => {
+    const onPerfil = () => {
+      const data = readAutorizadoCache();
+      if (data.usuario) setUsuario(data.usuario);
+      if (data.sede) setSede(data.sede);
+      if (data.correo != null) setCorreo(String(data.correo).trim());
+      if (typeof data.encuestasRealizadas === "number") {
+        setEncuestasRealizadas(data.encuestasRealizadas);
+      }
+    };
+    window.addEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
+    return () => window.removeEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
   }, []);
 
   return (
@@ -106,6 +122,8 @@ export default function EstadisticasLayout() {
           <AutorizadosHeader
             usuario={usuario}
             sede={sede}
+            correo={correo}
+            sessionPin={sessionStorage.getItem("wk_pin") ?? undefined}
             showEncuestasCount={true}
             encuestasRealizadas={encuestasRealizadas}
             mobilePanelTop={

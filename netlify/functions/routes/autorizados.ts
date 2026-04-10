@@ -6,6 +6,12 @@ function errBody(detail: string | Record<string, unknown>) {
   return { detail };
 }
 
+const SEDES_PERMITIDAS = new Set(["Poblado", "Laureles", "Barranquilla"]);
+
+function isValidEmail(correo: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+}
+
 export async function handleAutorizados(
   pathname: string,
   method: string,
@@ -76,6 +82,51 @@ export async function handleAutorizados(
     );
   }
 
+  if (path === "/autorizados/actualizar-perfil" && method === "POST") {
+    const data = body as {
+      pin?: string;
+      sede?: string;
+      correo?: string;
+    } | null;
+    const pin = String(data?.pin ?? "").trim();
+    const sede = String(data?.sede ?? "").trim();
+    let correo = String(data?.correo ?? "").trim().toLowerCase();
+
+    if (!pin) {
+      return jsonResponse(400, errBody("PIN requerido"), origin);
+    }
+    if (!SEDES_PERMITIDAS.has(sede)) {
+      return jsonResponse(400, errBody("Sede no permitida"), origin);
+    }
+    if (!correo || !isValidEmail(correo)) {
+      return jsonResponse(400, errBody("Correo inválido"), origin);
+    }
+
+    const supabase = getSupabase();
+    const upd = await supabase
+      .from("autorizados")
+      .update({ sede, correo })
+      .eq("pin", pin)
+      .select("cedula,nombres,apellidos,sede,correo,encuestas_realizadas");
+
+    if (upd.error) {
+      return jsonResponse(
+        400,
+        errBody({ where: "SUPABASE UPDATE PERFIL", error: upd.error.message }),
+        origin,
+      );
+    }
+    if (!upd.data?.length) {
+      return jsonResponse(404, errBody("PIN no encontrado."), origin);
+    }
+
+    return jsonResponse(
+      200,
+      { ok: true, data: upd.data[0] },
+      origin,
+    );
+  }
+
   const pinMatch = path.match(/^\/autorizados\/pin\/([^/]+)$/);
   if (pinMatch && method === "GET") {
     const pin = decodeURIComponent(pinMatch[1] || "");
@@ -84,7 +135,7 @@ export async function handleAutorizados(
 
     const res = await supabase
       .from("autorizados")
-      .select("cedula,nombres,apellidos,sede,encuestas_realizadas")
+      .select("cedula,nombres,apellidos,sede,correo,encuestas_realizadas")
       .eq("pin", pin)
       .limit(1)
       .maybeSingle();

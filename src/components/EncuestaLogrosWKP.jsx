@@ -31,6 +31,10 @@ import { ENUNCIADOS_OBJETIVOS } from "../data/encuestaLogrosEnunciados";
 import { validateEncuestaLogros } from "../components/forms/validate";
 
 import { apiUrl } from "../lib/api/baseUrl";
+import {
+  WK_PERFIL_ACTUALIZADO,
+  readAutorizadoCache,
+} from "../lib/autorizadoPerfilEvents";
 
 function createInitialForm() {
   return JSON.parse(JSON.stringify(INITIAL_FORM));
@@ -175,9 +179,6 @@ export default function EncuestaLogrosWKP() {
   const location = useLocation();
   const { sede: sedeParam } = useParams();
 
-  const usuarioHeader = location.state?.usuario || "Usuario";
-  const encuestasCount = location.state?.encuestasRealizadas ?? 0;
-
   const sedeFormulario =
     location.state?.sedeCarpeta ||
     location.state?.sede ||
@@ -190,6 +191,42 @@ export default function EncuestaLogrosWKP() {
         return "Sin sede";
       }
     })();
+
+  const pinSesion =
+    location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined;
+
+  const [headerUsuario, setHeaderUsuario] = useState(
+    () =>
+      location.state?.usuario ||
+      readAutorizadoCache().usuario ||
+      "Usuario",
+  );
+  const [headerSede, setHeaderSede] = useState(
+    () => location.state?.sede || sedeFormulario,
+  );
+  const [headerCorreo, setHeaderCorreo] = useState(() =>
+    String(readAutorizadoCache().correo || "").trim(),
+  );
+  const [encuestasCount, setEncuestasCount] = useState(
+    () =>
+      location.state?.encuestasRealizadas ??
+      readAutorizadoCache().encuestasRealizadas ??
+      0,
+  );
+
+  useEffect(() => {
+    const onPerfil = () => {
+      const c = readAutorizadoCache();
+      if (c.usuario) setHeaderUsuario(c.usuario);
+      if (c.sede) setHeaderSede(c.sede);
+      if (c.correo != null) setHeaderCorreo(String(c.correo).trim());
+      if (typeof c.encuestasRealizadas === "number") {
+        setEncuestasCount(c.encuestasRealizadas);
+      }
+    };
+    window.addEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
+    return () => window.removeEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
+  }, []);
 
   const encuestadorCache =
     location.state?.cedula ||
@@ -539,11 +576,11 @@ export default function EncuestaLogrosWKP() {
   )}/encuestas`;
 
   const encuestasListState = {
-    usuario: usuarioHeader,
-    sede: location.state?.sede || sedeFormulario,
+    usuario: headerUsuario,
+    sede: headerSede,
     encuestasRealizadas: encuestasCount,
     cedula: encuestadorCache || location.state?.cedula,
-    pin: location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined,
+    pin: pinSesion,
   };
 
   const irAEncuestas = () => {
@@ -557,8 +594,10 @@ export default function EncuestaLogrosWKP() {
       <div className="page-encuestas page-encuesta-logros">
         <div className="content-autorizados">
           <AutorizadosHeader
-            usuario={usuarioHeader}
-            sede={location.state?.sede || sedeFormulario}
+            usuario={headerUsuario}
+            sede={headerSede}
+            correo={headerCorreo}
+            sessionPin={pinSesion}
             showEncuestasCount={true}
             encuestasRealizadas={encuestasCount}
           />

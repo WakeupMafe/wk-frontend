@@ -12,7 +12,10 @@
 
 .ff-folders {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(130px, 30vw, 220px), 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(clamp(130px, 30vw, 220px), 1fr)
+  );
   justify-items: center;
   align-items: end;
   gap: clamp(16px, 4vw, 40px);

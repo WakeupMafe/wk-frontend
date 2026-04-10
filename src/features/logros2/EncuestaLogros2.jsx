@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import SelectInput from "../../components/SelectInput";
 import AutorizadosHeader from "../../components/AutorizadosHeader";
@@ -31,6 +31,10 @@ import {
 } from "./logros2Formatters";
 
 import { apiUrl } from "../../lib/api/baseUrl";
+import {
+  WK_PERFIL_ACTUALIZADO,
+  readAutorizadoCache,
+} from "../../lib/autorizadoPerfilEvents";
 
 /** Solo Encuesta Logros 2 (seguimiento); `false` restaura POST real a `/encuestas/logros2`. */
 const SIMULATION_MODE_LOGROS2 = true;
@@ -89,9 +93,41 @@ export default function EncuestaLogros2() {
       }
     })();
 
-  const usuarioHeader = location.state?.usuario || "Usuario";
-  const encuestasCount =
-    location.state?.encuestasRealizadas ?? 0;
+  const pinSesion =
+    location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined;
+
+  const [headerUsuario, setHeaderUsuario] = useState(
+    () =>
+      location.state?.usuario ||
+      readAutorizadoCache().usuario ||
+      "Usuario",
+  );
+  const [headerSede, setHeaderSede] = useState(
+    () => location.state?.sede || sedeFormulario,
+  );
+  const [headerCorreo, setHeaderCorreo] = useState(() =>
+    String(readAutorizadoCache().correo || "").trim(),
+  );
+  const [encuestasCount, setEncuestasCount] = useState(
+    () =>
+      location.state?.encuestasRealizadas ??
+      readAutorizadoCache().encuestasRealizadas ??
+      0,
+  );
+
+  useEffect(() => {
+    const onPerfil = () => {
+      const c = readAutorizadoCache();
+      if (c.usuario) setHeaderUsuario(c.usuario);
+      if (c.sede) setHeaderSede(c.sede);
+      if (c.correo != null) setHeaderCorreo(String(c.correo).trim());
+      if (typeof c.encuestasRealizadas === "number") {
+        setEncuestasCount(c.encuestasRealizadas);
+      }
+    };
+    window.addEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
+    return () => window.removeEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
+  }, []);
 
   const encuestadorCache =
     location.state?.cedula ||
@@ -110,11 +146,11 @@ export default function EncuestaLogros2() {
   )}/encuestas`;
 
   const encuestasListState = {
-    usuario: usuarioHeader,
-    sede: location.state?.sede || sedeFormulario,
+    usuario: headerUsuario,
+    sede: headerSede,
     encuestasRealizadas: encuestasCount,
     cedula: encuestadorCache || location.state?.cedula,
-    pin: location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined,
+    pin: pinSesion,
   };
 
   const [docBusqueda, setDocBusqueda] = useState("");
@@ -362,8 +398,10 @@ export default function EncuestaLogros2() {
       <div className="page-encuestas page-encuesta-logros">
         <div className="content-autorizados">
           <AutorizadosHeader
-            usuario={usuarioHeader}
-            sede={location.state?.sede || sedeFormulario}
+            usuario={headerUsuario}
+            sede={headerSede}
+            correo={headerCorreo}
+            sessionPin={pinSesion}
             showEncuestasCount={true}
             encuestasRealizadas={encuestasCount}
           />

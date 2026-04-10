@@ -147,11 +147,22 @@ export async function handleVerificacion(
         );
       }
 
+      // El usuario ya quedó persistido: si SMTP falla, no devolvemos 500 (confunde
+      // con "no guardó"). El cliente puede usar /reenviar-pin cuando SMTP esté OK.
       const mail = await enviarPinPorCorreo(correo, pin);
       if (!mail.ok) {
+        console.error(
+          "[verificacion/registro-inicial] insert OK pero correo falló:",
+          mail.error,
+        );
         return jsonResponse(
-          500,
-          errBody(`No se pudo enviar el correo: ${mail.error}`),
+          200,
+          {
+            ok: true,
+            correoEnviado: false,
+            message:
+              "Usuario registrado. No se pudo enviar el correo ahora; usa «Solicitar Nuevo Código» en unos minutos o revisa la configuración SMTP en el servidor.",
+          },
           origin,
         );
       }
@@ -160,6 +171,7 @@ export async function handleVerificacion(
         200,
         {
           ok: true,
+          correoEnviado: true,
           message: "Usuario registrado correctamente. PIN enviado al correo.",
         },
         origin,
@@ -321,16 +333,29 @@ export async function handleVerificacion(
 
       const mail = await enviarPinPorCorreo(correo, pin);
       if (!mail.ok) {
+        console.error(
+          "[verificacion/reenviar-pin] correo falló:",
+          mail.error,
+        );
         return jsonResponse(
-          500,
-          errBody(`No se pudo enviar el correo: ${mail.error}`),
+          200,
+          {
+            ok: true,
+            correoEnviado: false,
+            message:
+              "No se pudo enviar el correo en este momento. Revisa SMTP en el servidor o intenta más tarde.",
+          },
           origin,
         );
       }
 
       return jsonResponse(
         200,
-        { ok: true, message: "PIN reenviado correctamente" },
+        {
+          ok: true,
+          correoEnviado: true,
+          message: "PIN reenviado correctamente",
+        },
         origin,
       );
     }

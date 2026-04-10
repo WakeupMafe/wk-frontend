@@ -4,6 +4,10 @@ import DirectoryBrowser from "./DirectoryBrowser";
 import "./EncuestasDisponibles.css";
 import WelcomeLayout from "../layouts/WelcomeLayout";
 import AutorizadosHeader from "../components/AutorizadosHeader";
+import {
+  WK_PERFIL_ACTUALIZADO,
+  readAutorizadoCache,
+} from "../lib/autorizadoPerfilEvents";
 
 import fondo2 from "../assets/fondo2.svg";
 
@@ -34,13 +38,37 @@ export default function EncuestasDisponibles() {
     };
   }, []);
 
-  // ✅ Todo viene desde AutorizadosInicio (ya sin pin)
-  const usuario = location.state?.usuario || "Usuario";
-  const sede = location.state?.sede || "Sin sede";
-  const encuestasRealizadas = location.state?.encuestasRealizadas ?? 0;
-  const cedula = location.state?.cedula ?? null;
   const pin =
     location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined;
+
+  const cacheSnap = readAutorizadoCache();
+  const [usuario, setUsuario] = useState(
+    () => location.state?.usuario || cacheSnap.usuario || "Usuario",
+  );
+  const [sede, setSede] = useState(
+    () => location.state?.sede || cacheSnap.sede || "Sin sede",
+  );
+  const [correoHeader, setCorreoHeader] = useState(
+    () => String(cacheSnap.correo ?? "").trim(),
+  );
+  const [encuestasRealizadas, setEncuestasRealizadas] = useState(
+    () => location.state?.encuestasRealizadas ?? cacheSnap.encuestasRealizadas ?? 0,
+  );
+  const cedula = location.state?.cedula ?? cacheSnap.cedula ?? null;
+
+  useEffect(() => {
+    const onPerfil = () => {
+      const c = readAutorizadoCache();
+      if (c.usuario) setUsuario(c.usuario);
+      if (c.sede) setSede(c.sede);
+      if (c.correo != null) setCorreoHeader(String(c.correo).trim());
+      if (typeof c.encuestasRealizadas === "number") {
+        setEncuestasRealizadas(c.encuestasRealizadas);
+      }
+    };
+    window.addEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
+    return () => window.removeEventListener(WK_PERFIL_ACTUALIZADO, onPerfil);
+  }, []);
 
   const items = useMemo(
     () => [
@@ -84,6 +112,8 @@ export default function EncuestasDisponibles() {
           <AutorizadosHeader
             usuario={usuario}
             sede={sede}
+            correo={correoHeader}
+            sessionPin={pin}
             showEncuestasCount={true}
             encuestasRealizadas={encuestasRealizadas}
           />

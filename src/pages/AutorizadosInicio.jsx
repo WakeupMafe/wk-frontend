@@ -17,6 +17,7 @@ export default function AutorizadosInicio() {
 
   const [usuario, setUsuario] = useState("Usuario");
   const [sede, setSede] = useState("Sin sede");
+  const [correo, setCorreo] = useState("");
   const [cedula, setCedula] = useState(null);
   const [encuestasRealizadas, setEncuestasRealizadas] = useState(0);
 
@@ -51,6 +52,7 @@ export default function AutorizadosInicio() {
         const c = JSON.parse(cached);
         setUsuario(c.usuario ?? "Usuario");
         setSede(c.sede ?? "Sin sede");
+        setCorreo(String(c.correo ?? "").trim());
         setCedula(c.cedula ?? null);
         setEncuestasRealizadas(c.encuestasRealizadas ?? 0);
         setLoading(false); // ✅ ya hay datos, no muestres "Cargando..."
@@ -88,6 +90,7 @@ export default function AutorizadosInicio() {
 
         setUsuario(info?.nombres || "Usuario");
         setSede(info?.sede || "Sin sede");
+        setCorreo(String(info?.correo ?? "").trim());
         setCedula(info?.cedula ?? null);
         setEncuestasRealizadas(info?.encuestas_realizadas ?? 0);
 
@@ -98,6 +101,7 @@ export default function AutorizadosInicio() {
           JSON.stringify({
             usuario: info?.nombres || "Usuario",
             sede: info?.sede || "Sin sede",
+            correo: String(info?.correo ?? "").trim(),
             cedula: info?.cedula ?? null,
             encuestasRealizadas: info?.encuestas_realizadas ?? 0,
           }),
@@ -136,8 +140,16 @@ export default function AutorizadosInicio() {
         <AutorizadosHeader
           usuario={loading ? "Cargando..." : usuario}
           sede={loading ? "Cargando..." : sede}
+          correo={correo}
+          sessionPin={pin}
+          perfilLoading={loading}
           showEncuestasCount={true}
           encuestasRealizadas={loading ? "..." : encuestasRealizadas}
+          onPerfilActualizado={({ sede: s, correo: co, encuestasRealizadas: n }) => {
+            setSede(s);
+            if (co != null) setCorreo(co);
+            if (typeof n === "number") setEncuestasRealizadas(n);
+          }}
         />
 
         <div className="Autorizados-botones">

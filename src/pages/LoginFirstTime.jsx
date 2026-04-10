@@ -143,16 +143,21 @@ export default function LoginFirstTime() {
       }
 
       if (data?.ok) {
+        const enviado = data?.correoEnviado !== false;
         await alertSuccess({
-          title: "PIN reenviado",
-          html: `
+          title: enviado ? "PIN reenviado" : "No se envió el correo",
+          html: enviado
+            ? `
             <p>Si el correo está correcto, el PIN te llegará.</p>
             <p><b>Revisa spam</b> también.</p>
+          `
+            : `
+            <p>No se pudo enviar el correo (SMTP). Tu usuario sigue en el sistema; intenta más tarde o contacta al administrador.</p>
           `,
         });
 
         setPinEnviado(true);
-        iniciarCooldown(40);
+        if (enviado) iniciarCooldown(40);
         return;
       }
 
@@ -199,7 +204,8 @@ export default function LoginFirstTime() {
         return;
       }
 
-      if (checkData?.exists || checkData?.ok) {
+      // Solo `exists`: en otros endpoints `ok` puede significar "petición OK", no "cédula existe".
+      if (checkData?.exists === true) {
         setPinEnviado(true);
 
         await alertUsuarioYaExiste({
@@ -242,18 +248,24 @@ export default function LoginFirstTime() {
       }
 
       if (data?.ok) {
+        const enviado = data?.correoEnviado !== false;
         await alertSuccess({
-          title: "Código enviado",
-          html: `
+          title: enviado ? "Código enviado" : "Registro guardado",
+          html: enviado
+            ? `
             <p>Tu PIN ha sido enviado al correo registrado.</p>
             <p><b>Ojo:</b> si el correo está errado, no llegará el PIN.</p>
             <p><b>Revisa también la carpeta de spam.</b></p>
             <p>Tiempo estimado de llegada: 40s–2 minutos.</p>
+          `
+            : `
+            <p>Tu registro quedó guardado, pero <b>no se pudo enviar el correo</b> desde el servidor (SMTP).</p>
+            <p>Cuando el correo esté configurado, usa <b>Solicitar Nuevo Código</b> o pide ayuda al administrador.</p>
           `,
         });
 
         setPinEnviado(true);
-        iniciarCooldown(40);
+        if (enviado) iniciarCooldown(40);
         return;
       }
 
@@ -435,7 +447,7 @@ export default function LoginFirstTime() {
 
               <div className="first-time-verify__hint">
                 <p className="first-time-verify__hint-line">
-                  Le llegará un código de 4 dígitos al correo.
+                  Le llegará un código al correo (2 letras y 3 números, ej. AB123).
                   {pinEnviado && cooldown > 0 ? (
                     <>
                       {" "}

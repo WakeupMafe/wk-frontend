@@ -1,6 +1,7 @@
 import type { HandlerResponse } from "@netlify/functions";
 import { getSupabase } from "../_lib/supabase";
 import { jsonResponse } from "../_lib/http";
+import { incrementarEncuestasRealizadas } from "../_lib/incrementarEncuestaAutorizado";
 
 function errBody(detail: string | Record<string, unknown>) {
   return { detail };
@@ -29,42 +30,21 @@ export async function handleAutorizados(
     }
 
     const supabase = getSupabase();
+    const r = await incrementarEncuestasRealizadas(
+      supabase,
+      cedula,
+      incremento,
+    );
 
-    const q = await supabase
-      .from("autorizados")
-      .select("encuestas_realizadas")
-      .eq("cedula", cedula)
-      .limit(1)
-      .maybeSingle();
-
-    if (q.error) {
+    if (!r.ok) {
+      const notFound = r.error.startsWith("No existe autorizado");
       return jsonResponse(
-        400,
-        errBody({ where: "SUPABASE SELECT", error: q.error.message }),
-        origin,
-      );
-    }
-    if (!q.data) {
-      return jsonResponse(
-        404,
-        errBody(`No existe autorizado con cédula ${cedula}`),
-        origin,
-      );
-    }
-
-    const actual = q.data.encuestas_realizadas ?? 0;
-    const nuevo = Number(actual) + (Number(incremento) || 1);
-
-    const upd = await supabase
-      .from("autorizados")
-      .update({ encuestas_realizadas: nuevo })
-      .eq("cedula", cedula)
-      .select();
-
-    if (upd.error) {
-      return jsonResponse(
-        400,
-        errBody({ where: "SUPABASE UPDATE", error: upd.error.message }),
+        notFound ? 404 : 400,
+        errBody(
+          notFound
+            ? r.error
+            : { where: "incrementar encuestas", error: r.error },
+        ),
         origin,
       );
     }
@@ -74,9 +54,9 @@ export async function handleAutorizados(
       {
         ok: true,
         cedula,
-        antes: actual,
-        despues: nuevo,
-        data: upd.data,
+        antes: r.antes,
+        despues: r.despues,
+        data: r.data,
       },
       origin,
     );

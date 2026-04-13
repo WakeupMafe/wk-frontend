@@ -71,7 +71,13 @@ export const handler: Handler = async (event) => {
 
   try {
     if (pathname.startsWith("/verificacion")) {
-      const r = await handleVerificacion(pathname, method, body, origin);
+      const r = await handleVerificacion(
+        pathname,
+        method,
+        body,
+        origin,
+        query,
+      );
       if (r) return r;
     }
     if (pathname.startsWith("/autorizados")) {

@@ -1,3 +1,9 @@
+import { PATOLOGIA_RELACIONADA } from "../../data/encuestaLogrosCatalog";
+
+const PATOLOGIA_RELACIONADA_VALUES = new Set(
+  PATOLOGIA_RELACIONADA.map((o) => o.value),
+);
+
 /**
  * @param {string} tipo
  * @param {string} doc
@@ -40,6 +46,13 @@ export function validateEncuestaLogros(form, objetivosAResponder) {
 
   const errDoc = validateDocumentoPorTipo(form.tipoDocumento, form.documento);
   if (errDoc) nextErrors.documento = errDoc;
+
+  if (
+    !form.patologiaRelacionada ||
+    !PATOLOGIA_RELACIONADA_VALUES.has(form.patologiaRelacionada)
+  ) {
+    nextErrors.patologiaRelacionada = "Seleccione una patología relacionada.";
+  }
 
   if (!form.limitacionMoverse) {
     nextErrors.limitacionMoverse = "Seleccione una opción.";

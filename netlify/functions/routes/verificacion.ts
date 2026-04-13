@@ -42,6 +42,7 @@ export async function handleVerificacion(
   method: string,
   body: unknown,
   origin: string | null,
+  query: Record<string, string | undefined> | null = null,
 ): Promise<HandlerResponse | null> {
   const path = pathname.replace(/\/$/, "") || pathname;
 
@@ -369,16 +370,16 @@ export async function handleVerificacion(
       }
       const cedulaInt = toIntOr400(cedulaStr);
       const supabase = getSupabase();
+      const createdAtQ = (query?.created_at ?? query?.createdAt ?? "").trim();
 
-      const resp = await supabase
-        .from("wakeup_seguimientos")
-        .select(
-          `
+      let qb = supabase.from("wakeup_seguimientos").select(
+        `
                 created_at,
                 nombres,
                 apellidos,
                 tipo_documento,
                 documento,
+                patologia_relacionada,
                 limitacion_moverse,
                 actividades_afectadas,
                 sintoma_1,
@@ -397,11 +398,15 @@ export async function handleVerificacion(
                 sede,
                 encuestador
             `,
-        )
-        .eq("documento", cedulaInt)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      );
+      qb = qb.eq("documento", cedulaInt);
+      if (createdAtQ) {
+        qb = qb.eq("created_at", createdAtQ);
+      } else {
+        qb = qb.order("created_at", { ascending: false }).limit(1);
+      }
+
+      const resp = await qb.maybeSingle();
 
       if (resp.error) {
         return jsonResponse(
@@ -419,7 +424,9 @@ export async function handleVerificacion(
         return jsonResponse(
           404,
           errBody(
-            "No se encontró encuesta de Logros Fase 1 para esta cédula",
+            createdAtQ
+              ? "No se encontró una evaluación Logros Fase 1 con esta cédula y la fecha indicada. Verifique la selección en el listado."
+              : "No se encontró encuesta de Logros Fase 1 para esta cédula",
           ),
           origin,
         );

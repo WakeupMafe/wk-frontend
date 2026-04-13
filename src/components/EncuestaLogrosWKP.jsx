@@ -18,6 +18,7 @@ import { sweetLoading, sweetClose } from "../components/SweetAlert";
 
 import {
   TIPOS_DOCUMENTO,
+  PATOLOGIA_RELACIONADA,
   LIMITACION_MOVERSE,
   ACTIVIDADES_AFECTADAS,
   PROBLEMAS,
@@ -459,6 +460,7 @@ export default function EncuestaLogrosWKP() {
       apellidos: form.apellidos,
       tipoDocumento: form.tipoDocumento,
       documento: form.documento,
+      patologiaRelacionada: form.patologiaRelacionada,
       limitacionMoverse: form.limitacionMoverse,
       actividadesAfectadas: form.actividadesAfectadas,
       sintomasTop: form.problemasTop,
@@ -686,7 +688,17 @@ export default function EncuestaLogrosWKP() {
                 </h3>
 
         <RadioGroup
-          label="5. ¿Qué tan limitada está su vida para moverse?"
+          label="5. Patología relacionada"
+          name="patologiaRelacionada"
+          options={PATOLOGIA_RELACIONADA}
+          value={form.patologiaRelacionada}
+          onChange={onChange}
+          required
+          error={errors.patologiaRelacionada}
+        />
+
+        <RadioGroup
+          label="6. ¿Qué tan limitada está su vida para moverse?"
           name="limitacionMoverse"
           options={LIMITACION_MOVERSE}
           value={form.limitacionMoverse}
@@ -696,7 +708,7 @@ export default function EncuestaLogrosWKP() {
         />
 
         <CheckboxGroup
-          label="6. ¿Qué actividades de la vida diaria se ven afectadas por su limitación?"
+          label="7. ¿Qué actividades de la vida diaria se ven afectadas por su limitación?"
           options={ACTIVIDADES_AFECTADAS}
           values={form.actividadesAfectadas}
           onToggle={toggleActividades}
@@ -704,7 +716,7 @@ export default function EncuestaLogrosWKP() {
         />
 
         <CheckboxGroup
-          label="7. Elija los 3 problemas más importantes que se derivan de su condición"
+          label="8. Elija los 3 problemas más importantes que se derivan de su condición"
           options={PROBLEMAS}
           values={form.problemasTop}
           onToggle={toggleProblemaTop}
@@ -714,7 +726,7 @@ export default function EncuestaLogrosWKP() {
 
         {form.problemasTop.includes("otro") && (
           <TextField
-            label="8. Si seleccionó “Otro”, diga cuál y sea específico"
+            label="9. Si seleccionó “Otro”, diga cuál y sea específico"
             name="otroProblema"
             value={form.otroProblema}
             onChange={onChange}

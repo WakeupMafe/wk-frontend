@@ -13,6 +13,17 @@ export const LIMITACION_MOVERSE = [
   { value: "nada", label: "Nada" },
 ];
 
+/** Valores almacenados en `wakeup_seguimientos.patologia_relacionada` (texto). */
+export const PATOLOGIA_RELACIONADA = [
+  { value: "rodilla", label: "Rodilla" },
+  { value: "hombro", label: "Hombro" },
+  { value: "cadera", label: "Cadera" },
+  { value: "lumbar_funcional", label: "Lumbar funcional" },
+  { value: "mano", label: "Mano" },
+  { value: "codo", label: "Codo" },
+  { value: "cuello", label: "Cuello" },
+];
+
 export const ACTIVIDADES_AFECTADAS = [
   { value: "tareas_hogar", label: "Tareas del hogar" },
   {
@@ -344,6 +355,7 @@ export const INITIAL_FORM = {
   apellidos: "",
   tipoDocumento: "",
   documento: "",
+  patologiaRelacionada: "",
   limitacionMoverse: "",
   actividadesAfectadas: [],
   problemasTop: [],

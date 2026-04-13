@@ -13,10 +13,10 @@ import "./EncuestaLogros2.css";
 import fondo2 from "../../assets/fondo2.svg";
 
 import {
+  alertConfirm,
   alertError,
   alertSuccess,
   alertWarning,
-  toastInfo,
 } from "../../lib/alerts/appAlert";
 import { sweetLoading, sweetClose } from "../../components/SweetAlert";
 
@@ -32,19 +32,17 @@ import {
   mapLastTimeLabel,
 } from "./logros2Formatters";
 
+import { PATOLOGIA_RELACIONADA } from "../../data/encuestaLogrosCatalog";
 import { apiUrl } from "../../lib/api/baseUrl";
 import {
   WK_PERFIL_ACTUALIZADO,
+  emitPerfilActualizado,
   readAutorizadoCache,
 } from "../../lib/autorizadoPerfilEvents";
 
-/** Solo Encuesta Logros 2 (seguimiento); `false` restaura POST real a `/encuestas/logros2`. */
-const SIMULATION_MODE_LOGROS2 = true;
-
-const SIMULATION_LOGROS2_TOAST_HTML = `
-<p style="margin:0;line-height:1.45;text-align:left">Operación completada correctamente.</p>
-<p style="margin:0.65rem 0 0;line-height:1.45;text-align:left"><strong>(Modo simulación)</strong> La transacción fue emulada exitosamente; no se realizó persistencia real de la información en base de datos.</p>
-`.trim();
+const PATOLOGIA_RELACIONADA_LABEL = Object.fromEntries(
+  PATOLOGIA_RELACIONADA.map((o) => [o.value, o.label]),
+);
 
 function TextField({
   label,
@@ -165,6 +163,8 @@ export default function EncuestaLogros2() {
   const skipBusquedaRef = useRef(false);
 
   const [fase1, setFase1] = useState(null);
+  /** Referencia estable a Fase 1: documento + created_at (no depende de id_int). */
+  const [fase1Referencia, setFase1Referencia] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -203,7 +203,7 @@ export default function EncuestaLogros2() {
     return `${nom} · Doc. ${doc}${sedeR ? ` · ${sedeR}` : ""}`;
   };
 
-  const cargarFase1PorDocumento = async (docRaw) => {
+  const cargarFase1PorDocumento = async (docRaw, createdAtOpcional) => {
     const doc = String(docRaw || "")
       .replace(/\D/g, "")
       .trim();
@@ -218,13 +218,19 @@ export default function EncuestaLogros2() {
     setCargando(true);
     setErrors({});
     try {
-      const res = await fetch(
-        `${apiUrl(`/verificacion/logros-fase1/${encodeURIComponent(doc)}`)}`,
-      );
+      let path = apiUrl(`/verificacion/logros-fase1/${encodeURIComponent(doc)}`);
+      if (createdAtOpcional != null && String(createdAtOpcional).trim() !== "") {
+        const q = new URLSearchParams({
+          created_at: String(createdAtOpcional).trim(),
+        });
+        path += `${path.includes("?") ? "&" : "?"}${q.toString()}`;
+      }
+      const res = await fetch(path);
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setFase1(null);
+        setFase1Referencia(null);
         await alertWarning({
           title: "Sin evaluación previa",
           text:
@@ -237,12 +243,21 @@ export default function EncuestaLogros2() {
       const row = json?.data;
       if (!row) {
         setFase1(null);
+        setFase1Referencia(null);
         return false;
       }
 
       setDocBusqueda(doc);
       const normalized = normalizeFase1Row(row);
       setFase1(normalized);
+      setFase1Referencia({
+        documento: row.documento,
+        created_at: row.created_at,
+        nombres: row.nombres ?? null,
+        apellidos: row.apellidos ?? null,
+        tipo_documento: row.tipo_documento || "cedula",
+        sede: row.sede ?? null,
+      });
       const built = buildSlotsFromFase1(normalized);
       const init = {};
       for (const s of built) {
@@ -252,6 +267,8 @@ export default function EncuestaLogros2() {
       setMostrarSugerencias(false);
       return true;
     } catch {
+      setFase1(null);
+      setFase1Referencia(null);
       await alertError({
         title: "Error",
         text: "No fue posible recuperar la evaluación previa. Intente nuevamente.",
@@ -274,7 +291,7 @@ export default function EncuestaLogros2() {
     setDocBusqueda(doc);
     setMostrarSugerencias(false);
     setSugerencias([]);
-    void cargarFase1PorDocumento(doc);
+    void cargarFase1PorDocumento(doc, r.created_at);
   };
 
   useEffect(() => {
@@ -427,55 +444,130 @@ export default function EncuestaLogros2() {
       return;
     }
 
-    const items = slots.map((s) => ({
-      slot: s.slot,
-      sintoma: s.sintoma,
-      nivel_mejora: respuestas[String(s.slot)].nivel,
-      nuevo_objetivo: respuestas[String(s.slot)].nuevo,
-    }));
+    const refDoc = fase1Referencia?.documento;
+    const refAt = fase1Referencia?.created_at;
+    if (
+      refDoc == null ||
+      String(refDoc).replace(/\D/g, "").length < 6 ||
+      !refAt ||
+      !String(refAt).trim()
+    ) {
+      await alertWarning({
+        title: "Evaluación previa incompleta",
+        text: "Falta la referencia a Logros Fase 1 (documento y fecha de la encuesta). Cargue de nuevo la evaluación con la búsqueda o con «Cargar evaluación previa».",
+      });
+      return;
+    }
+
+    const items = slots.map((s) => {
+      const sintomaBase = mapSymptomLabel(s.sintoma);
+      const sintomaLabel =
+        s.sintoma === "otro" && s.otroSintomaText
+          ? `${sintomaBase}: ${s.otroSintomaText}`
+          : sintomaBase;
+      const nivel = respuestas[String(s.slot)].nivel;
+      const nuevo = respuestas[String(s.slot)].nuevo;
+      return {
+        slot: s.slot,
+        sintoma: s.sintoma,
+        sintoma_label: sintomaLabel,
+        objetivo_previo_codigo: s.objetivoPrevioKey || null,
+        objetivo_previo_label: String(s.objetivoPrevioLabel || "").trim() || "—",
+        nivel_mejora: nivel,
+        nuevo_objetivo: nuevo,
+        autocompletado_desde_objetivo_previo:
+          nivel === "nada" &&
+          String(nuevo).trim() === String(s.objetivoPrevioKey || "").trim(),
+        es_otro_sintoma: s.sintoma === "otro",
+        es_meta_complementaria: false,
+      };
+    });
 
     const docPaciente = String(docBusqueda || documentoDesdeCampos() || "")
       .replace(/\D/g, "")
       .trim();
 
-    const payload = {
-      encuestador: String(encuestadorCache),
-      sede: sedeFormulario,
-      documento: docPaciente,
-      id_encuesta_fase1: fase1.id_int,
-      items,
-    };
-
-    if (SIMULATION_MODE_LOGROS2) {
-      console.log("[ENCUESTA LOGROS 2] Submit capturado");
-      console.log("[ENCUESTA LOGROS 2] Modo simulación activo");
-
-      sweetLoading({
-        title: "Registrando…",
-        text: "Guardando evaluación de seguimiento por objetivos.",
+    const tipoDocF1 = String(fase1.tipo_documento || "cedula").trim();
+    const preUrl = `${apiUrl("/encuestas/logros2-precheck")}?documento=${encodeURIComponent(docPaciente)}&tipo_documento=${encodeURIComponent(tipoDocF1)}`;
+    let preJson = {};
+    try {
+      const preRes = await fetch(preUrl);
+      preJson = await preRes.json().catch(() => ({}));
+      if (!preRes.ok) {
+        const det = preJson?.detail;
+        const msg =
+          typeof det === "string"
+            ? det
+            : det != null
+              ? JSON.stringify(det)
+              : "No se pudo verificar seguimientos previos.";
+        await alertError({ title: "Verificación", text: msg });
+        return;
+      }
+    } catch {
+      await alertError({
+        title: "Error de conexión",
+        text: "No fue posible verificar si ya existe un seguimiento para este documento.",
       });
-
-      await new Promise((resolve) => setTimeout(resolve, 450));
-
-      sweetClose();
-      console.log("[ENCUESTA LOGROS 2] Persistencia omitida intencionalmente");
-
-      toastInfo({
-        html: SIMULATION_LOGROS2_TOAST_HTML,
-        timer: 4000,
-      });
-
-      setFase1(null);
-      setDocBusqueda("");
-      setBusquedaTexto("");
-      setSugerencias([]);
-      setMostrarSugerencias(false);
-      setRespuestas({});
-      setErrors({});
-
-      console.log("[ENCUESTA LOGROS 2] Flujo finalizado con éxito simulado");
       return;
     }
+
+    let seguimiento2PadreId = null;
+    if (preJson.tiene_seguimientos_previos) {
+      const okSecond = await alertConfirm({
+        title: "Seguimiento adicional",
+        text:
+          "El documento de este usuario ya existe en nuestra base de datos. ¿Está seguro de enviar un segundo seguimiento?",
+        confirmButtonText: "Sí, enviar",
+        cancelButtonText: "No",
+      });
+      if (!okSecond.isConfirmed) {
+        return;
+      }
+      seguimiento2PadreId = preJson.ultimo_seguimiento2_id ?? null;
+      if (seguimiento2PadreId == null) {
+        await alertError({
+          title: "No se puede continuar",
+          text:
+            "Existe un registro previo pero no se pudo obtener el identificador del seguimiento anterior. Intente de nuevo o contacte al administrador.",
+        });
+        return;
+      }
+    }
+
+    const queImpideTxt = labelsQueImpide(fase1.que_impide);
+    const refDocNum = parseInt(String(refDoc).replace(/\D/g, ""), 10);
+    const payload = {
+      encuestador: String(encuestadorCache),
+      encuestador_nombre: String(headerUsuario || "").trim() || null,
+      sede: sedeFormulario,
+      documento: docPaciente,
+      seguimiento2_padre_id: seguimiento2PadreId,
+      fase1_referencia: {
+        documento: refDocNum,
+        created_at: String(refAt).trim(),
+      },
+      items,
+      fase1_resumen: {
+        tipo_documento: String(fase1.tipo_documento || "cedula"),
+        nombres: String(fase1.nombres || "").trim() || null,
+        apellidos: String(fase1.apellidos || "").trim() || null,
+        fecha_evaluacion_previa: fase1.created_at || null,
+        limitacion_moverse_label: limLabel || null,
+        actividades_afectadas_label: actLabel || null,
+        adicional_no_puede_label: String(fase1.adicional_no_puede || "").trim() || null,
+        ultima_vez_label: fase1.ultima_vez
+          ? mapLastTimeLabel(fase1.ultima_vez)
+          : null,
+        que_impide_label: queImpideTxt !== "—" ? queImpideTxt : null,
+        meta_complementaria_previa: String(fase1.objetivo_extra || "").trim() || null,
+        patologia_relacionada_label: (() => {
+          const code = fase1.patologia_relacionada;
+          if (!code) return null;
+          return PATOLOGIA_RELACIONADA_LABEL[code] || String(code);
+        })(),
+      },
+    };
 
     console.log("[ENCUESTA] Payload a enviar:", payload);
     console.log("[ENCUESTA] Iniciando request...");
@@ -496,38 +588,60 @@ export default function EncuestaLogros2() {
       sweetClose();
 
       if (!res.ok) {
+        const det = json?.detail;
+        const msg =
+          typeof det === "string"
+            ? det
+            : det != null
+              ? JSON.stringify(det)
+              : "Revise los datos e intente nuevamente.";
         await alertError({
           title: "No se pudo guardar",
-          text:
-            typeof json?.detail === "string"
-              ? json.detail
-              : "Revise los datos e intente nuevamente.",
+          text: msg,
         });
         return;
       }
 
-      const res2 = await fetch(apiUrl("/autorizados/incrementar-encuesta"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cedula: String(encuestadorCache),
-          incremento: 1,
-        }),
-      });
+      const ctr = json?.encuestador_contador;
+      if (
+        ctr?.ok === true &&
+        typeof ctr.encuestas_realizadas === "number"
+      ) {
+        try {
+          const prev = readAutorizadoCache();
+          sessionStorage.setItem(
+            "wk_autorizado",
+            JSON.stringify({
+              ...prev,
+              encuestasRealizadas: ctr.encuestas_realizadas,
+            }),
+          );
+        } catch {
+          /* ignore */
+        }
+        setEncuestasCount(ctr.encuestas_realizadas);
+        emitPerfilActualizado({
+          encuestasRealizadas: ctr.encuestas_realizadas,
+        });
+      }
 
-      if (!res2.ok) {
+      if (ctr?.ok !== true) {
         await alertWarning({
           title: "Registro guardado",
-          text: "No se pudo actualizar el contador de encuestas del profesional.",
+          text:
+            typeof ctr?.error === "string" && ctr.error.trim()
+              ? `La evaluación quedó registrada, pero no se actualizó el contador del profesional: ${ctr.error}`
+              : "La evaluación quedó registrada, pero no se pudo actualizar el contador de encuestas del profesional en autorizados.",
         });
       } else {
         await alertSuccess({
           title: "Registro completado",
-          text: "La evaluación de seguimiento quedó registrada correctamente.",
+          text: "La evaluación de seguimiento quedó registrada y se sumó a tus encuestas realizadas.",
         });
       }
 
       setFase1(null);
+      setFase1Referencia(null);
       setDocBusqueda("");
       setBusquedaTexto("");
       setSugerencias([]);
@@ -633,7 +747,9 @@ export default function EncuestaLogros2() {
                         </li>
                       ) : null}
                       {sugerencias.map((r) => (
-                        <li key={String(r.id_int)}>
+                        <li
+                          key={`${String(r.documento ?? "")}-${String(r.created_at ?? "")}`}
+                        >
                           <button
                             type="button"
                             role="option"

@@ -1,6 +1,7 @@
 import type { HandlerResponse } from "@netlify/functions";
 import { getSupabase } from "../_lib/supabase";
 import { jsonResponse } from "../_lib/http";
+import { incrementarEncuestasRealizadas } from "../_lib/incrementarEncuestaAutorizado";
 
 type Row = Record<string, unknown>;
 
@@ -113,6 +114,16 @@ const TIPOS_DOC_VALIDOS = new Set([
   "tarjeta_identidad",
   "cedula_extranjeria",
   "registro_civil",
+]);
+
+const PATOLOGIA_RELACIONADA_VALIDAS = new Set([
+  "rodilla",
+  "hombro",
+  "cadera",
+  "lumbar_funcional",
+  "mano",
+  "codo",
+  "cuello",
 ]);
 
 function sintomasEnFila(row: Row): Set<string> {
@@ -270,14 +281,23 @@ async function crearEncuesta(
     }
   }
 
+  const patologiaRel = String(data.patologiaRelacionada ?? "").trim();
+  if (!PATOLOGIA_RELACIONADA_VALIDAS.has(patologiaRel)) {
+    return jsonResponse(
+      400,
+      errBody(
+        "Seleccione una patología relacionada válida (rodilla, hombro, cadera, lumbar_funcional, mano, codo o cuello).",
+      ),
+      origin,
+    );
+  }
+
   const supabase = getSupabase();
 
   const yaExiste = await supabase
     .from("wakeup_seguimientos")
-    .select("id_int")
-    .eq("documento", docPaciente)
-    .limit(1)
-    .maybeSingle();
+    .select("*", { count: "exact", head: true })
+    .eq("documento", docPaciente);
 
   if (yaExiste.error) {
     return jsonResponse(
@@ -286,7 +306,7 @@ async function crearEncuesta(
       origin,
     );
   }
-  if (yaExiste.data) {
+  if ((yaExiste.count ?? 0) > 0) {
     return jsonResponse(
       409,
       errBody(
@@ -333,6 +353,7 @@ async function crearEncuesta(
     apellidos: String(data.apellidos ?? "").trim(),
     tipo_documento: data.tipoDocumento,
     documento: docPaciente,
+    patologia_relacionada: patologiaRel,
     limitacion_moverse: data.limitacionMoverse,
     actividades_afectadas: data.actividadesAfectadas ?? [],
     sintoma_1: sinCols._1,
@@ -366,6 +387,112 @@ async function crearEncuesta(
   }
 
   return jsonResponse(200, { ok: true, data: res.data }, origin);
+}
+
+const LOGROS2_NIVEL_A_EVOLUCION: Record<string, string> = {
+  mucho: "mejora_sustancial",
+  poco: "mejora_parcial",
+  nada: "sin_cambio_clinico_relevante",
+  desmejoria: "desmejoria",
+};
+
+/** Cuenta seguimientos L2 por documento y devuelve el último id (para encadenar padre). */
+async function logros2PrecheckDocumento(
+  queryParams: Record<string, string | undefined> | null,
+  origin: string | null,
+): Promise<HandlerResponse> {
+  const docStr = queryParams?.documento?.trim();
+  if (!docStr) {
+    return jsonResponse(400, errBody("Falta el parámetro documento."), origin);
+  }
+  const tipoDoc = String(queryParams?.tipo_documento ?? "cedula").trim();
+  let docPaciente: string;
+  try {
+    docPaciente = limpiarDocumentoPaciente(docStr, tipoDoc);
+  } catch {
+    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
+  }
+  const docNum = parseInt(docPaciente, 10);
+  if (!Number.isFinite(docNum) || docNum <= 0) {
+    return jsonResponse(
+      400,
+      errBody(
+        "Para el precheck de seguimiento L2 use documento numérico (cédula) o indique tipo_documento compatible.",
+      ),
+      origin,
+    );
+  }
+
+  const supabase = getSupabase();
+
+  let count: number | null = null;
+  const countFirst = await supabase
+    .from("wakeup_seguimiento2")
+    .select("*", { count: "exact", head: true })
+    .eq("documento", docNum)
+    .is("deleted_at", null);
+
+  if (countFirst.error) {
+    const retry = await supabase
+      .from("wakeup_seguimiento2")
+      .select("*", { count: "exact", head: true })
+      .eq("documento", docNum);
+    if (retry.error) {
+      return jsonResponse(
+        400,
+        errBody({ where: "logros2-precheck", error: retry.error.message }),
+        origin,
+      );
+    }
+    count = retry.count ?? 0;
+  } else {
+    count = countFirst.count ?? 0;
+  }
+
+  let lastQ = supabase
+    .from("wakeup_seguimiento2")
+    .select("id, codigo_seguimiento")
+    .eq("documento", docNum)
+    .order("id", { ascending: false })
+    .limit(1);
+  let lastRes = await lastQ.is("deleted_at", null).maybeSingle();
+  if (lastRes.error) {
+    lastRes = await supabase
+      .from("wakeup_seguimiento2")
+      .select("id, codigo_seguimiento")
+      .eq("documento", docNum)
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+  }
+
+  const last = lastRes.data as
+    | { id: unknown; codigo_seguimiento: unknown }
+    | null
+    | undefined;
+  const ultimoId =
+    last?.id != null && String(last.id).trim() !== ""
+      ? Number(last.id)
+      : null;
+  const ultimoCodigo =
+    last?.codigo_seguimiento != null
+      ? String(last.codigo_seguimiento)
+      : null;
+
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      documento: docNum,
+      cantidad: count ?? 0,
+      tiene_seguimientos_previos: (count ?? 0) >= 1,
+      ultimo_seguimiento2_id:
+        ultimoId != null && Number.isFinite(ultimoId) ? ultimoId : null,
+      ultimo_codigo_seguimiento: ultimoCodigo,
+    },
+    origin,
+    { "Cache-Control": "no-store" },
+  );
 }
 
 async function crearLogros2(
@@ -403,6 +530,13 @@ async function crearLogros2(
         origin,
       );
     }
+    if (!LOGROS2_NIVEL_A_EVOLUCION[nivel]) {
+      return jsonResponse(
+        400,
+        errBody(`Nivel de mejora sin mapeo a enum: ${nivel}`),
+        origin,
+      );
+    }
     if (!String(it.nuevo_objetivo ?? "").trim()) {
       return jsonResponse(
         400,
@@ -412,87 +546,282 @@ async function crearLogros2(
     }
   }
 
-  const idEncuestaFase1 = Number(data.id_encuesta_fase1);
-  if (!Number.isFinite(idEncuestaFase1)) {
-    return jsonResponse(400, errBody("id_encuesta_fase1 inválido"), origin);
+  const fr = (data.fase1_resumen as Record<string, unknown>) || {};
+  const f1Ref = (data.fase1_referencia as Record<string, unknown>) || {};
+  const refDocRaw = f1Ref.documento ?? data.documento;
+  const refCreatedAt = String(f1Ref.created_at ?? "").trim();
+
+  if (!refCreatedAt) {
+    return jsonResponse(
+      400,
+      errBody(
+        "Indique la evaluación Logros Fase 1 de referencia: falta created_at (fecha de la encuesta previa).",
+      ),
+      origin,
+    );
+  }
+
+  const refDocNum = parseInt(String(refDocRaw ?? "").replace(/\D/g, ""), 10);
+  if (!Number.isFinite(refDocNum) || refDocNum <= 0) {
+    return jsonResponse(
+      400,
+      errBody(
+        "Indique la evaluación Logros Fase 1 de referencia: documento inválido.",
+      ),
+      origin,
+    );
   }
 
   const supabase = getSupabase();
 
   const check = await supabase
     .from("wakeup_seguimientos")
-    .select("id_int, documento")
-    .eq("id_int", idEncuestaFase1)
-    .limit(1)
+    .select(
+      "documento, nombres, apellidos, tipo_documento, created_at, patologia_relacionada, limitacion_moverse, actividades_afectadas, adicional_no_puede, ultima_vez, que_impide, objetivo_extra",
+    )
+    .eq("documento", refDocNum)
+    .eq("created_at", refCreatedAt)
     .maybeSingle();
 
   if (check.error) {
     return jsonResponse(
       400,
-      errBody({ where: "SUPABASE SELECT FASE1", error: check.error.message }),
+      errBody({
+        where: "SUPABASE SELECT FASE1 por documento+created_at",
+        error: check.error.message,
+      }),
       origin,
     );
   }
   if (!check.data) {
     return jsonResponse(
       404,
-      errBody("No se encontró la encuesta de logros (fase 1) indicada."),
+      errBody(
+        "No hay ninguna evaluación Logros Fase 1 en la base con el documento y la fecha de creación enviados. Vuelva a cargar la evaluación previa desde la búsqueda.",
+      ),
       origin,
     );
   }
 
-  const docF1 = check.data.documento;
+  const rowF1 = check.data as Record<string, unknown>;
+  const docF1 = rowF1.documento;
   if (
     docF1 != null &&
     String(docF1).trim() !== String(docPaciente).trim()
   ) {
     return jsonResponse(
       400,
-      errBody("El documento no coincide con la encuesta base."),
+      errBody(
+        "El documento del paciente no coincide con la evaluación Fase 1 seleccionada.",
+      ),
+      origin,
+    );
+  }
+  const docPayloadNum = parseInt(String(docPaciente).replace(/\D/g, ""), 10);
+  if (docPayloadNum !== refDocNum) {
+    return jsonResponse(
+      400,
+      errBody(
+        "El documento del payload no coincide con fase1_referencia.documento.",
+      ),
       origin,
     );
   }
 
-  const respuestas = items.map((it) => ({
-    slot: it.slot,
-    sintoma: it.sintoma,
-    nivel_mejora: it.nivel_mejora,
-    nuevo_objetivo: it.nuevo_objetivo,
-  }));
+  const docNum = parseInt(docPaciente, 10);
+  if (!Number.isFinite(docNum) || docNum <= 0) {
+    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
+  }
 
-  const documentoVal = /^\d+$/.test(docPaciente)
-    ? parseInt(docPaciente, 10)
-    : docPaciente;
-  const encuestadorVal = /^\d+$/.test(docEncuestador)
-    ? parseInt(docEncuestador, 10)
-    : docEncuestador;
+  const encNum = parseInt(docEncuestador, 10);
+  if (!Number.isFinite(encNum)) {
+    return jsonResponse(400, errBody("Documento del encuestador inválido."), origin);
+  }
 
-  const insertRow = {
-    documento: documentoVal,
-    encuestador: encuestadorVal,
+  const encuestadorNombre = String(data.encuestador_nombre ?? "").trim() || null;
+
+  const padreRaw = data.seguimiento2_padre_id;
+  let seguimiento2PadreId: number | null = null;
+  if (padreRaw != null && String(padreRaw).trim() !== "") {
+    const p = Number(padreRaw);
+    if (!Number.isFinite(p) || p <= 0) {
+      return jsonResponse(
+        400,
+        errBody("seguimiento2_padre_id inválido."),
+        origin,
+      );
+    }
+    let padreRow = await supabase
+      .from("wakeup_seguimiento2")
+      .select("id, documento")
+      .eq("id", p)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (padreRow.error) {
+      padreRow = await supabase
+        .from("wakeup_seguimiento2")
+        .select("id, documento")
+        .eq("id", p)
+        .maybeSingle();
+    }
+    if (padreRow.error) {
+      return jsonResponse(
+        400,
+        errBody({
+          where: "validar seguimiento2_padre_id",
+          error: padreRow.error.message,
+        }),
+        origin,
+      );
+    }
+    if (!padreRow.data) {
+      return jsonResponse(
+        400,
+        errBody(
+          "El seguimiento padre indicado no existe o fue anulado.",
+        ),
+        origin,
+      );
+    }
+    const docPadre = Number((padreRow.data as { documento: unknown }).documento);
+    if (docPadre !== docNum) {
+      return jsonResponse(
+        400,
+        errBody(
+          "El seguimiento padre no corresponde al mismo documento del paciente.",
+        ),
+        origin,
+      );
+    }
+    seguimiento2PadreId = p;
+  }
+
+  const parentRow: Record<string, unknown> = {
+    tipo_documento: String(fr.tipo_documento ?? rowF1.tipo_documento ?? "cedula"),
+    documento: docNum,
+    nombres: (fr.nombres ?? rowF1.nombres) as string | null,
+    apellidos: (fr.apellidos ?? rowF1.apellidos) as string | null,
+    seguimiento2_padre_id: seguimiento2PadreId,
     sede: sedeClean,
-    id_encuesta_fase1: idEncuestaFase1,
-    respuestas,
+    encuestador: encNum,
+    encuestador_nombre: encuestadorNombre,
+    origen: "logros_fase_1",
+    estado: "finalizado",
+    fecha_evaluacion_previa:
+      (fr.fecha_evaluacion_previa as string | null) ??
+      (rowF1.created_at as string | null) ??
+      null,
+    limitacion_moverse_label: (fr.limitacion_moverse_label as string | null) ?? null,
+    actividades_afectadas_label:
+      (fr.actividades_afectadas_label as string | null) ?? null,
+    adicional_no_puede_label:
+      (fr.adicional_no_puede_label as string | null) ?? null,
+    ultima_vez_label: (fr.ultima_vez_label as string | null) ?? null,
+    que_impide_label: (fr.que_impide_label as string | null) ?? null,
+    meta_complementaria_previa:
+      (fr.meta_complementaria_previa as string | null) ?? null,
+    payload_origen: {
+      fase1_referencia: { documento: refDocNum, created_at: refCreatedAt },
+      patologia_fase1: rowF1.patologia_relacionada ?? null,
+      sede: sedeClean,
+    },
+    payload_respuesta: items,
   };
 
-  const res = await supabase
-    .from("wakeup_seguimientos_logros2")
-    .insert(insertRow)
-    .select();
+  const resParent = await supabase
+    .from("wakeup_seguimiento2")
+    .insert(parentRow)
+    .select("id, codigo_seguimiento")
+    .single();
 
-  if (res.error) {
+  if (resParent.error || resParent.data == null) {
     return jsonResponse(
       400,
       errBody({
-        where: "SUPABASE INSERT LOGROS2",
-        error: res.error.message,
-        row: insertRow,
+        where: "SUPABASE INSERT wakeup_seguimiento2",
+        error: resParent.error?.message ?? "sin fila",
+        row: parentRow,
       }),
       origin,
     );
   }
 
-  return jsonResponse(200, { ok: true, data: res.data }, origin);
+  const seguimiento2Id = Number((resParent.data as { id: unknown }).id);
+  if (!Number.isFinite(seguimiento2Id)) {
+    return jsonResponse(
+      400,
+      errBody("No se obtuvo id del registro padre."),
+      origin,
+    );
+  }
+
+  const itemRows = items.map((it) => {
+    const nivel = String(it.nivel_mejora ?? "");
+    const evolucion = LOGROS2_NIVEL_A_EVOLUCION[nivel]!;
+    const sintomaLabel = String(
+      it.sintoma_label ?? it.sintoma ?? "—",
+    ).trim() || "—";
+    return {
+      seguimiento2_id: seguimiento2Id,
+      orden: Number(it.slot),
+      sintoma_codigo:
+        it.sintoma != null && String(it.sintoma).trim() !== ""
+          ? String(it.sintoma)
+          : null,
+      sintoma_label: sintomaLabel,
+      objetivo_previo_codigo:
+        it.objetivo_previo_codigo != null &&
+        String(it.objetivo_previo_codigo).trim() !== ""
+          ? String(it.objetivo_previo_codigo)
+          : null,
+      objetivo_previo_label:
+        String(it.objetivo_previo_label ?? "").trim() || "—",
+      evolucion,
+      objetivo_seguimiento: String(it.nuevo_objetivo ?? "").trim(),
+      autocompletado_desde_objetivo_previo: !!it.autocompletado_desde_objetivo_previo,
+      es_meta_complementaria: !!it.es_meta_complementaria,
+      es_otro_sintoma: !!it.es_otro_sintoma,
+    };
+  });
+
+  const resItems = await supabase
+    .from("wakeup_seguimiento2_items")
+    .insert(itemRows)
+    .select();
+
+  if (resItems.error) {
+    await supabase.from("wakeup_seguimiento2").delete().eq("id", seguimiento2Id);
+    return jsonResponse(
+      400,
+      errBody({
+        where: "SUPABASE INSERT wakeup_seguimiento2_items",
+        error: resItems.error.message,
+        seguimiento2_id: seguimiento2Id,
+      }),
+      origin,
+    );
+  }
+
+  const contador = await incrementarEncuestasRealizadas(supabase, encNum, 1);
+
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      data: {
+        seguimiento2: resParent.data,
+        items: resItems.data,
+      },
+      encuestador_contador: contador.ok
+        ? {
+            ok: true,
+            encuestas_realizadas: contador.despues,
+            antes: contador.antes,
+          }
+        : { ok: false, error: contador.error },
+    },
+    origin,
+  );
 }
 
 export async function handleEncuestas(
@@ -520,6 +849,10 @@ export async function handleEncuestas(
         (body as Record<string, unknown>) || {},
         origin,
       );
+    }
+
+    if (path === "/encuestas/logros2-precheck" && method === "GET") {
+      return await logros2PrecheckDocumento(query, origin);
     }
 
     /**
@@ -651,10 +984,15 @@ export async function handleEncuestas(
       }
 
       const preview = rowsRaw.slice(0, 3).map((r) => ({
-        id_int: r.id_int,
         documento: r.documento,
         nombres: r.nombres,
         apellidos: r.apellidos,
+        tipo_documento: r.tipo_documento,
+        sede: r.sede,
+        created_at: r.created_at,
+        ...(r.id_int != null && r.id_int !== ""
+          ? { id_int: r.id_int }
+          : {}),
       }));
       console.log(`${LOG} primeros=`, JSON.stringify(preview));
 
@@ -664,7 +1002,17 @@ export async function handleEncuestas(
         return tb.localeCompare(ta);
       });
 
-      const out = rowsRaw.slice(0, maxResults);
+      const out = rowsRaw.slice(0, maxResults).map((r) => ({
+        documento: r.documento,
+        nombres: r.nombres,
+        apellidos: r.apellidos,
+        tipo_documento: r.tipo_documento,
+        sede: r.sede,
+        created_at: r.created_at,
+        ...(r.id_int != null && r.id_int !== ""
+          ? { id_int: r.id_int }
+          : {}),
+      }));
 
       return jsonResponse(
         200,

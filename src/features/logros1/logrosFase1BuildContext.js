@@ -1,6 +1,7 @@
 import {
   PROBLEMAS as SINTOMAS,
   OBJETIVOS,
+  PATOLOGIA_RELACIONADA,
 } from "../../data/encuestaLogrosCatalog";
 
 function getSintomaLabel(value) {
@@ -15,6 +16,12 @@ function getObjetivoLabel(sintomaValue, objetivoValue) {
   if (!meta) return objetivoValue;
   const found = meta.opciones?.find((o) => o.value === objetivoValue);
   return found?.label || objetivoValue;
+}
+
+function getPatologiaLabel(value) {
+  if (!value) return "";
+  const found = PATOLOGIA_RELACIONADA.find((p) => p.value === value);
+  return found?.label || String(value);
 }
 
 /**
@@ -69,6 +76,7 @@ export function buildLogrosFase1DownloadContext(row) {
     fechaRegistro,
     totalObjetivos,
     row,
+    patologiaLabel: getPatologiaLabel(row.patologia_relacionada),
     actividades,
     sintomasConObjetivos,
   };

@@ -117,3 +117,118 @@
     justify-content: center;
   }
 }
+
+.estad-res__resumen {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.estad-res__resumen-linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.estad-res__badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(42, 79, 120, 0.18);
+  background: #fff;
+  border-radius: 999px;
+  padding: clamp(0.16rem, 0.9vw, 0.24rem) clamp(0.4rem, 1.8vw, 0.65rem);
+  font-size: clamp(0.7rem, 1vw, 0.83rem);
+  color: #355d86;
+}
+
+.estad-res__lista {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.estad-res__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(0.45rem, 1.5vw, 0.7rem);
+  padding: clamp(0.5rem, 1.3vw, 0.7rem) clamp(0.55rem, 1.5vw, 0.8rem);
+  border: 1px solid rgba(42, 79, 120, 0.14);
+  border-radius: clamp(0.5rem, 1.2vw, 0.75rem);
+  background: #fff;
+}
+
+.estad-res__item.is-active {
+  border-color: rgba(47, 90, 130, 0.38);
+  box-shadow: 0 0 0 2px rgba(47, 90, 130, 0.1);
+}
+
+.estad-res__item-main {
+  min-width: 0;
+}
+
+.estad-res__item-title {
+  margin: 0;
+  color: #1f3d60;
+  font-weight: 600;
+  font-size: clamp(0.76rem, 1.2vw, 0.94rem);
+}
+
+.estad-res__item-meta {
+  margin: 0.18rem 0 0;
+  color: #60768f;
+  font-size: clamp(0.68rem, 0.95vw, 0.8rem);
+}
+
+.estad-res__item-btn {
+  min-height: clamp(1.9rem, 4.4vw, 2.2rem);
+  padding-inline: clamp(0.5rem, 1.6vw, 0.85rem);
+  border-radius: clamp(0.45rem, 1vw, 0.65rem);
+}
+
+.estad-res__logros2 {
+  margin-top: 0.5rem;
+  border: 1px solid rgba(42, 79, 120, 0.16);
+  border-radius: clamp(0.5rem, 1.1vw, 0.75rem);
+  background: #fff;
+  padding: clamp(0.55rem, 1.6vw, 0.82rem);
+}
+
+.estad-res__logros2-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  margin-bottom: 0.6rem;
+  color: #2f4f72;
+  font-size: 0.86rem;
+}
+
+.estad-res__logros2-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.estad-res__logros2-table th,
+.estad-res__logros2-table td {
+  border-bottom: 1px solid rgba(42, 79, 120, 0.12);
+  text-align: left;
+  padding: clamp(0.3rem, 1vw, 0.46rem) clamp(0.26rem, 0.9vw, 0.38rem);
+  font-size: clamp(0.68rem, 0.95vw, 0.84rem);
+}
+
+.estad-res__logros2-table th {
+  color: #355d86;
+  font-weight: 600;
+}
+
+@media (max-width: 36rem) {
+  .estad-res__item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .estad-res__item-btn {
+    width: 100%;
+  }
+}

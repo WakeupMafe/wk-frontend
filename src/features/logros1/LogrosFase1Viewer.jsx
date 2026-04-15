@@ -70,6 +70,7 @@ export default function LogrosFase1Viewer({ paciente }) {
   const actividades = ctx?.actividades ?? [];
   const sintomasConObjetivos = ctx?.sintomasConObjetivos ?? [];
   const fechaRegistro = ctx?.fechaRegistro ?? "-";
+  const patologiaLabel = ctx?.patologiaLabel ?? "";
 
   if (!row) return null;
 
@@ -92,12 +93,12 @@ export default function LogrosFase1Viewer({ paciente }) {
 
             <div className="lf1viewer__td lf1viewer__td--center">
               <Button
-                variant="accent"
+                variant="teal"
                 type="button"
                 className="lf1viewer__actionBtn"
                 onClick={() => setOpen((prev) => !prev)}
               >
-                {open ? "Ocultar visualización ▾" : "Visualizar ▾"}
+                {open ? "Ocultar ▾" : "Visualizar ▾"}
               </Button>
             </div>
           </div>
@@ -107,7 +108,7 @@ export default function LogrosFase1Viewer({ paciente }) {
       {open ? (
         <div className="lf1viewer__detailWrap">
           <Button
-            variant="accent"
+            variant="teal"
             type="button"
             className="lf1viewer__toggleBtn"
             onClick={() => setOpen(false)}
@@ -148,6 +149,13 @@ export default function LogrosFase1Viewer({ paciente }) {
               <span className="lf1viewer__k">Sede:</span>
               <span className="lf1viewer__v">{row.sede || "-"}</span>
             </div>
+
+            {patologiaLabel ? (
+              <div className="lf1viewer__kv">
+                <span className="lf1viewer__k">Patología:</span>
+                <span className="lf1viewer__v">{patologiaLabel}</span>
+              </div>
+            ) : null}
 
             <div className="lf1viewer__separator" />
 

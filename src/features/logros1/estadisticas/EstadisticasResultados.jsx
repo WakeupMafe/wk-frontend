@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
 import Button from "../../../components/ButtonComponente";
 import {
   FormLabel,
@@ -32,6 +34,203 @@ const FORMATOS = [
   { value: "excel", label: "Excel" },
 ];
 
+function fmtDate(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("es-CO", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(iso);
+  }
+}
+
+function safeItems(raw) {
+  if (Array.isArray(raw)) {
+    return raw.filter((x) => x && typeof x === "object");
+  }
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return [];
+    try {
+      const parsed = JSON.parse(t);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((x) => x && typeof x === "object");
+      }
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function itemsDesdeRegistro(registro) {
+  if (!registro?.data) return [];
+  const d = registro.data;
+  return safeItems(d.items ?? d.payload_respuesta ?? d.respuestas);
+}
+
+function descargarBlob(nombreArchivo, contenido, mime) {
+  const blob = new Blob([contenido], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombreArchivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function baseFilenameRegistro(registro) {
+  const doc = String(registro?.data?.documento ?? "paciente").trim() || "paciente";
+  const tipo = registro?.tipo === "logros2" ? "logros2" : "logros1";
+  const idx = registro?.tipo_consecutivo ?? registro?.numero ?? 1;
+  return `${doc}_${tipo}_${idx}`;
+}
+
+function downloadLogros2Csv(registro) {
+  const items = itemsDesdeRegistro(registro);
+  const lines = [
+    ["Documento", "Tipo", "Consecutivo", "Fecha", "Sede"].join(","),
+    [
+      registro?.data?.documento ?? "",
+      "Logros 2",
+      registro?.tipo_consecutivo ?? "",
+      registro?.created_at ?? "",
+      registro?.sede ?? "",
+    ]
+      .map((x) => `"${String(x ?? "").replace(/"/g, '""')}"`)
+      .join(","),
+    "",
+    ["Slot", "Síntoma", "Nivel mejora", "Nuevo objetivo"].join(","),
+  ];
+  for (const it of items) {
+    const row = [
+      it.slot ?? "",
+      it.sintoma_label ?? it.sintoma ?? "",
+      it.nivel_mejora ?? "",
+      it.nuevo_objetivo ?? it.objetivo_seguimiento ?? "",
+    ]
+      .map((x) => `"${String(x ?? "").replace(/"/g, '""')}"`)
+      .join(",");
+    lines.push(row);
+  }
+  descargarBlob(
+    `${baseFilenameRegistro(registro)}.csv`,
+    `\uFEFF${lines.join("\r\n")}`,
+    "text/csv;charset=utf-8",
+  );
+}
+
+function downloadLogros2Xlsx(registro) {
+  const items = itemsDesdeRegistro(registro);
+  const wb = XLSX.utils.book_new();
+  const meta = [
+    ["Documento", registro?.data?.documento ?? ""],
+    ["Tipo", "Logros 2"],
+    ["Consecutivo", registro?.tipo_consecutivo ?? ""],
+    ["Fecha", registro?.created_at ?? ""],
+    ["Sede", registro?.sede ?? ""],
+  ];
+  const wsMeta = XLSX.utils.aoa_to_sheet(meta);
+  XLSX.utils.book_append_sheet(wb, wsMeta, "Resumen");
+
+  const rows = [
+    ["Slot", "Síntoma", "Nivel mejora", "Nuevo objetivo"],
+    ...items.map((it) => [
+      it.slot ?? "",
+      it.sintoma_label ?? it.sintoma ?? "",
+      it.nivel_mejora ?? "",
+      it.nuevo_objetivo ?? it.objetivo_seguimiento ?? "",
+    ]),
+  ];
+  const wsItems = XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, wsItems, "Items");
+  XLSX.writeFile(wb, `${baseFilenameRegistro(registro)}.xlsx`);
+}
+
+function downloadLogros2Pdf(registro) {
+  const items = itemsDesdeRegistro(registro);
+  const doc = new jsPDF("p", "mm", "a4");
+  let y = 12;
+  doc.setFontSize(14);
+  doc.text("Registro Logros 2", 10, y);
+  y += 8;
+  doc.setFontSize(10);
+  doc.text(`Documento: ${registro?.data?.documento ?? "—"}`, 10, y);
+  y += 6;
+  doc.text(`Consecutivo: ${registro?.tipo_consecutivo ?? "—"}`, 10, y);
+  y += 6;
+  doc.text(`Fecha: ${fmtDate(registro?.created_at)}`, 10, y);
+  y += 6;
+  doc.text(`Sede: ${registro?.sede ?? "—"}`, 10, y);
+  y += 8;
+
+  doc.setFontSize(9);
+  doc.text("Ítems de seguimiento:", 10, y);
+  y += 6;
+
+  for (const it of items) {
+    if (y > 270) {
+      doc.addPage();
+      y = 12;
+    }
+    const line = `• [${it.slot ?? "-"}] ${it.sintoma_label ?? it.sintoma ?? "—"} | Nivel: ${
+      it.nivel_mejora ?? "—"
+    } | Objetivo: ${it.nuevo_objetivo ?? it.objetivo_seguimiento ?? "—"}`;
+    const split = doc.splitTextToSize(line, 190);
+    doc.text(split, 10, y);
+    y += 5 * split.length;
+  }
+  doc.save(`${baseFilenameRegistro(registro)}.pdf`);
+}
+
+function Logros2Viewer({ registro }) {
+  const items = useMemo(() => itemsDesdeRegistro(registro), [registro]);
+  const d = registro?.data || {};
+  return (
+    <div className="estad-res__logros2">
+      <div className="estad-res__logros2-meta">
+        <span><b>Documento:</b> {d.documento ?? "—"}</span>
+        <span><b>Fecha:</b> {fmtDate(registro?.created_at)}</span>
+        <span><b>Sede:</b> {registro?.sede ?? "—"}</span>
+        <span><b>Código:</b> {d.codigo_seguimiento ?? "—"}</span>
+      </div>
+      <table className="estad-res__logros2-table">
+        <thead>
+          <tr>
+            <th>Slot</th>
+            <th>Síntoma</th>
+            <th>Nivel</th>
+            <th>Nuevo objetivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td colSpan={4}>Sin ítems registrados.</td>
+            </tr>
+          ) : (
+            items.map((it, idx) => (
+              <tr key={`${it.slot ?? idx}-${it.sintoma ?? idx}`}>
+                <td>{it.slot ?? idx + 1}</td>
+                <td>{it.sintoma_label ?? it.sintoma ?? "—"}</td>
+                <td>{it.nivel_mejora ?? "—"}</td>
+                <td>{it.nuevo_objetivo ?? it.objetivo_seguimiento ?? "—"}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /**
  * Resultados: búsqueda por cédula y descarga de la encuesta de un paciente.
  */
@@ -40,7 +239,8 @@ export default function EstadisticasResultados() {
   const [cedulaBusqueda, setCedulaBusqueda] = useState("");
   const [formato, setFormato] = useState("pdf");
   const [buscando, setBuscando] = useState(false);
-  const [pacienteEncontrado, setPacienteEncontrado] = useState(null);
+  const [registrosEncontrados, setRegistrosEncontrados] = useState([]);
+  const [registroSeleccionado, setRegistroSeleccionado] = useState(null);
 
   const handleBuscar = async () => {
     if (filtroTipo !== "cedula") {
@@ -70,11 +270,12 @@ export default function EstadisticasResultados() {
     }
 
     setBuscando(true);
-    setPacienteEncontrado(null);
+    setRegistrosEncontrados([]);
+    setRegistroSeleccionado(null);
 
     try {
       const res = await fetch(
-        apiUrl(`/verificacion/logros-fase1/${encodeURIComponent(documento)}`),
+        apiUrl(`/verificacion/registros/${encodeURIComponent(documento)}`),
       );
 
       const json = await res.json().catch(() => ({}));
@@ -83,21 +284,20 @@ export default function EstadisticasResultados() {
         if (res.status === 404) {
           await alertInfo({
             title: "Sin resultados",
-            text: "No se encontró encuesta para esa cédula.",
+            text: "No se encontraron registros para esa cédula.",
           });
           return;
         }
 
         await alertError({
           title: "Error",
-          text: json?.detail || "No se pudo consultar la encuesta.",
+          text: json?.detail || "No se pudo consultar los registros del paciente.",
         });
         return;
       }
 
-      const row = json?.data;
-
-      if (!row) {
+      const registros = Array.isArray(json?.registros) ? json.registros : [];
+      if (registros.length === 0) {
         await alertInfo({
           title: "Sin resultados",
           text: "No se encontró información para esa cédula.",
@@ -105,7 +305,12 @@ export default function EstadisticasResultados() {
         return;
       }
 
-      setPacienteEncontrado(row);
+      registros.sort((a, b) =>
+        String(a?.created_at ?? "").localeCompare(String(b?.created_at ?? "")),
+      );
+
+      setRegistrosEncontrados(registros);
+      setRegistroSeleccionado(registros[0]);
     } catch (error) {
       console.error(error);
       await alertError({
@@ -118,24 +323,33 @@ export default function EstadisticasResultados() {
   };
 
   const handleDescargar = async () => {
-    if (!pacienteEncontrado) {
+    if (!registroSeleccionado) {
       await alertWarning({
         title: "Sin datos",
-        text: "Primero busca una cédula con encuesta registrada.",
+        text: "Primero selecciona un registro para descargar.",
       });
       return;
     }
 
-    const ctx = buildLogrosFase1DownloadContext(pacienteEncontrado);
-    if (!ctx) return;
-
     try {
-      if (formato === "pdf") {
-        await downloadLogrosFase1Pdf(ctx);
-      } else if (formato === "csv") {
-        downloadLogrosFase1Csv(ctx);
+      if (registroSeleccionado.tipo === "logros1") {
+        const ctx = buildLogrosFase1DownloadContext(registroSeleccionado.data);
+        if (!ctx) return;
+        if (formato === "pdf") {
+          await downloadLogrosFase1Pdf(ctx);
+        } else if (formato === "csv") {
+          downloadLogrosFase1Csv(ctx);
+        } else {
+          downloadLogrosFase1Xlsx(ctx);
+        }
       } else {
-        downloadLogrosFase1Xlsx(ctx);
+        if (formato === "pdf") {
+          downloadLogros2Pdf(registroSeleccionado);
+        } else if (formato === "csv") {
+          downloadLogros2Csv(registroSeleccionado);
+        } else {
+          downloadLogros2Xlsx(registroSeleccionado);
+        }
       }
 
       const etiquetaFormato =
@@ -233,7 +447,7 @@ export default function EstadisticasResultados() {
             variant="outline"
             type="button"
             onClick={handleDescargar}
-            disabled={!pacienteEncontrado}
+            disabled={!registroSeleccionado}
             title="Descargar encuesta"
             className="estad-filtros__btnIcon"
           >
@@ -257,17 +471,62 @@ export default function EstadisticasResultados() {
         </div>
       </div>
 
-      {pacienteEncontrado ? (
+      {registrosEncontrados.length > 0 ? (
         <div className="estad-filtros__viewer">
+          <div className="estad-res__resumen">
+            <SectionTitle className="estad-filtros__viewer-title">
+              Registros encontrados ({registrosEncontrados.length})
+            </SectionTitle>
+            <div className="estad-res__resumen-linea">
+              {registrosEncontrados.map((r) => (
+                <span key={r.id} className="estad-res__badge">
+                  {r.etiqueta}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="estad-res__lista">
+            {registrosEncontrados.map((r) => (
+              <div
+                key={r.id}
+                className={`estad-res__item ${
+                  registroSeleccionado?.id === r.id ? "is-active" : ""
+                }`}
+              >
+                <div className="estad-res__item-main">
+                  <p className="estad-res__item-title">{r.etiqueta}</p>
+                  <p className="estad-res__item-meta">
+                    {fmtDate(r.created_at)} · {r.sede || "Sin sede"}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={registroSeleccionado?.id === r.id ? "teal" : "tealSoft"}
+                  className="estad-res__item-btn"
+                  onClick={() => setRegistroSeleccionado(r)}
+                >
+                  Visualizar
+                </Button>
+              </div>
+            ))}
+          </div>
+
           <SectionTitle className="estad-filtros__viewer-title">
-            Vista previa
+            Vista previa del registro seleccionado
           </SectionTitle>
-          <LogrosFase1Viewer paciente={pacienteEncontrado} />
+          {registroSeleccionado?.tipo === "logros1" ? (
+            <LogrosFase1Viewer paciente={registroSeleccionado.data} />
+          ) : (
+            <Logros2Viewer registro={registroSeleccionado} />
+          )}
         </div>
       ) : (
         <Muted className="estad-filtros__empty">
-          Ingresa una cédula y pulsa Buscar para visualizar y descargar la
-          encuesta.
+          Ingresa una cédula y pulsa Buscar para listar todos los registros del
+          paciente (Logros 1 y Logros 2), visualizar cada uno y decidir cuál
+          descargar.
         </Muted>
       )}
       </div>

@@ -37,6 +37,25 @@ function errBody(detail: unknown) {
   return { detail };
 }
 
+function safeArray(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is Record<string, unknown> => !!v && typeof v === "object");
+  }
+  if (typeof value === "string") {
+    const t = value.trim();
+    if (!t) return [];
+    try {
+      const parsed = JSON.parse(t);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((v): v is Record<string, unknown> => !!v && typeof v === "object");
+      }
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export async function handleVerificacion(
   pathname: string,
   method: string,
@@ -356,6 +375,257 @@ export async function handleVerificacion(
           ok: true,
           correoEnviado: true,
           message: "PIN reenviado correctamente",
+        },
+        origin,
+      );
+    }
+
+    const registrosMatch = path.match(/^\/verificacion\/registros\/(.+)$/);
+    if (registrosMatch && method === "GET") {
+      const rawCed = decodeURIComponent(registrosMatch[1] || "");
+      const cedulaStr = onlyDigits(rawCed);
+      if (!cedulaStr) {
+        return jsonResponse(400, errBody("Documento inválido"), origin);
+      }
+
+      const cedulaInt = toIntOr400(cedulaStr, "Documento");
+      const supabase = getSupabase();
+
+      // Logros 1 (wakeup_seguimientos)
+      let l1Rows: Record<string, unknown>[] = [];
+      const l1TryString = await supabase
+        .from("wakeup_seguimientos")
+        .select(
+          `
+            created_at,
+            nombres,
+            apellidos,
+            tipo_documento,
+            documento,
+            patologia_relacionada,
+            limitacion_moverse,
+            actividades_afectadas,
+            sintoma_1,
+            sintoma_2,
+            sintoma_3,
+            otro_sintoma,
+            objetivo_1,
+            objetivo_2,
+            objetivo_3,
+            objetivos_seleccionados,
+            objetivo_extra,
+            adicional_no_puede,
+            ultima_vez,
+            que_impide,
+            id_int,
+            id_registro,
+            referencia_registro,
+            sede,
+            encuestador
+          `,
+        )
+        .eq("documento", cedulaStr)
+        .order("created_at", { ascending: true });
+
+      if (l1TryString.error) {
+        const l1TryInt = await supabase
+          .from("wakeup_seguimientos")
+          .select(
+            `
+              created_at,
+              nombres,
+              apellidos,
+              tipo_documento,
+              documento,
+              patologia_relacionada,
+              limitacion_moverse,
+              actividades_afectadas,
+              sintoma_1,
+              sintoma_2,
+              sintoma_3,
+              otro_sintoma,
+              objetivo_1,
+              objetivo_2,
+              objetivo_3,
+              objetivos_seleccionados,
+              objetivo_extra,
+              adicional_no_puede,
+              ultima_vez,
+              que_impide,
+              id_int,
+              id_registro,
+              referencia_registro,
+              sede,
+              encuestador
+            `,
+          )
+          .eq("documento", cedulaInt)
+          .order("created_at", { ascending: true });
+        if (l1TryInt.error) {
+          return jsonResponse(
+            400,
+            errBody({
+              where: "SUPABASE SELECT REGISTROS LOGROS1",
+              error: l1TryInt.error.message,
+            }),
+            origin,
+          );
+        }
+        l1Rows = (l1TryInt.data || []) as Record<string, unknown>[];
+      } else {
+        l1Rows = (l1TryString.data || []) as Record<string, unknown>[];
+      }
+
+      // Logros 2 actual (wakeup_seguimiento2)
+      let l2Rows: Record<string, unknown>[] = [];
+      const l2Modern = await supabase
+        .from("wakeup_seguimiento2")
+        .select(
+          `
+            id,
+            codigo_seguimiento,
+            created_at,
+            sede,
+            estado,
+            origen,
+            documento,
+            nombres,
+            apellidos,
+            payload_origen,
+            payload_respuesta
+          `,
+        )
+        .eq("documento", cedulaInt)
+        .order("created_at", { ascending: true });
+
+      if (!l2Modern.error && l2Modern.data) {
+        l2Rows = [...((l2Modern.data || []) as Record<string, unknown>[])];
+      } else if (l2Modern.error && l2Modern.error.code !== "42P01") {
+        return jsonResponse(
+          400,
+          errBody({
+            where: "SUPABASE SELECT REGISTROS LOGROS2",
+            error: l2Modern.error.message,
+          }),
+          origin,
+        );
+      }
+
+      // Logros 2 legado (wakeup_seguimientos_logros2)
+      const l2Legacy = await supabase
+        .from("wakeup_seguimientos_logros2")
+        .select(
+          `
+            id_int,
+            created_at,
+            sede,
+            documento,
+            fase1_documento,
+            fase1_created_at,
+            respuestas
+          `,
+        )
+        .eq("documento", cedulaInt)
+        .order("created_at", { ascending: true });
+
+      let l2LegacyRows: Record<string, unknown>[] = [];
+      if (!l2Legacy.error && l2Legacy.data) {
+        l2LegacyRows = (l2Legacy.data || []) as Record<string, unknown>[];
+      } else if (l2Legacy.error && l2Legacy.error.code !== "42P01") {
+        return jsonResponse(
+          400,
+          errBody({
+            where: "SUPABASE SELECT REGISTROS LOGROS2_LEGADO",
+            error: l2Legacy.error.message,
+          }),
+          origin,
+        );
+      }
+
+      const merged: Record<string, unknown>[] = [];
+      for (const row of l1Rows) {
+        merged.push({
+          tipo: "logros1",
+          created_at: row.created_at,
+          sede: row.sede ?? null,
+          data: row,
+        });
+      }
+      for (const row of l2Rows) {
+        merged.push({
+          tipo: "logros2",
+          fuente: "wakeup_seguimiento2",
+          created_at: row.created_at,
+          sede: row.sede ?? null,
+          data: {
+            ...row,
+            items: safeArray(row.payload_respuesta),
+          },
+        });
+      }
+      for (const row of l2LegacyRows) {
+        merged.push({
+          tipo: "logros2",
+          fuente: "wakeup_seguimientos_logros2",
+          created_at: row.created_at,
+          sede: row.sede ?? null,
+          data: {
+            ...row,
+            items: safeArray(row.respuestas),
+          },
+        });
+      }
+
+      merged.sort((a, b) => {
+        const ta = String(a.created_at ?? "");
+        const tb = String(b.created_at ?? "");
+        return ta.localeCompare(tb);
+      });
+
+      let countL1 = 0;
+      let countL2 = 0;
+      const registros = merged.map((r, idx) => {
+        if (r.tipo === "logros1") {
+          countL1 += 1;
+          return {
+            id: `L1-${idx + 1}`,
+            numero: idx + 1,
+            tipo: "logros1",
+            tipo_label: "Logros 1",
+            tipo_consecutivo: countL1,
+            etiqueta: `${idx + 1}. Logros 1 (${countL1})`,
+            created_at: r.created_at,
+            sede: r.sede,
+            data: r.data,
+          };
+        }
+        countL2 += 1;
+        return {
+          id: `L2-${idx + 1}`,
+          numero: idx + 1,
+          tipo: "logros2",
+          tipo_label: "Logros 2",
+          tipo_consecutivo: countL2,
+          etiqueta: `${idx + 1}. Logros 2 (${countL2})`,
+          created_at: r.created_at,
+          sede: r.sede,
+          fuente: r.fuente ?? null,
+          data: r.data,
+        };
+      });
+
+      return jsonResponse(
+        200,
+        {
+          ok: true,
+          documento: cedulaStr,
+          total_registros: registros.length,
+          conteo: {
+            logros1: countL1,
+            logros2: countL2,
+          },
+          resumen: registros.map((r) => r.etiqueta),
+          registros,
         },
         origin,
       );

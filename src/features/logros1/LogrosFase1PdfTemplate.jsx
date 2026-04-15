@@ -10,6 +10,7 @@ export default function LogrosFase1PdfTemplate({
   fechaRegistro,
   fechaDescarga,
   row,
+  patologiaLabel,
   actividades,
   sintomasConObjetivos,
 }) {
@@ -93,6 +94,13 @@ export default function LogrosFase1PdfTemplate({
         <strong>Sede:</strong>
         <div>{row?.sede || "-"}</div>
       </div>
+
+      {patologiaLabel ? (
+        <div style={{ marginBottom: "20px" }}>
+          <strong>Patología:</strong>
+          <div>{patologiaLabel}</div>
+        </div>
+      ) : null}
 
       <h2
         style={{

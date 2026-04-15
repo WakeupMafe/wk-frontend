@@ -23,6 +23,8 @@ import { buildLogrosFase1DownloadContext } from "../logrosFase1BuildContext";
 import { downloadLogrosFase1Pdf } from "../logrosFase1DownloadPdf.jsx";
 import { downloadLogrosFase1Csv } from "../logrosFase1DownloadCsv";
 import { downloadLogrosFase1Xlsx } from "../logrosFase1DownloadXlsx";
+import { NIVEL_MEJORA, getOpcionesNuevoObjetivo } from "../../logros2/logros2Catalog";
+import wakeupLogoUrl from "../../../assets/logo.svg";
 import "./EstadisticasFiltros.css";
 import "./EstadisticasResultados.css";
 
@@ -93,16 +95,101 @@ function baseFilenameRegistro(registro) {
   return `${doc}_${tipo}_${idx}`;
 }
 
+function nivelMejoraLabel(value) {
+  const found = NIVEL_MEJORA.find((n) => n.value === value);
+  return found?.label || String(value || "—");
+}
+
+function nuevoObjetivoLabel(item) {
+  const value = String(item?.nuevo_objetivo ?? item?.objetivo_seguimiento ?? "").trim();
+  if (!value) return "—";
+  const sintoma = String(item?.sintoma ?? "").trim();
+  const previo = String(item?.objetivo_previo_codigo ?? "").trim();
+  const opciones = getOpcionesNuevoObjetivo(sintoma, previo);
+  const found = opciones.find((o) => o.value === value);
+  return found?.label || value;
+}
+
+function buildLogros2Narrativa(registro, items) {
+  const d = registro?.data || {};
+  const nombre = [d.nombres, d.apellidos].filter(Boolean).join(" ").trim() || "la persona evaluada";
+  const fecha = fmtDate(registro?.created_at);
+  const lim = d.limitacion_moverse_label || "sin dato";
+  const acts = d.actividades_afectadas_label || "sin dato";
+  const metaComp = d.meta_complementaria_previa || "";
+  const patologia =
+    d.patologia_relacionada_label ||
+    d?.payload_origen?.patologia_fase1 ||
+    "";
+  const count = items.length;
+
+  const lines = [
+    `En la evaluación de seguimiento del ${fecha}, ${nombre} reportó una percepción de limitación ${lim.toLowerCase()} para desplazarse y desempeñar actividades como: ${acts}.`,
+    patologia ? `Patología relacionada reportada en fase previa: ${patologia}.` : "",
+    `Con base en ello se documentó la evolución clínica de ${count} ítem${count === 1 ? "" : "s"} y se definieron objetivos de seguimiento específicos.`,
+    metaComp ? `Meta complementaria consignada: ${metaComp}.` : "",
+  ].filter(Boolean);
+
+  return lines.join(" ");
+}
+
+let wakeupLogoDataUrlPromise = null;
+async function getWakeupLogoDataUrl() {
+  if (!wakeupLogoDataUrlPromise) {
+    wakeupLogoDataUrlPromise = new Promise(async (resolve) => {
+      try {
+        const svgText = await fetch(wakeupLogoUrl).then((r) => r.text());
+        const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(svgBlob);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = 160;
+            canvas.height = 160;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL("image/png"));
+            } else {
+              resolve(null);
+            }
+          } catch {
+            resolve(null);
+          } finally {
+            URL.revokeObjectURL(url);
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve(null);
+        };
+        img.src = url;
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+  return wakeupLogoDataUrlPromise;
+}
+
 function downloadLogros2Csv(registro) {
   const items = itemsDesdeRegistro(registro);
+  const d = registro?.data || {};
+  const profesionalCedula = String(d.encuestador ?? "").trim();
+  const profesionalNombre = String(d.encuestador_nombre ?? "").trim();
+  const profesional = profesionalCedula
+    ? `${profesionalCedula}${profesionalNombre ? ` - ${profesionalNombre}` : ""}`
+    : "—";
   const lines = [
-    ["Documento", "Tipo", "Consecutivo", "Fecha", "Sede"].join(","),
+    ["Documento", "Tipo", "Consecutivo", "Fecha", "Sede", "Profesional"].join(","),
     [
       registro?.data?.documento ?? "",
       "Logros 2",
       registro?.tipo_consecutivo ?? "",
       registro?.created_at ?? "",
       registro?.sede ?? "",
+      profesional,
     ]
       .map((x) => `"${String(x ?? "").replace(/"/g, '""')}"`)
       .join(","),
@@ -129,6 +216,12 @@ function downloadLogros2Csv(registro) {
 
 function downloadLogros2Xlsx(registro) {
   const items = itemsDesdeRegistro(registro);
+  const d = registro?.data || {};
+  const profesionalCedula = String(d.encuestador ?? "").trim();
+  const profesionalNombre = String(d.encuestador_nombre ?? "").trim();
+  const profesional = profesionalCedula
+    ? `${profesionalCedula}${profesionalNombre ? ` - ${profesionalNombre}` : ""}`
+    : "—";
   const wb = XLSX.utils.book_new();
   const meta = [
     ["Documento", registro?.data?.documento ?? ""],
@@ -136,6 +229,7 @@ function downloadLogros2Xlsx(registro) {
     ["Consecutivo", registro?.tipo_consecutivo ?? ""],
     ["Fecha", registro?.created_at ?? ""],
     ["Sede", registro?.sede ?? ""],
+    ["Profesional", profesional],
   ];
   const wsMeta = XLSX.utils.aoa_to_sheet(meta);
   XLSX.utils.book_append_sheet(wb, wsMeta, "Resumen");
@@ -154,51 +248,241 @@ function downloadLogros2Xlsx(registro) {
   XLSX.writeFile(wb, `${baseFilenameRegistro(registro)}.xlsx`);
 }
 
-function downloadLogros2Pdf(registro) {
+async function downloadLogros2Pdf(registro) {
   const items = itemsDesdeRegistro(registro);
   const doc = new jsPDF("p", "mm", "a4");
-  let y = 12;
-  doc.setFontSize(14);
-  doc.text("Registro Logros 2", 10, y);
-  y += 8;
-  doc.setFontSize(10);
-  doc.text(`Documento: ${registro?.data?.documento ?? "—"}`, 10, y);
-  y += 6;
-  doc.text(`Consecutivo: ${registro?.tipo_consecutivo ?? "—"}`, 10, y);
-  y += 6;
-  doc.text(`Fecha: ${fmtDate(registro?.created_at)}`, 10, y);
-  y += 6;
-  doc.text(`Sede: ${registro?.sede ?? "—"}`, 10, y);
-  y += 8;
 
-  doc.setFontSize(9);
-  doc.text("Ítems de seguimiento:", 10, y);
-  y += 6;
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 10;
+  let y = 10;
+  const logoDataUrl = await getWakeupLogoDataUrl();
 
-  for (const it of items) {
-    if (y > 270) {
-      doc.addPage();
-      y = 12;
+  const drawHeader = () => {
+    doc.setFillColor(234, 242, 255);
+    doc.rect(margin, y, pageW - margin * 2, 28, "F");
+    doc.setDrawColor(44, 107, 237);
+    doc.setLineWidth(0.8);
+    doc.line(margin, y + 28, pageW - margin, y + 28);
+
+    doc.setTextColor(29, 78, 216);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("Informe de Seguimiento Logros 2", margin + 4, y + 10);
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(71, 85, 105);
+    doc.setFontSize(10);
+    doc.text(
+      "Resumen de evolución y nuevos objetivos por síntoma.",
+      margin + 4,
+      y + 17,
+    );
+
+    if (logoDataUrl) {
+      try {
+        doc.addImage(
+          logoDataUrl,
+          "PNG",
+          pageW - margin - 15,
+          y + 2,
+          11,
+          11,
+        );
+      } catch {
+        // ignore logo rendering errors
+      }
     }
-    const line = `• [${it.slot ?? "-"}] ${it.sintoma_label ?? it.sintoma ?? "—"} | Nivel: ${
-      it.nivel_mejora ?? "—"
-    } | Objetivo: ${it.nuevo_objetivo ?? it.objetivo_seguimiento ?? "—"}`;
-    const split = doc.splitTextToSize(line, 190);
-    doc.text(split, 10, y);
-    y += 5 * split.length;
+
+    y += 34;
+  };
+
+  const drawSectionTitle = (title) => {
+    doc.setTextColor(31, 42, 68);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(title, margin, y);
+    y += 6;
+  };
+
+  const drawKV = (label, value) => {
+    if (y > pageH - 22) {
+      doc.addPage();
+      y = 14;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(31, 42, 68);
+    doc.setFontSize(9.5);
+    doc.text(`${label}:`, margin, y);
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(51, 65, 85);
+    const txt = String(value ?? "—");
+    const lines = doc.splitTextToSize(txt, 130);
+    doc.text(lines, margin + 30, y);
+    y += Math.max(5, lines.length * 4.5);
+  };
+
+  const drawTableHeader = () => {
+    const x = margin;
+    const widths = [10, 50, 34, 48, 48];
+    const h = 8;
+    doc.setFillColor(234, 242, 255);
+    doc.rect(x, y, widths.reduce((a, b) => a + b, 0), h, "F");
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(x, y, widths.reduce((a, b) => a + b, 0), h);
+
+    const labels = ["#", "Síntoma", "Evolución", "Objetivo previo", "Objetivo seguimiento"];
+    let cx = x;
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(53, 93, 134);
+    doc.setFontSize(9);
+    labels.forEach((label, i) => {
+      doc.text(label, cx + 2, y + 5.4);
+      cx += widths[i];
+    });
+    y += h;
+    return widths;
+  };
+
+  const drawTableRow = (widths, row) => {
+    const x = margin;
+    const values = [
+      String(row.slot ?? "—"),
+      String(row.sintoma_label ?? row.sintoma ?? "—"),
+      nivelMejoraLabel(row.nivel_mejora),
+      String(row.objetivo_previo_label ?? "—"),
+      nuevoObjetivoLabel(row),
+    ];
+
+    const wrapped = [
+      doc.splitTextToSize(values[0], widths[0] - 4),
+      doc.splitTextToSize(values[1], widths[1] - 4),
+      doc.splitTextToSize(values[2], widths[2] - 4),
+      doc.splitTextToSize(values[3], widths[3] - 4),
+      doc.splitTextToSize(values[4], widths[4] - 4),
+    ];
+    const rowH = Math.max(7, ...wrapped.map((w) => w.length * 4.2 + 2));
+
+    if (y + rowH > pageH - 16) {
+      doc.addPage();
+      y = 14;
+      drawSectionTitle("Ítems de seguimiento");
+      drawTableHeaderRef.widths = drawTableHeader();
+    }
+
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(x, y, widths.reduce((a, b) => a + b, 0), rowH);
+    let cx = x;
+    doc.setTextColor(51, 65, 85);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.8);
+    for (let i = 0; i < widths.length; i++) {
+      if (i > 0) {
+        doc.line(cx, y, cx, y + rowH);
+      }
+      doc.text(wrapped[i], cx + 2, y + 4.5);
+      cx += widths[i];
+    }
+    y += rowH;
+  };
+
+  const drawTableHeaderRef = { widths: [] };
+  const d = registro?.data || {};
+  const profesionalCedula = String(d.encuestador ?? "").trim();
+  const profesionalNombre = String(d.encuestador_nombre ?? "").trim();
+  const profesional = profesionalCedula
+    ? `${profesionalCedula}${profesionalNombre ? ` - ${profesionalNombre}` : ""}`
+    : "—";
+
+  const drawSummaryLine = (label, value) => {
+    if (y > pageH - 20) {
+      doc.addPage();
+      y = 14;
+      drawSectionTitle("Resumen clínico");
+    }
+    const labelText = `${label}: `;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(51, 65, 85);
+    doc.setFontSize(9.6);
+    doc.text(labelText, margin, y);
+    const labelW = doc.getTextWidth(labelText);
+    doc.setFont("helvetica", "bold");
+    doc.text(String(value || "—"), margin + labelW, y);
+    y += 5.2;
+  };
+
+  drawHeader();
+  drawSectionTitle("Datos principales");
+  drawKV("Documento", registro?.data?.documento ?? "—");
+  drawKV("Consecutivo", registro?.tipo_consecutivo ?? "—");
+  drawKV("Fecha", fmtDate(registro?.created_at));
+  drawKV("Sede", registro?.sede ?? "—");
+  drawKV("Profesional", profesional);
+  drawKV("Código", registro?.data?.codigo_seguimiento ?? "—");
+
+  const patologia =
+    d.patologia_relacionada_label ||
+    d?.payload_origen?.patologia_fase1 ||
+    "—";
+  const narrativa = buildLogros2Narrativa(registro, items);
+
+  drawSectionTitle("Resumen clínico");
+  drawSummaryLine("Paciente", [d.nombres, d.apellidos].filter(Boolean).join(" ").trim() || "—");
+  drawSummaryLine("Sede de realización", registro?.sede ?? "—");
+  drawSummaryLine("Profesional", profesional);
+  drawSummaryLine("Patología relacionada", patologia);
+  drawSummaryLine("Ítems evaluados", `${items.length}`);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.setFontSize(9.3);
+  const narrativaLines = doc.splitTextToSize(narrativa, pageW - margin * 2 - 2);
+  doc.text(narrativaLines, margin, y);
+  y += Math.max(8, narrativaLines.length * 4.5);
+
+  y += 3;
+  drawSectionTitle("Ítems de seguimiento");
+  drawTableHeaderRef.widths = drawTableHeader();
+
+  if (!items.length) {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(9);
+    doc.text("Sin ítems registrados.", margin + 2, y + 6);
+    y += 10;
+  } else {
+    for (const it of items) {
+      drawTableRow(drawTableHeaderRef.widths, it);
+    }
   }
+
+  const fechaDescarga = new Date().toLocaleDateString("es-CO");
+  doc.setDrawColor(203, 213, 225);
+  doc.line(margin, pageH - 10, pageW - margin, pageH - 10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.setFontSize(8.5);
+  doc.text(`Documento generado el ${fechaDescarga}.`, margin, pageH - 5.2);
+
   doc.save(`${baseFilenameRegistro(registro)}.pdf`);
 }
 
 function Logros2Viewer({ registro }) {
   const items = useMemo(() => itemsDesdeRegistro(registro), [registro]);
   const d = registro?.data || {};
+  const profesionalCedula = String(d.encuestador ?? "").trim();
+  const profesionalNombre = String(d.encuestador_nombre ?? "").trim();
+  const profesional = profesionalCedula
+    ? `${profesionalCedula}${profesionalNombre ? ` - ${profesionalNombre}` : ""}`
+    : "—";
   return (
     <div className="estad-res__logros2">
       <div className="estad-res__logros2-meta">
         <span><b>Documento:</b> {d.documento ?? "—"}</span>
         <span><b>Fecha:</b> {fmtDate(registro?.created_at)}</span>
         <span><b>Sede:</b> {registro?.sede ?? "—"}</span>
+        <span><b>Profesional:</b> {profesional}</span>
         <span><b>Código:</b> {d.codigo_seguimiento ?? "—"}</span>
       </div>
       <table className="estad-res__logros2-table">
@@ -344,7 +628,7 @@ export default function EstadisticasResultados() {
         }
       } else {
         if (formato === "pdf") {
-          downloadLogros2Pdf(registroSeleccionado);
+          await downloadLogros2Pdf(registroSeleccionado);
         } else if (formato === "csv") {
           downloadLogros2Csv(registroSeleccionado);
         } else {

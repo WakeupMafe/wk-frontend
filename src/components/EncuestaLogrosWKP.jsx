@@ -244,6 +244,7 @@ export default function EncuestaLogrosWKP() {
   const [form, setForm] = useState(() => createInitialForm());
   const [errors, setErrors] = useState({});
   const [showNombresHint, setShowNombresHint] = useState(false);
+  const documentoAnalizadoRef = useRef({ key: "", data: null });
   const nombrePacienteHintShownRef = useRef(false);
   const nombreHintTimeoutRef = useRef(null);
 
@@ -307,9 +308,11 @@ export default function EncuestaLogrosWKP() {
       const tipo = prev.tipoDocumento;
       if (tipo === "registro_civil" || tipo === "pasaporte") {
         const cleaned = raw.replace(/[^A-Za-z0-9\-]/g, "").slice(0, 30);
+        documentoAnalizadoRef.current = { key: "", data: null };
         return { ...prev, documento: cleaned };
       }
       const onlyDigits = raw.replace(/\D/g, "").slice(0, 11);
+      documentoAnalizadoRef.current = { key: "", data: null };
       return { ...prev, documento: onlyDigits };
     });
   };
@@ -321,6 +324,7 @@ export default function EncuestaLogrosWKP() {
       tipoDocumento: value,
       documento: "",
     }));
+    documentoAnalizadoRef.current = { key: "", data: null };
     setErrors((prev) => {
       const next = { ...prev };
       delete next.documento;
@@ -387,6 +391,72 @@ export default function EncuestaLogrosWKP() {
     return Object.keys(nextErrors).length === 0;
   };
 
+  const validarDocumentoPrevio = async (opts = { mostrarAlert: false }) => {
+    const documento = String(form.documento || "").trim();
+    const tipoDocumento = String(form.tipoDocumento || "cedula").trim();
+    if (!documento || !tipoDocumento) return { ok: true, exists: false };
+
+    const cacheKey = `${tipoDocumento}:${documento}`;
+    if (documentoAnalizadoRef.current.key === cacheKey) {
+      const cached = documentoAnalizadoRef.current.data || {};
+      if (cached?.exists === true && opts.mostrarAlert) {
+        sweetClose();
+        const patologia = cached?.patologia_relacionada
+          ? String(cached.patologia_relacionada).trim()
+          : "sin dato";
+        await alertWarning({
+          title: "Encuesta previa detectada",
+          text: `Este usuario ya tiene presente una encuesta de logros 1 previa con [${patologia}].`,
+        });
+      }
+      return { ok: true, exists: cached?.exists === true, data: cached };
+    }
+
+    const tipoQ = encodeURIComponent(tipoDocumento);
+    const check = await fetch(
+      `${apiUrl(`/encuestas/exists/${encodeURIComponent(documento)}`)}?tipo_documento=${tipoQ}`,
+    );
+    const checkJson = await check.json().catch(() => ({}));
+
+    if (!check.ok) {
+      const detalle = formatApiDetail(checkJson?.detail);
+      await alertError({
+        title: "No se pudo validar el documento",
+        text:
+          detalle ||
+          "No fue posible consultar si ya existe una encuesta para este documento. Revisa la conexión e intenta de nuevo.",
+      });
+      return { ok: false, exists: false };
+    }
+
+    if (checkJson?.exists === true && opts.mostrarAlert) {
+      sweetClose();
+      const patologia = checkJson?.patologia_relacionada
+        ? String(checkJson.patologia_relacionada).trim()
+        : "sin dato";
+      await alertWarning({
+        title: "Encuesta previa detectada",
+        text: `Este usuario ya tiene presente una encuesta de logros 1 previa con [${patologia}].`,
+      });
+    }
+
+    documentoAnalizadoRef.current = { key: cacheKey, data: checkJson };
+    return {
+      ok: true,
+      exists: checkJson?.exists === true,
+      data: checkJson,
+    };
+  };
+
+  const onDocumentoBlur = async () => {
+    if (!form.documento || !form.tipoDocumento) return;
+    try {
+      await validarDocumentoPrevio({ mostrarAlert: true });
+    } catch {
+      // Evita promesas no controladas del blur; el onSubmit revalida.
+    }
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     console.log("[ENCUESTA] Botón Enviar → onSubmit (preventDefault aplicado)");
@@ -405,34 +475,11 @@ export default function EncuestaLogrosWKP() {
     });
 
     try {
-      const tipoQ = encodeURIComponent(form.tipoDocumento || "cedula");
-      const check = await fetch(
-        `${apiUrl(`/encuestas/exists/${encodeURIComponent(form.documento)}`)}?tipo_documento=${tipoQ}`,
-      );
-
-      const checkJson = await check.json().catch(() => ({}));
-
+      const check = await validarDocumentoPrevio({ mostrarAlert: false });
       if (!check.ok) {
         sweetClose();
-        const detalle = formatApiDetail(checkJson?.detail);
-        await alertError({
-          title: "No se pudo validar el documento",
-          text:
-            detalle ||
-            "No fue posible consultar si ya existe una encuesta para este documento. Revisa la conexión e intenta de nuevo.",
-        });
         return;
       }
-
-      if (checkJson?.exists === true) {
-        sweetClose();
-        await alertWarning({
-          title: "Encuesta ya existe",
-          text: "Esta persona ya tiene una encuesta registrada. No es posible realizar otra encuesta.",
-        });
-        return;
-      }
-
       sweetClose();
     } catch {
       sweetClose();
@@ -667,6 +714,7 @@ export default function EncuestaLogrosWKP() {
           name="documento"
           value={form.documento}
           onChange={onDocumentoChange}
+          onBlur={onDocumentoBlur}
           required
           error={errors.documento}
           placeholder={

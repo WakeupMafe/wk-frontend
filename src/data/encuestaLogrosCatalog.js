@@ -18,10 +18,12 @@ export const PATOLOGIA_RELACIONADA = [
   { value: "rodilla", label: "Rodilla" },
   { value: "hombro", label: "Hombro" },
   { value: "cadera", label: "Cadera" },
-  { value: "lumbar_funcional", label: "Lumbar funcional" },
+  { value: "lumbar", label: "Lumbar" },
+  { value: "funcional", label: "Funcional" },
   { value: "mano", label: "Mano" },
   { value: "codo", label: "Codo" },
   { value: "cuello", label: "Cuello" },
+  { value: "pie", label: "Pie" },
 ];
 
 export const ACTIVIDADES_AFECTADAS = [

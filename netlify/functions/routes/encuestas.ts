@@ -120,10 +120,12 @@ const PATOLOGIA_RELACIONADA_VALIDAS = new Set([
   "rodilla",
   "hombro",
   "cadera",
-  "lumbar_funcional",
+  "lumbar",
+  "funcional",
   "mano",
   "codo",
   "cuello",
+  "pie",
 ]);
 
 function sintomasEnFila(row: Row): Set<string> {
@@ -145,6 +147,10 @@ function safeIlikeFragment(s: string | null | undefined): string | null {
   const t = s.trim().slice(0, 200);
   if (!t) return null;
   return t.replace(/%/g, "").replace(/_/g, "");
+}
+
+function construirReferenciaRegistro(documento: string, idRegistro: number): string {
+  return `${documento}-R${idRegistro}`;
 }
 
 /** Minúsculas, sin diacríticos, espacios colapsados (tolerancia tipo unaccent + ILIKE). */
@@ -286,7 +292,7 @@ async function crearEncuesta(
     return jsonResponse(
       400,
       errBody(
-        "Seleccione una patología relacionada válida (rodilla, hombro, cadera, lumbar_funcional, mano, codo o cuello).",
+        "Seleccione una patología relacionada válida (rodilla, hombro, cadera, lumbar, funcional, mano, codo, cuello o pie).",
       ),
       origin,
     );
@@ -296,7 +302,7 @@ async function crearEncuesta(
 
   const yaExiste = await supabase
     .from("wakeup_seguimientos")
-    .select("*", { count: "exact", head: true })
+    .select("id_int", { count: "exact", head: true })
     .eq("documento", docPaciente);
 
   if (yaExiste.error) {
@@ -306,15 +312,8 @@ async function crearEncuesta(
       origin,
     );
   }
-  if ((yaExiste.count ?? 0) > 0) {
-    return jsonResponse(
-      409,
-      errBody(
-        "Este usuario ya tiene encuesta. No es posible realizar otra encuesta.",
-      ),
-      origin,
-    );
-  }
+  const idRegistro = (yaExiste.count ?? 0) + 1;
+  const referenciaRegistro = construirReferenciaRegistro(docPaciente, idRegistro);
 
   const sintomasOrdenados = sintomasTop.slice(0, 3);
   const textos = (data.textos as Record<string, string>) || {};
@@ -353,6 +352,8 @@ async function crearEncuesta(
     apellidos: String(data.apellidos ?? "").trim(),
     tipo_documento: data.tipoDocumento,
     documento: docPaciente,
+    id_registro: idRegistro,
+    referencia_registro: referenciaRegistro,
     patologia_relacionada: patologiaRel,
     limitacion_moverse: data.limitacionMoverse,
     actividades_afectadas: data.actividadesAfectadas ?? [],
@@ -386,7 +387,16 @@ async function crearEncuesta(
     );
   }
 
-  return jsonResponse(200, { ok: true, data: res.data }, origin);
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      id_registro: idRegistro,
+      referencia_registro: referenciaRegistro,
+      data: res.data,
+    },
+    origin,
+  );
 }
 
 const LOGROS2_NIVEL_A_EVOLUCION: Record<string, string> = {
@@ -1036,8 +1046,12 @@ export async function handleEncuestas(
       const supabase = getSupabase();
       const res = await supabase
         .from("wakeup_seguimientos")
-        .select("id_int")
+        .select(
+          "id_int,patologia_relacionada,id_registro,referencia_registro,created_at",
+          { count: "exact" },
+        )
         .eq("documento", docPaciente)
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -1051,7 +1065,14 @@ export async function handleEncuestas(
 
       return jsonResponse(
         200,
-        { ok: true, exists: !!res.data },
+        {
+          ok: true,
+          exists: !!res.data,
+          total_previas: res.count ?? 0,
+          patologia_relacionada: res.data?.patologia_relacionada ?? null,
+          id_registro: res.data?.id_registro ?? null,
+          referencia_registro: res.data?.referencia_registro ?? null,
+        },
         origin,
       );
     }

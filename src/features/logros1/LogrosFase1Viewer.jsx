@@ -1,6 +1,4 @@
-import { useMemo, useState } from "react";
-import Button from "../../components/ButtonComponente";
-import { Subtitle } from "../../components/typography";
+import { useMemo } from "react";
 import "./LogrosFase1Viewer.css";
 
 import { buildLogrosFase1DownloadContext } from "./logrosFase1BuildContext";
@@ -59,8 +57,6 @@ function formatActividades(values) {
  * Visualización de encuesta (detalle expandible). Descargas: ver pantalla Filtros.
  */
 export default function LogrosFase1Viewer({ paciente }) {
-  const [open, setOpen] = useState(false);
-
   const row = paciente || null;
 
   const ctx = useMemo(() => buildLogrosFase1DownloadContext(row), [row]);
@@ -69,177 +65,147 @@ export default function LogrosFase1Viewer({ paciente }) {
   const totalObjetivos = ctx?.totalObjetivos ?? 0;
   const actividades = ctx?.actividades ?? [];
   const sintomasConObjetivos = ctx?.sintomasConObjetivos ?? [];
+  const filasSintomas = useMemo(() => {
+    const base = Array.isArray(sintomasConObjetivos) ? [...sintomasConObjetivos] : [];
+    const normales = base.filter((it) => String(it?.sintomaValue ?? "") !== "otro");
+    const otrosGenericos = base.filter((it) => String(it?.sintomaValue ?? "") === "otro");
+    const otroLibre = row?.otro_sintoma
+      ? [
+          {
+            numero: "otro_libre",
+            sintoma: row.otro_sintoma,
+            objetivo: row.objetivo_extra || "-",
+          },
+        ]
+      : [];
+
+    // Regla visual: "Otro" (genérico) siempre se muestra al final.
+    return [...normales, ...otroLibre, ...otrosGenericos];
+  }, [sintomasConObjetivos]);
   const fechaRegistro = ctx?.fechaRegistro ?? "-";
-  const patologiaLabel = ctx?.patologiaLabel ?? "";
+  const patologiaLabel = ctx?.patologiaLabel || "No reportada";
+  const profesional = row?.encuestador
+    ? `${row.encuestador}${row.encuestador_nombre ? ` - ${row.encuestador_nombre}` : ""}`
+    : "-";
+  const actividadesLabel = formatActividades(actividades);
+  const narrativa = [
+    `En la valoración inicial, ${pacienteNombre} registró una limitación ${formatLimitacion(row.limitacion_moverse).toLowerCase()} para moverse.`,
+    `Las actividades más afectadas corresponden a: ${actividadesLabel}.`,
+    `La última vez que realizó estas actividades fue hace ${formatUltimaVez(row.ultima_vez).toLowerCase()} y el principal factor reportado fue ${formatQueImpide(row.que_impide).toLowerCase()}.`,
+    row.adicional_no_puede
+      ? `Actividad adicional reportada: ${row.adicional_no_puede}.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   if (!row) return null;
 
   return (
     <div className="lf1viewer">
-      <div className="lf1viewer__tableWrap">
-        <div className="lf1viewer__table">
-          <div className="lf1viewer__head">
-            <div className="lf1viewer__th">Nombre completo</div>
-            <div className="lf1viewer__th">Total de objetivos</div>
-            <div className="lf1viewer__th">Opciones</div>
-          </div>
-
-          <div className="lf1viewer__row">
-            <div className="lf1viewer__td">{pacienteNombre}</div>
-
-            <div className="lf1viewer__td lf1viewer__td--center">
-              {totalObjetivos}
-            </div>
-
-            <div className="lf1viewer__td lf1viewer__td--center">
-              <Button
-                variant="teal"
-                type="button"
-                className="lf1viewer__actionBtn"
-                onClick={() => setOpen((prev) => !prev)}
-              >
-                {open ? "Ocultar ▾" : "Visualizar ▾"}
-              </Button>
-            </div>
-          </div>
+      <div className="lf1viewer__head">
+        <div>
+          <p className="lf1viewer__kicker">Resumen de evaluación inicial</p>
+          <h4 className="lf1viewer__title">Encuesta Logros 1</h4>
         </div>
+        <span className="lf1viewer__pill">
+          {totalObjetivos} objetivo{totalObjetivos === 1 ? "" : "s"}
+        </span>
       </div>
 
-      {open ? (
-        <div className="lf1viewer__detailWrap">
-          <Button
-            variant="teal"
-            type="button"
-            className="lf1viewer__toggleBtn"
-            onClick={() => setOpen(false)}
-          >
-            ↑ Ocultar encuesta
-          </Button>
+      <p className="lf1viewer__sectionLabel">Datos principales de la evaluación</p>
+      <div className="lf1viewer__meta">
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Nombre completo del paciente</span>
+          <strong className="lf1viewer__metaValue">{pacienteNombre}</strong>
+        </article>
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Documento de identidad</span>
+          <strong className="lf1viewer__metaValue">{row.documento || "-"}</strong>
+        </article>
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Fecha de registro</span>
+          <strong className="lf1viewer__metaValue">{fechaRegistro}</strong>
+        </article>
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Sede de atencion</span>
+          <strong className="lf1viewer__metaValue">{row.sede || "-"}</strong>
+        </article>
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Profesional responsable</span>
+          <strong className="lf1viewer__metaValue">{profesional}</strong>
+        </article>
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Patologia relacionada</span>
+          <strong className="lf1viewer__metaValue">{patologiaLabel}</strong>
+        </article>
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Nivel de limitacion para moverse</span>
+          <strong className="lf1viewer__metaValue">
+            {formatLimitacion(row.limitacion_moverse)}
+          </strong>
+        </article>
+        {row.adicional_no_puede ? (
+          <article className="lf1viewer__metaCard">
+            <span className="lf1viewer__metaLabel">
+              Actividad adicional que no puede realizar
+            </span>
+            <strong className="lf1viewer__metaValue">{row.adicional_no_puede}</strong>
+          </article>
+        ) : null}
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Ultima vez que realizo actividades</span>
+          <strong className="lf1viewer__metaValue">
+            {formatUltimaVez(row.ultima_vez)}
+          </strong>
+        </article>
+        <article className="lf1viewer__metaCard">
+          <span className="lf1viewer__metaLabel">Factor principal que limita al paciente</span>
+          <strong className="lf1viewer__metaValue">
+            {formatQueImpide(row.que_impide)}
+          </strong>
+        </article>
+        <article className="lf1viewer__metaCard lf1viewer__metaCard--span2">
+          <span className="lf1viewer__metaLabel">Actividades afectadas reportadas</span>
+          <strong className="lf1viewer__metaValue">{actividadesLabel}</strong>
+        </article>
+      </div>
 
-          <div className="lf1viewer__card">
-            <Subtitle as="h3" className="lf1viewer__title">
-              Datos principales
-            </Subtitle>
+      <p className="lf1viewer__sectionLabel">Resumen narrativo clinico</p>
+      <p className="lf1viewer__narrativa">{narrativa}</p>
 
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Nombre:</span>
-              <span className="lf1viewer__v">{pacienteNombre}</span>
-            </div>
+      <p className="lf1viewer__sectionLabel">Plan de seguimiento: sintomas y objetivos</p>
+      <div className="lf1viewer__tableWrap">
+        <table className="lf1viewer__table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Sintoma funcional identificado</th>
+              <th>Objetivo definido para el seguimiento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filasSintomas.length ? (
+              filasSintomas.map((item, idx) => (
+                <tr key={item.numero}>
+                  <td>{idx + 1}</td>
+                  <td>{item.sintoma}</td>
+                  <td>{item.objetivo}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3}>Sin sintomas registrados.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k"># Documento:</span>
-              <span className="lf1viewer__v">{row.documento || "-"}</span>
-            </div>
-
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Fecha de registro:</span>
-              <span className="lf1viewer__v">{fechaRegistro}</span>
-            </div>
-
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Profesional:</span>
-              <span className="lf1viewer__v">
-                {row.encuestador
-                  ? `${row.encuestador}${row.encuestador_nombre ? ` - ${row.encuestador_nombre}` : ""}`
-                  : "-"}
-              </span>
-            </div>
-
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Sede:</span>
-              <span className="lf1viewer__v">{row.sede || "-"}</span>
-            </div>
-
-            {patologiaLabel ? (
-              <div className="lf1viewer__kv">
-                <span className="lf1viewer__k">Patología:</span>
-                <span className="lf1viewer__v">{patologiaLabel}</span>
-              </div>
-            ) : null}
-
-            <div className="lf1viewer__separator" />
-
-            <Subtitle as="h3" className="lf1viewer__title">
-              Resultados de la encuesta
-            </Subtitle>
-
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Limitación para moverse:</span>
-              <span className="lf1viewer__v">
-                {formatLimitacion(row.limitacion_moverse)}
-              </span>
-            </div>
-
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Actividades afectadas:</span>
-              <span className="lf1viewer__v">
-                {formatActividades(actividades)}
-              </span>
-            </div>
-
-            {row.adicional_no_puede ? (
-              <div className="lf1viewer__kv">
-                <span className="lf1viewer__k">
-                  Actividad adicional que no puede realizar:
-                </span>
-                <span className="lf1viewer__v">{row.adicional_no_puede}</span>
-              </div>
-            ) : null}
-
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Última vez:</span>
-              <span className="lf1viewer__v">
-                {formatUltimaVez(row.ultima_vez)}
-              </span>
-            </div>
-
-            <div className="lf1viewer__kv">
-              <span className="lf1viewer__k">Qué impide:</span>
-              <span className="lf1viewer__v">
-                {formatQueImpide(row.que_impide)}
-              </span>
-            </div>
-
-            <div className="lf1viewer__kv lf1viewer__kv--stack">
-              <span className="lf1viewer__k">Síntomas y objetivos:</span>
-
-              <div className="lf1viewer__v">
-                {sintomasConObjetivos.length ? (
-                  <div className="lf1viewer__miniTable">
-                    <div className="lf1viewer__miniHead">
-                      <div>#</div>
-                      <div>Síntoma</div>
-                      <div>Objetivo</div>
-                    </div>
-
-                    {sintomasConObjetivos.map((item) => (
-                      <div className="lf1viewer__miniRow" key={item.numero}>
-                        <div>{item.numero}</div>
-                        <div>{item.sintoma}</div>
-                        <div>{item.objetivo}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  "-"
-                )}
-              </div>
-            </div>
-
-            {row.otro_sintoma ? (
-              <div className="lf1viewer__kv">
-                <span className="lf1viewer__k">Otro síntoma:</span>
-                <span className="lf1viewer__v">{row.otro_sintoma}</span>
-              </div>
-            ) : null}
-
-            {row.objetivo_extra ? (
-              <div className="lf1viewer__kv">
-                <span className="lf1viewer__k">Objetivo extra:</span>
-                <span className="lf1viewer__v">{row.objetivo_extra}</span>
-              </div>
-            ) : null}
-          </div>
+      {row.objetivo_extra && !row.otro_sintoma ? (
+        <div className="lf1viewer__note">
+          <span className="lf1viewer__metaLabel">Objetivo extra</span>
+          <strong className="lf1viewer__metaValue">{row.objetivo_extra}</strong>
         </div>
       ) : null}
     </div>

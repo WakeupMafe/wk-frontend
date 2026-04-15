@@ -63,6 +63,7 @@ export function buildLogrosFase1DownloadContext(row) {
 
   const sintomasConObjetivos = items.map((item) => ({
     numero: item.numero,
+    sintomaValue: item.sintomaValue,
     sintoma: getSintomaLabel(item.sintomaValue),
     objetivo: getObjetivoLabel(item.sintomaValue, item.objetivoValue),
   }));

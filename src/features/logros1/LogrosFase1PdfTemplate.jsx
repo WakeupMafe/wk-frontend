@@ -4,6 +4,7 @@ import {
   formatQueImpide,
   formatUltimaVez,
 } from "./logrosPdfFormatters";
+import wakeupLogoUrl from "../../assets/logo.svg";
 
 export default function LogrosFase1PdfTemplate({
   pacienteNombre,
@@ -37,6 +38,13 @@ export default function LogrosFase1PdfTemplate({
           marginBottom: "24px",
         }}
       >
+        <div style={{ marginBottom: "10px" }}>
+          <img
+            src={wakeupLogoUrl}
+            alt="WakeUp"
+            style={{ height: "38px", width: "auto", display: "block" }}
+          />
+        </div>
         <h1
           style={{
             margin: 0,

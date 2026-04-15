@@ -190,35 +190,139 @@
   margin-top: 0.5rem;
   border: 1px solid rgba(42, 79, 120, 0.16);
   border-radius: clamp(0.5rem, 1.1vw, 0.75rem);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: clamp(0.75rem, 1.9vw, 1rem);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.estad-res__logros2-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin-bottom: 0.7rem;
+}
+
+.estad-res__logros2-kicker {
+  margin: 0;
+  color: #59779a;
+  font-weight: 600;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.estad-res__logros2-title {
+  margin: 0.15rem 0 0;
+  color: #1f3d60;
+  font-size: clamp(0.98rem, 1.45vw, 1.18rem);
+  font-weight: 700;
+}
+
+.estad-res__pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(42, 79, 120, 0.24);
   background: #fff;
-  padding: clamp(0.55rem, 1.6vw, 0.82rem);
+  color: #294c74;
+  border-radius: 999px;
+  padding: 0.24rem 0.58rem;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .estad-res__logros2-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.9rem;
-  margin-bottom: 0.6rem;
-  color: #2f4f72;
-  font-size: 0.86rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.estad-res__meta-card {
+  border: 1px solid rgba(42, 79, 120, 0.12);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.45rem 0.58rem;
+  min-width: 0;
+}
+
+.estad-res__meta-card--wide {
+  grid-column: 1 / -1;
+}
+
+.estad-res__meta-label {
+  display: block;
+  margin-bottom: 0.12rem;
+  color: #67809b;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.estad-res__meta-value {
+  color: #1f3d60;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.estad-res__logros2-narrativa {
+  margin: 0 0 0.7rem;
+  border: 1px solid rgba(42, 79, 120, 0.1);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0.55rem 0.62rem;
+  color: #3f5e81;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.estad-res__table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(42, 79, 120, 0.1);
+  border-radius: 0.62rem;
+  background: #fff;
 }
 
 .estad-res__logros2-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 34rem;
 }
 
 .estad-res__logros2-table th,
 .estad-res__logros2-table td {
-  border-bottom: 1px solid rgba(42, 79, 120, 0.12);
+  border-bottom: 1px solid rgba(42, 79, 120, 0.1);
   text-align: left;
-  padding: clamp(0.3rem, 1vw, 0.46rem) clamp(0.26rem, 0.9vw, 0.38rem);
-  font-size: clamp(0.68rem, 0.95vw, 0.84rem);
+  padding: clamp(0.45rem, 1vw, 0.58rem) clamp(0.4rem, 1vw, 0.62rem);
+  font-size: clamp(0.72rem, 0.96vw, 0.86rem);
 }
 
 .estad-res__logros2-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   color: #355d86;
+  background: #f3f7fc;
+  font-weight: 700;
+}
+
+.estad-res__logros2-table tbody tr:nth-child(even) {
+  background: #fbfdff;
+}
+
+.estad-res__level-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(42, 79, 120, 0.2);
+  border-radius: 999px;
+  background: #f6f9fd;
+  color: #294c74;
   font-weight: 600;
+  font-size: 0.74rem;
+  padding: 0.1rem 0.45rem;
 }
 
 @media (max-width: 36rem) {
@@ -230,5 +334,13 @@
 
   .estad-res__item-btn {
     width: 100%;
+  }
+
+  .estad-res__logros2-title {
+    font-size: 1rem;
+  }
+
+  .estad-res__pill {
+    align-self: flex-start;
   }
 }

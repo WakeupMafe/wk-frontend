@@ -471,52 +471,96 @@ async function downloadLogros2Pdf(registro) {
 function Logros2Viewer({ registro }) {
   const items = useMemo(() => itemsDesdeRegistro(registro), [registro]);
   const d = registro?.data || {};
+  const paciente = [d.nombres, d.apellidos].filter(Boolean).join(" ").trim() || "—";
   const profesionalCedula = String(d.encuestador ?? "").trim();
   const profesionalNombre = String(d.encuestador_nombre ?? "").trim();
   const profesional = profesionalCedula
     ? `${profesionalCedula}${profesionalNombre ? ` - ${profesionalNombre}` : ""}`
     : "—";
+  const patologia =
+    d.patologia_relacionada_label ||
+    d?.payload_origen?.patologia_fase1 ||
+    "No reportada";
+  const narrativa = buildLogros2Narrativa(registro, items);
+
   return (
     <div className="estad-res__logros2">
-      <div className="estad-res__logros2-meta">
-        <span><b>Documento:</b> {d.documento ?? "—"}</span>
-        <span><b>Fecha:</b> {fmtDate(registro?.created_at)}</span>
-        <span><b>Sede:</b> {registro?.sede ?? "—"}</span>
-        <span><b>Profesional:</b> {profesional}</span>
-        <span><b>Código:</b> {d.codigo_seguimiento ?? "—"}</span>
+      <div className="estad-res__logros2-head">
+        <div>
+          <p className="estad-res__logros2-kicker">Resumen del seguimiento</p>
+          <h4 className="estad-res__logros2-title">Encuesta Logros 2</h4>
+        </div>
+        <span className="estad-res__pill">{items.length} ítem{items.length === 1 ? "" : "s"}</span>
       </div>
-      <table className="estad-res__logros2-table">
-        <thead>
-          <tr>
-            <th>Slot</th>
-            <th>Síntoma</th>
-            <th>Nivel</th>
-            <th>Nuevo objetivo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.length === 0 ? (
+
+      <div className="estad-res__logros2-meta">
+        <article className="estad-res__meta-card">
+          <span className="estad-res__meta-label">Paciente</span>
+          <strong className="estad-res__meta-value">{paciente}</strong>
+        </article>
+        <article className="estad-res__meta-card">
+          <span className="estad-res__meta-label">Documento</span>
+          <strong className="estad-res__meta-value">{d.documento ?? "—"}</strong>
+        </article>
+        <article className="estad-res__meta-card">
+          <span className="estad-res__meta-label">Fecha</span>
+          <strong className="estad-res__meta-value">{fmtDate(registro?.created_at)}</strong>
+        </article>
+        <article className="estad-res__meta-card">
+          <span className="estad-res__meta-label">Sede</span>
+          <strong className="estad-res__meta-value">{registro?.sede ?? "—"}</strong>
+        </article>
+        <article className="estad-res__meta-card">
+          <span className="estad-res__meta-label">Profesional</span>
+          <strong className="estad-res__meta-value">{profesional}</strong>
+        </article>
+        <article className="estad-res__meta-card">
+          <span className="estad-res__meta-label">Código</span>
+          <strong className="estad-res__meta-value">{d.codigo_seguimiento ?? "—"}</strong>
+        </article>
+        <article className="estad-res__meta-card estad-res__meta-card--wide">
+          <span className="estad-res__meta-label">Patología relacionada</span>
+          <strong className="estad-res__meta-value">{patologia}</strong>
+        </article>
+      </div>
+      <p className="estad-res__logros2-narrativa">{narrativa}</p>
+
+      <div className="estad-res__table-wrap">
+        <table className="estad-res__logros2-table">
+          <thead>
             <tr>
-              <td colSpan={4}>Sin ítems registrados.</td>
+              <th>Slot</th>
+              <th>Síntoma</th>
+              <th>Nivel</th>
+              <th>Nuevo objetivo</th>
             </tr>
-          ) : (
-            items.map((it, idx) => (
-              <tr key={`${it.slot ?? idx}-${it.sintoma ?? idx}`}>
-                <td>{it.slot ?? idx + 1}</td>
-                <td>{it.sintoma_label ?? it.sintoma ?? "—"}</td>
-                <td>{it.nivel_mejora ?? "—"}</td>
-                <td>{it.nuevo_objetivo ?? it.objetivo_seguimiento ?? "—"}</td>
+          </thead>
+          <tbody>
+            {items.length === 0 ? (
+              <tr>
+                <td colSpan={4}>Sin ítems registrados.</td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              items.map((it, idx) => (
+                <tr key={`${it.slot ?? idx}-${it.sintoma ?? idx}`}>
+                  <td>{it.slot ?? idx + 1}</td>
+                  <td>{it.sintoma_label ?? it.sintoma ?? "—"}</td>
+                  <td>
+                    <span className="estad-res__level-chip">{it.nivel_mejora ?? "—"}</span>
+                  </td>
+                  <td>{it.nuevo_objetivo ?? it.objetivo_seguimiento ?? "—"}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
 /**
- * Resultados: búsqueda por cédula y descarga de la encuesta de un paciente.
+ * Resultados: búsqueda por documento y descarga de la encuesta de un paciente.
  */
 export default function EstadisticasResultados() {
   const [filtroTipo, setFiltroTipo] = useState("cedula");
@@ -530,7 +574,7 @@ export default function EstadisticasResultados() {
     if (filtroTipo !== "cedula") {
       await alertInfo({
         title: "Próximamente",
-        text: "Por ahora solo está disponible el filtro por cédula.",
+        text: "Por ahora solo está disponible el filtro por documento de identificación.",
       });
       return;
     }
@@ -540,15 +584,15 @@ export default function EstadisticasResultados() {
     if (!documento) {
       await alertWarning({
         title: "Campo requerido",
-        text: "Debes ingresar una cédula para realizar la búsqueda.",
+        text: "Debes ingresar un documento para realizar la búsqueda.",
       });
       return;
     }
 
     if (!/^\d+$/.test(documento)) {
       await alertWarning({
-        title: "Cédula inválida",
-        text: "La cédula debe contener solo números.",
+        title: "Documento inválido",
+        text: "El documento debe contener solo números.",
       });
       return;
     }
@@ -568,7 +612,7 @@ export default function EstadisticasResultados() {
         if (res.status === 404) {
           await alertInfo({
             title: "Sin resultados",
-            text: "No se encontraron registros para esa cédula.",
+            text: "No se encontraron registros para ese documento.",
           });
           return;
         }
@@ -584,7 +628,7 @@ export default function EstadisticasResultados() {
       if (registros.length === 0) {
         await alertInfo({
           title: "Sin resultados",
-          text: "No se encontró información para esa cédula.",
+          text: "No se encontró información para ese documento.",
         });
         return;
       }
@@ -656,7 +700,7 @@ export default function EstadisticasResultados() {
       <PageHeader>
         <PageTitle id="estad-res-title">Resultados</PageTitle>
         <PageLead>
-          Busca por cédula y descarga la encuesta del paciente en PDF, CSV o
+          Busca por documento y descarga la encuesta del paciente en PDF, CSV o
           Excel.
         </PageLead>
         <PageMeta tone="neutral">
@@ -676,7 +720,7 @@ export default function EstadisticasResultados() {
             value={filtroTipo}
             onChange={(e) => setFiltroTipo(e.target.value)}
           >
-            <option value="cedula">Cédula</option>
+            <option value="cedula">Documento de identificación</option>
             <option value="genero" disabled>
               Género (próximamente)
             </option>
@@ -691,7 +735,7 @@ export default function EstadisticasResultados() {
             id="res-cedula-input"
             type="text"
             className="estad-filtros__input"
-            placeholder="Cédula del paciente"
+            placeholder="Documento del paciente"
             value={cedulaBusqueda}
             onChange={(e) => setCedulaBusqueda(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleBuscar()}
@@ -808,7 +852,7 @@ export default function EstadisticasResultados() {
         </div>
       ) : (
         <Muted className="estad-filtros__empty">
-          Ingresa una cédula y pulsa Buscar para listar todos los registros del
+          Ingresa un documento y pulsa Buscar para listar todos los registros del
           paciente (Logros 1 y Logros 2), visualizar cada uno y decidir cuál
           descargar.
         </Muted>

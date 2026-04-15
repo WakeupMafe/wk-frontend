@@ -491,6 +491,47 @@ export async function handleVerificacion(
         l1Rows = (l1TryString.data || []) as Record<string, unknown>[];
       }
 
+      // Enriquecer Logros 1 con nombre del profesional (autorizados)
+      // para mostrar "cedula - nombres apellidos" en frontend y PDF.
+      const cedulasEncuestador = Array.from(
+        new Set(
+          l1Rows
+            .map((r) => String(r?.encuestador ?? "").trim())
+            .filter((v) => v.length > 0),
+        ),
+      );
+
+      if (cedulasEncuestador.length > 0) {
+        const authResp = await supabase
+          .from("autorizados")
+          .select("cedula, nombres, apellidos")
+          .in("cedula", cedulasEncuestador);
+
+        if (!authResp.error && Array.isArray(authResp.data)) {
+          const authByCedula = new Map<string, string>();
+          for (const a of authResp.data as Record<string, unknown>[]) {
+            const ced = String(a?.cedula ?? "").trim();
+            if (!ced) continue;
+            const nombreCompleto =
+              `${String(a?.nombres ?? "").trim()} ${String(a?.apellidos ?? "").trim()}`.trim();
+            if (nombreCompleto) {
+              authByCedula.set(ced, nombreCompleto);
+            }
+          }
+
+          l1Rows = l1Rows.map((r) => {
+            const ced = String(r?.encuestador ?? "").trim();
+            const encuestadorNombre = authByCedula.get(ced) || "";
+            return { ...r, encuestador_nombre: encuestadorNombre };
+          });
+        } else {
+          // fallback: no romper flujo si falla el cruce
+          l1Rows = l1Rows.map((r) => ({ ...r, encuestador_nombre: "" }));
+        }
+      } else {
+        l1Rows = l1Rows.map((r) => ({ ...r, encuestador_nombre: "" }));
+      }
+
       // Logros 2 actual (wakeup_seguimiento2) con búsqueda robusta
       let l2Rows: Record<string, unknown>[] = [];
       const l2Select = `

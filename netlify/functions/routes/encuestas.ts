@@ -153,6 +153,28 @@ function construirReferenciaRegistro(documento: string, idRegistro: number): str
   return `${documento}-R${idRegistro}`;
 }
 
+async function siguienteIdRegistroDocumento(
+  supabase: ReturnType<typeof getSupabase>,
+): Promise<number> {
+  const res = await supabase
+    .from("wakeup_seguimientos")
+    .select("id_registro")
+    .not("id_registro", "is", null)
+    .order("id_registro", { ascending: false })
+    .limit(1);
+
+  if (res.error) throw res.error;
+
+  const actual = Number(res.data?.[0]?.id_registro ?? 0);
+  return (Number.isFinite(actual) ? actual : 0) + 1;
+}
+
+function esErrorDuplicadoSupabase(error: { code?: string | null; message?: string | null }) {
+  const code = String(error?.code ?? "").trim();
+  const msg = String(error?.message ?? "").toLowerCase();
+  return code === "23505" || msg.includes("duplicate key") || msg.includes("unique constraint");
+}
+
 /** Minúsculas, sin diacríticos, espacios colapsados (tolerancia tipo unaccent + ILIKE). */
 function normalizeForPatientSearch(s: string): string {
   return s
@@ -300,21 +322,6 @@ async function crearEncuesta(
 
   const supabase = getSupabase();
 
-  const yaExiste = await supabase
-    .from("wakeup_seguimientos")
-    .select("id_int", { count: "exact", head: true })
-    .eq("documento", docPaciente);
-
-  if (yaExiste.error) {
-    return jsonResponse(
-      400,
-      errBody({ where: "SUPABASE SELECT DUP", error: yaExiste.error.message }),
-      origin,
-    );
-  }
-  const idRegistro = (yaExiste.count ?? 0) + 1;
-  const referenciaRegistro = construirReferenciaRegistro(docPaciente, idRegistro);
-
   const sintomasOrdenados = sintomasTop.slice(0, 3);
   const textos = (data.textos as Record<string, string>) || {};
   const objetivosOrdenados: (string | null)[] = [];
@@ -345,15 +352,13 @@ async function crearEncuesta(
   const objCols = aColumnaFija(objetivosOrdenados, 3);
   const sinCols = aColumnaFija(sintomasOrdenados, 3);
 
-  const row = {
+  const rowBase = {
     encuestador: docEncuestador,
     sede: sedeClean,
     nombres: String(data.nombres ?? "").trim(),
     apellidos: String(data.apellidos ?? "").trim(),
     tipo_documento: data.tipoDocumento,
     documento: docPaciente,
-    id_registro: idRegistro,
-    referencia_registro: referenciaRegistro,
     patologia_relacionada: patologiaRel,
     limitacion_moverse: data.limitacionMoverse,
     actividades_afectadas: data.actividadesAfectadas ?? [],
@@ -373,15 +378,57 @@ async function crearEncuesta(
     que_impide: data.queImpide ?? [],
   };
 
-  const res = await supabase.from("wakeup_seguimientos").insert(row).select();
+  let idRegistro = 0;
+  let referenciaRegistro = "";
+  let res: { error?: { code?: string; message?: string } | null; data?: unknown } = {};
+
+  try {
+    idRegistro = await siguienteIdRegistroDocumento(supabase);
+  } catch (e) {
+    const error = e as { message?: string };
+    return jsonResponse(
+      400,
+      errBody({
+        where: "SUPABASE SELECT NEXT_ID_REGISTRO",
+        error: error?.message ?? "No se pudo calcular el siguiente id_registro.",
+      }),
+      origin,
+    );
+  }
+
+  for (let intento = 0; intento < 3; intento += 1) {
+    referenciaRegistro = construirReferenciaRegistro(docPaciente, idRegistro);
+    const row = {
+      ...rowBase,
+      id_registro: idRegistro,
+      referencia_registro: referenciaRegistro,
+    };
+
+    res = await supabase.from("wakeup_seguimientos").insert(row).select();
+    if (!res.error) break;
+    if (!esErrorDuplicadoSupabase(res.error)) {
+      return jsonResponse(
+        400,
+        errBody({
+          where: "SUPABASE INSERT",
+          error: res.error.message,
+          row,
+        }),
+        origin,
+      );
+    }
+    // Si hubo colisión por carrera concurrente, avanza consecutivo y reintenta.
+    idRegistro += 1;
+  }
 
   if (res.error) {
     return jsonResponse(
       400,
       errBody({
-        where: "SUPABASE INSERT",
-        error: res.error.message,
-        row,
+        where: "SUPABASE INSERT RETRY",
+        error:
+          "No se pudo asignar una referencia única al registro. Intente nuevamente.",
+        detalle: res.error.message,
       }),
       origin,
     );

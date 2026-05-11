@@ -25,6 +25,7 @@ export const ACTIVIDADES_LABELS = {
   vida_social: "Vida social o familiar",
   ocio: "Ocio",
   ejercicio: "Ejercicio",
+  ninguna: "Ninguna",
 };
 
 export function formatLimitacion(value) {

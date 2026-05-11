@@ -1,0 +1,54 @@
+# Misma configuración que ../netlify.toml, pero sin [build].base: este archivo vive
+# dentro de `frontend`, así `npx netlify dev` funciona con cwd en esta carpeta.
+# Desde la raíz del repo sigue usándose netlify.toml allí (base = "frontend").
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/verificacion"
+  to = "/.netlify/functions/api?__path=/verificacion"
+  status = 200
+
+[[redirects]]
+  from = "/verificacion/*"
+  to = "/.netlify/functions/api?__path=/verificacion/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/encuestas"
+  to = "/.netlify/functions/api?__path=/encuestas"
+  status = 200
+
+[[redirects]]
+  from = "/encuestas/*"
+  to = "/.netlify/functions/api?__path=/encuestas/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/autorizados"
+  to = "/.netlify/functions/api?__path=/autorizados"
+  status = 200
+
+[[redirects]]
+  from = "/autorizados/*"
+  to = "/.netlify/functions/api?__path=/autorizados/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Puerto del proxy distinto de 8888 por defecto: si otro `netlify dev` (p. ej. portafolio)
+# ya usa 8888, el navegador seguiría mostrando ese sitio. Abre la URL que imprime la CLI.
+[dev]
+  framework = "#custom"
+  command = "npm run dev"
+  targetPort = 5188
+  port = 8889

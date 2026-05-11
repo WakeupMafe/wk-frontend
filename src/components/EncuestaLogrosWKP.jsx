@@ -341,8 +341,25 @@ export default function EncuestaLogrosWKP() {
     });
   };
 
-  const toggleActividades = (value) =>
-    toggleArrayValue("actividadesAfectadas", value);
+  const toggleActividades = (value) => {
+    setForm((prev) => {
+      const arr = prev.actividadesAfectadas;
+      const exists = arr.includes(value);
+
+      if (value === "ninguna") {
+        if (exists) {
+          return { ...prev, actividadesAfectadas: arr.filter((x) => x !== "ninguna") };
+        }
+        return { ...prev, actividadesAfectadas: ["ninguna"] };
+      }
+
+      if (exists) {
+        return { ...prev, actividadesAfectadas: arr.filter((x) => x !== value) };
+      }
+      const sinNinguna = arr.filter((x) => x !== "ninguna");
+      return { ...prev, actividadesAfectadas: [...sinNinguna, value] };
+    });
+  };
 
   const toggleQueImpide = (value) => toggleArrayValue("queImpide", value);
 
@@ -760,7 +777,7 @@ export default function EncuestaLogrosWKP() {
           options={ACTIVIDADES_AFECTADAS}
           values={form.actividadesAfectadas}
           onToggle={toggleActividades}
-          note="(Puede elegir todas las que apliquen)"
+          note="(Puede elegir todas las que apliquen; Ninguna no se combina con otras opciones)"
         />
 
         <CheckboxGroup

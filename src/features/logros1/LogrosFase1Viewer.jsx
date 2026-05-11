@@ -30,6 +30,7 @@ const ACTIVIDADES_LABELS = {
   vida_social: "Vida social o familiar",
   ocio: "Ocio",
   ejercicio: "Ejercicio",
+  ninguna: "Ninguna",
 };
 
 function formatLimitacion(value) {

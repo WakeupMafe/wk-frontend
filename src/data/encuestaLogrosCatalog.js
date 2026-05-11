@@ -36,6 +36,7 @@ export const ACTIVIDADES_AFECTADAS = [
   { value: "vida_social", label: "Vida social o familiar" },
   { value: "ocio", label: "Ocio" },
   { value: "ejercicio", label: "Ejercicio/deporte" },
+  { value: "ninguna", label: "Ninguna" },
 ];
 
 export const PROBLEMAS = [

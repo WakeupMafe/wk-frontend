@@ -6,7 +6,7 @@
  * Desarrollo:
  * - Recomendado: `npx netlify dev` desde la raíz del repo y abrir la URL que muestra la CLI
  *   (mismo origen para React y Functions). Deja VITE_API_URL sin definir.
- * - Solo `npm run dev` (Vite :5173): sin proxy a Functions; define VITE_API_URL si la API
+ * - Solo `npm run dev` (Vite, puerto en vite.config.js): sin proxy a Functions; define VITE_API_URL si la API
  *   corre en otro sitio (p. ej. http://127.0.0.1:8000 para el backend Python).
  */
 export function getApiBase() {

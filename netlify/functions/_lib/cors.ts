@@ -5,6 +5,8 @@ const ALLOW_ORIGINS = new Set([
   "http://localhost:5174",
   "http://127.0.0.1:5174",
   "http://localhost:5173",
+  "http://127.0.0.1:5188",
+  "http://localhost:5188",
   "https://wkseguimientos.netlify.app",
   "https://www.wkseguimientos.netlify.app",
 ]);

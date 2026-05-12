@@ -221,52 +221,11 @@ body {
   color: #64748b;
 }
 
-/* ——— Botones ——— */
-.first-time-page .btn {
-  min-height: clamp(2.5rem, 2rem + 1vw, 3rem);
-  border-radius: clamp(0.5rem, 1vw, 0.75rem);
-  border: none;
-  padding: clamp(0.45rem, 1.2vw, 0.65rem) clamp(0.75rem, 2vw, 1rem);
-  font-family: "Poppins", sans-serif;
-  font-size: clamp(0.8125rem, 0.75rem + 0.3vw, 1rem);
-  font-weight: 500;
-  cursor: pointer;
+/* ——— Botones (ButtonComponente) ——— */
+.first-time-actions .btn-componente {
   width: 100%;
-  box-shadow: 0 2px 8px rgba(31, 58, 95, 0.12);
 }
 
-.first-time-page .btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-  box-shadow: none;
-}
-
-.first-time-page .btn--primary {
-  background: #2f6fed;
-  color: white;
-}
-
-.first-time-page .btn--primary:hover:not(:disabled) {
-  transform: scale(1.02);
-  background-color: #20853d;
-}
-
-.first-time-page .btn--secondary {
-  background: #e9f0ff;
-  color: #2f6fed;
-}
-
-.first-time-page .btn--secondary:hover:not(:disabled) {
-  background: #97aad3;
-  color: #fff;
-}
-
-.first-time-page .btn--ready {
-  background-color: #22c55e;
-  color: white;
-  transition: background-color 0.2s ease;
-}
-
-.first-time-page .btn--ready:hover:not(:disabled) {
-  background-color: #16a34a;
+.first-time-verify__pin-btn.btn-componente {
+  width: 100%;
 }

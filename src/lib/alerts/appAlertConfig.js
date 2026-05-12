@@ -3,4 +3,8 @@ export const APP_ALERT_DEFAULTS = {
   allowOutsideClick: false,
   allowEscapeKey: true,
   heightAuto: false,
+  showCloseButton: true,
+  closeButtonAriaLabel: "Cerrar",
+  showClass: { popup: "", backdrop: "", icon: "" },
+  hideClass: { popup: "", backdrop: "", icon: "" },
 };

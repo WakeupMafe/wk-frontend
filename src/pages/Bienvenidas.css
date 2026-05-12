@@ -89,6 +89,24 @@
   box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
 }
 
+/* Reenvío PIN: usa ButtonComponente; solo layout */
+.pin-reenviar-wrap {
+  margin-top: 1.25rem;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.pin-reenviar-wrap .pin-reenviar-btn {
+  width: min(50%, 22rem);
+}
+
+@media (max-width: 1024px) {
+  .pin-reenviar-wrap .pin-reenviar-btn {
+    width: min(92%, 22rem);
+  }
+}
+
 .btn-entrar-bienvenida {
   align-items: center;
   border-radius: clamp(14px, 2vw, 20px);

@@ -4,6 +4,7 @@ import "./LoginFirstTime.css";
 
 import SelectInput from "../components/SelectInput";
 import TextInput from "../components/TextInput";
+import Button from "../components/ButtonComponente";
 import WelcomeLayout from "../layouts/WelcomeLayout";
 
 import {
@@ -13,6 +14,7 @@ import {
   alertUsuarioYaExiste,
 } from "../lib/alerts/appAlert";
 import { apiUrl } from "../lib/api/baseUrl";
+import { textoAyudaFalloEnvio } from "../lib/smtpEnvioAyuda";
 
 import { verificarPin } from "../services/verificarPin";
 
@@ -111,7 +113,13 @@ export default function LoginFirstTime() {
   };
 
   const handleSolicitarCodigoDirecto = async (cedulaParam) => {
-    if (cooldown > 0) return;
+    if (cooldown > 0) {
+      await alertWarning({
+        title: "Espera un momento",
+        text: `Puedes solicitar otro código en ${cooldown} segundos.`,
+      });
+      return;
+    }
 
     const cedula = (cedulaParam || form.cedula).replace(/\D/g, "").trim();
 
@@ -143,21 +151,34 @@ export default function LoginFirstTime() {
       }
 
       if (data?.ok) {
-        const enviado = data?.correoEnviado !== false;
-        await alertSuccess({
-          title: enviado ? "PIN reenviado" : "No se envió el correo",
-          html: enviado
-            ? `
-            <p>Si el correo está correcto, el PIN te llegará.</p>
+        const enviado = data.correoEnviado === true;
+        const mask = data?.correoDestinoMascarado;
+        const ayuda =
+          !enviado && data?.envioRazon
+            ? textoAyudaFalloEnvio(data.envioRazon)
+            : "";
+        if (enviado) {
+          await alertSuccess({
+            title: "PIN reenviado",
+            html: `
+            <p>Destino según tu cédula: <b>${mask || "correo registrado"}</b>.</p>
+            <p>Si el correo es correcto, el PIN te llegará.</p>
             <p><b>Revisa spam</b> también.</p>
-          `
-            : `
-            <p>No se pudo enviar el correo (SMTP). Tu usuario sigue en el sistema; intenta más tarde o contacta al administrador.</p>
           `,
-        });
+          });
+          iniciarCooldown(40);
+        } else {
+          await alertError({
+            title: "No se envió el correo",
+            html: `
+            <p>Intentamos enviar a: <b>${mask || "tu correo registrado"}</b>.</p>
+            ${ayuda}
+            <p>Tu usuario sigue en el sistema; intenta más tarde o contacta al administrador.</p>
+          `,
+          });
+        }
 
         setPinEnviado(true);
-        if (enviado) iniciarCooldown(40);
         return;
       }
 
@@ -248,18 +269,24 @@ export default function LoginFirstTime() {
       }
 
       if (data?.ok) {
-        const enviado = data?.correoEnviado !== false;
+        const enviado = data.correoEnviado === true;
+        const mask = data?.correoDestinoMascarado;
+        const ayuda =
+          !enviado && data?.envioRazon
+            ? textoAyudaFalloEnvio(data.envioRazon)
+            : "";
         await alertSuccess({
           title: enviado ? "Código enviado" : "Registro guardado",
           html: enviado
             ? `
-            <p>Tu PIN ha sido enviado al correo registrado.</p>
+            <p>Envío a: <b>${mask || "correo que registraste"}</b>.</p>
             <p><b>Ojo:</b> si el correo está errado, no llegará el PIN.</p>
             <p><b>Revisa también la carpeta de spam.</b></p>
             <p>Tiempo estimado de llegada: 40s–2 minutos.</p>
           `
             : `
-            <p>Tu registro quedó guardado, pero <b>no se pudo enviar el correo</b> desde el servidor (SMTP).</p>
+            <p>Tu registro quedó guardado; intentamos notificar a: <b>${mask || "tu correo"}</b>.</p>
+            ${ayuda}
             <p>Cuando el correo esté configurado, usa <b>Solicitar Nuevo Código</b> o pide ayuda al administrador.</p>
           `,
         });
@@ -399,25 +426,25 @@ export default function LoginFirstTime() {
             />
 
             <div className="first-time-actions">
-              <button
+              <Button
                 type="button"
-                className="btn btn--primary"
+                variant="accent"
                 onClick={handleGuardar}
                 disabled={saving}
               >
                 {saving ? "Guardando..." : "Guardar"}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
-                className={`btn btn--secondary ${
-                  cooldown === 0 && pinEnviado ? "btn--ready" : ""
-                }`}
+                variant={
+                  pinEnviado && cooldown === 0 ? "teal" : "outline"
+                }
                 onClick={handleSolicitarCodigo}
                 disabled={!pinEnviado || cooldown > 0}
               >
                 Solicitar Nuevo Código
-              </button>
+              </Button>
             </div>
 
             <section className="first-time-verify" aria-label="Verificación PIN">
@@ -435,14 +462,15 @@ export default function LoginFirstTime() {
                   }}
                 />
 
-                <button
+                <Button
                   type="button"
-                  className="btn btn--primary first-time-verify__pin-btn"
+                  variant="accent"
+                  className="first-time-verify__pin-btn"
                   onClick={handleVerificarCodigo}
                   disabled={!pinEnviado || !form.codigo.trim()}
                 >
                   Verificar PIN
-                </button>
+                </Button>
               </div>
 
               <div className="first-time-verify__hint">

@@ -1,4 +1,5 @@
 import type { HandlerResponse } from "@netlify/functions";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabase } from "../_lib/supabase";
 import { generarPin2Letras3Numeros } from "../_lib/pin";
 import { enviarPinPorCorreo } from "../_lib/email";
@@ -71,6 +72,37 @@ function dedupeRowsBy<T extends Record<string, unknown>>(
   return out;
 }
 
+/** Para confirmar en UI que el envío va al correo correcto sin exponer el email completo. */
+export function maskCorreoParaUi(correo: string): string {
+  const c = (correo || "").trim().toLowerCase();
+  const at = c.indexOf("@");
+  if (at < 1) return "(sin correo)";
+  const local = c.slice(0, at);
+  const domain = c.slice(at + 1);
+  if (!domain) return "(sin correo)";
+  const head = local.slice(0, Math.min(2, local.length));
+  return `${head}***@${domain}`;
+}
+
+/**
+ * La columna `cedula` en algunas instalaciones es bigint y en otras texto.
+ * Si solo probamos un tipo, el SELECT devolvía 0 filas → “cédula no autorizada” o envío al vacío.
+ */
+async function selectAutorizadoByCedula(
+  supabase: SupabaseClient,
+  cedulaDigits: string,
+  columns: string,
+) {
+  const n = parseInt(cedulaDigits, 10);
+  const run = (val: number | string) =>
+    supabase.from("autorizados").select(columns).eq("cedula", val).limit(1);
+
+  let r = await run(n);
+  if (r.error) return r;
+  if (r.data?.length) return r;
+  return run(cedulaDigits);
+}
+
 export async function handleVerificacion(
   pathname: string,
   method: string,
@@ -125,12 +157,11 @@ export async function handleVerificacion(
       const cedula = toIntOr400(cedulaStr);
       const supabase = getSupabase();
 
-      const existente = await supabase
-        .from("autorizados")
-        .select("cedula, correo, pin")
-        .eq("cedula", cedula)
-        .limit(1)
-        .maybeSingle();
+      const existente = await selectAutorizadoByCedula(
+        supabase,
+        cedulaStr,
+        "cedula, correo, pin",
+      );
 
       if (existente.error) {
         return jsonResponse(
@@ -142,7 +173,7 @@ export async function handleVerificacion(
           origin,
         );
       }
-      if (existente.data) {
+      if (existente.data?.[0]) {
         return jsonResponse(
           409,
           errBody(
@@ -189,12 +220,16 @@ export async function handleVerificacion(
         console.error(
           "[verificacion/registro-inicial] insert OK pero correo falló:",
           mail.error,
+          "envioRazon:",
+          mail.razon,
         );
         return jsonResponse(
           200,
           {
             ok: true,
             correoEnviado: false,
+            correoDestinoMascarado: maskCorreoParaUi(correo),
+            envioRazon: mail.razon,
             message:
               "Usuario registrado. No se pudo enviar el correo ahora; usa «Solicitar Nuevo Código» en unos minutos o revisa la configuración SMTP en el servidor.",
           },
@@ -207,6 +242,7 @@ export async function handleVerificacion(
         {
           ok: true,
           correoEnviado: true,
+          correoDestinoMascarado: maskCorreoParaUi(correo),
           message: "Usuario registrado correctamente. PIN enviado al correo.",
         },
         origin,
@@ -233,8 +269,8 @@ export async function handleVerificacion(
         return jsonResponse(400, errBody("Cédula inválida"), origin);
       }
 
-      const cedula = toIntOr400(cedulaStr);
-      console.log("[verificacion/cedula] cedula numérica", { cedula });
+      toIntOr400(cedulaStr);
+      console.log("[verificacion/cedula] cédula (dígitos)", { cedulaStr });
 
       let supabase;
       try {
@@ -244,12 +280,11 @@ export async function handleVerificacion(
         throw e;
       }
 
-      const resp = await supabase
-        .from("autorizados")
-        .select("cedula, nombres, correo")
-        .eq("cedula", cedula)
-        .limit(1)
-        .maybeSingle();
+      const resp = await selectAutorizadoByCedula(
+        supabase,
+        cedulaStr,
+        "cedula, nombres, correo",
+      );
 
       if (resp.error) {
         console.error("[verificacion/cedula] error Supabase SELECT:", {
@@ -265,12 +300,18 @@ export async function handleVerificacion(
         );
       }
 
-      const row = resp.data;
-      const out = {
+      const row = resp.data?.[0] ?? null;
+      const correoRow = row
+        ? cleanStr(String((row as { correo?: string }).correo ?? "")).toLowerCase()
+        : "";
+      const out: Record<string, unknown> = {
         ok: !!row,
         exists: !!row,
         message: row ? "Cédula encontrada" : "Cédula no encontrada",
       };
+      if (row && correoRow) {
+        out.correoRegistradoMascarado = maskCorreoParaUi(correoRow);
+      }
       console.log("[verificacion/cedula] respuesta 200", out);
       return jsonResponse(200, out, origin);
     }
@@ -287,15 +328,14 @@ export async function handleVerificacion(
         return jsonResponse(400, errBody("PIN vacío"), origin);
       }
 
-      const cedula = toIntOr400(cedulaStr);
+      toIntOr400(cedulaStr);
       const supabase = getSupabase();
 
-      const resp = await supabase
-        .from("autorizados")
-        .select("pin, nombres, sede")
-        .eq("cedula", cedula)
-        .limit(1)
-        .maybeSingle();
+      const resp = await selectAutorizadoByCedula(
+        supabase,
+        cedulaStr,
+        "pin, nombres, sede",
+      );
 
       if (resp.error) {
         return jsonResponse(
@@ -305,11 +345,12 @@ export async function handleVerificacion(
         );
       }
 
-      if (!resp.data) {
+      const rowPin = resp.data?.[0];
+      if (!rowPin) {
         return jsonResponse(200, { ok: false }, origin);
       }
 
-      const pinDb = cleanStr(String(resp.data.pin ?? ""));
+      const pinDb = cleanStr(String(rowPin.pin ?? ""));
       if (pinDb !== pin) {
         return jsonResponse(200, { ok: false }, origin);
       }
@@ -318,8 +359,8 @@ export async function handleVerificacion(
         200,
         {
           ok: true,
-          usuario: resp.data.nombres,
-          sede: resp.data.sede,
+          usuario: rowPin.nombres,
+          sede: rowPin.sede,
         },
         origin,
       );
@@ -331,15 +372,14 @@ export async function handleVerificacion(
       if (!cedulaStr) {
         return jsonResponse(400, errBody("Cédula inválida"), origin);
       }
-      const cedula = toIntOr400(cedulaStr);
+      toIntOr400(cedulaStr);
       const supabase = getSupabase();
 
-      const resp = await supabase
-        .from("autorizados")
-        .select("correo, pin")
-        .eq("cedula", cedula)
-        .limit(1)
-        .maybeSingle();
+      const resp = await selectAutorizadoByCedula(
+        supabase,
+        cedulaStr,
+        "correo, pin",
+      );
 
       if (resp.error) {
         return jsonResponse(
@@ -348,12 +388,15 @@ export async function handleVerificacion(
           origin,
         );
       }
-      if (!resp.data) {
+
+      const rowReenvio = resp.data?.[0];
+      if (!rowReenvio) {
         return jsonResponse(404, errBody("Cédula no encontrada"), origin);
       }
 
-      const correo = cleanStr(String(resp.data.correo ?? "")).toLowerCase();
-      const pin = cleanStr(String(resp.data.pin ?? ""));
+      const correo = cleanStr(String(rowReenvio.correo ?? "")).toLowerCase();
+      const pin = cleanStr(String(rowReenvio.pin ?? ""));
+      const correoMascarado = maskCorreoParaUi(correo);
 
       if (!correo) {
         return jsonResponse(400, errBody("No hay correo registrado"), origin);
@@ -366,17 +409,28 @@ export async function handleVerificacion(
         );
       }
 
+      console.log(
+        "[verificacion/reenviar-pin] envío a correo asociado en BD:",
+        correoMascarado,
+        "cedulaDigits:",
+        cedulaStr,
+      );
+
       const mail = await enviarPinPorCorreo(correo, pin);
       if (!mail.ok) {
         console.error(
           "[verificacion/reenviar-pin] correo falló:",
           mail.error,
+          "envioRazon:",
+          mail.razon,
         );
         return jsonResponse(
           200,
           {
             ok: true,
             correoEnviado: false,
+            correoDestinoMascarado: correoMascarado,
+            envioRazon: mail.razon,
             message:
               "No se pudo enviar el correo en este momento. Revisa SMTP en el servidor o intenta más tarde.",
           },
@@ -384,11 +438,14 @@ export async function handleVerificacion(
         );
       }
 
+      console.log("[verificacion/reenviar-pin] enviarPinPorCorreo OK →", correoMascarado);
+
       return jsonResponse(
         200,
         {
           ok: true,
           correoEnviado: true,
+          correoDestinoMascarado: correoMascarado,
           message: "PIN reenviado correctamente",
         },
         origin,

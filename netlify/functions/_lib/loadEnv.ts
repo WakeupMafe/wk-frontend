@@ -11,22 +11,30 @@ import { fileURLToPath } from "node:url";
 
 let didLoad = false;
 
-/** Sube desde `startDir` hasta la raíz del volumen buscando `markerFile` en cada nivel. */
-function findDirContainingFile(
+/**
+ * Sube desde `startDir` hasta la raíz del volumen y devuelve el directorio **más externo**
+ * que contiene `markerFile`.
+ *
+ * Importante: hay dos `netlify.toml` (raíz del repo y `frontend/`). Si tomáramos el primero
+ * al subir desde `frontend/netlify/functions/...`, quedaríamos en `frontend/` y cargaríamos
+ * solo `frontend/.env`, ignorando `.env` en la raíz → SUPABASE_* ausentes → 503 en `/verificacion/*`.
+ */
+function findOutermostDirContainingFile(
   startDir: string,
   markerFile: string,
 ): string | null {
   let dir = path.resolve(startDir);
-  const root = path.parse(dir).root;
+  const volRoot = path.parse(dir).root;
+  let outermost: string | null = null;
   for (let i = 0; i < 60; i++) {
     if (fs.existsSync(path.join(dir, markerFile))) {
-      return dir;
+      outermost = dir;
     }
     const parent = path.dirname(dir);
-    if (parent === dir || dir === root) break;
+    if (parent === dir || dir === volRoot) break;
     dir = parent;
   }
-  return null;
+  return outermost;
 }
 
 function resolveRepoRootWithNetlifyToml(): string | null {
@@ -47,7 +55,7 @@ function resolveRepoRootWithNetlifyToml(): string | null {
     const resolved = path.resolve(seed);
     if (tried.has(resolved)) continue;
     tried.add(resolved);
-    const root = findDirContainingFile(resolved, "netlify.toml");
+    const root = findOutermostDirContainingFile(resolved, "netlify.toml");
     if (root) return root;
   }
   return null;
@@ -161,7 +169,13 @@ export function loadNetlifyFunctionEnv(): void {
 
   const envFile = path.join(root, ".env");
   const localFile = path.join(root, ".env.local");
+  /** Si la raíz es el repo (no la carpeta frontend), las vars de Vite suelen estar aquí. */
   const frontendEnv = path.join(root, "frontend", ".env");
+  /** Si por algún motivo `root` quedó en `.../frontend`, el .env local es este (no root/frontend/.env). */
+  const envBesideFrontendToml =
+    path.basename(root) === "frontend"
+      ? path.join(root, ".env")
+      : "";
 
   const envFileExistedBefore = fs.existsSync(envFile);
   let envLocalLoaded = false;
@@ -182,6 +196,13 @@ export function loadNetlifyFunctionEnv(): void {
   if (!urlAfter || !keyAfter) {
     if (fs.existsSync(frontendEnv)) {
       envFrontendLoaded = applyEnvFile(frontendEnv, "frontend/.env");
+    }
+    if ((!process.env.SUPABASE_URL?.trim() || !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) &&
+      envBesideFrontendToml &&
+      fs.existsSync(envBesideFrontendToml)) {
+      envFrontendLoaded =
+        applyEnvFile(envBesideFrontendToml, "frontend/.env (junto a netlify.toml)") ||
+        envFrontendLoaded;
     }
   }
 

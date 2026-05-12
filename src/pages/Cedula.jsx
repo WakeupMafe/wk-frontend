@@ -39,13 +39,22 @@ export default function Cedula() {
         body: JSON.stringify({ cedula: cedula }), // ✅ string
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
+        if (res.status === 503 && data?.code === "SUPABASE_CONFIG") {
+          return setError(
+            "El servicio de datos no está disponible (falta configuración Supabase). En local: archivo .env en la raíz del proyecto con SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY, y ejecuta «netlify dev» (no solo «npm run dev»).",
+          );
+        }
+        const detail = data?.detail;
+        if (typeof detail === "string" && detail.trim()) {
+          return setError(detail);
+        }
         return setError("Error del servidor");
       }
 
       // ✅ Solo si el backend dice que existe, pasas a /pin
-      const data = await res.json();
-
       if (!data.ok) {
         return setError("Tu cédula no está autorizada");
       }

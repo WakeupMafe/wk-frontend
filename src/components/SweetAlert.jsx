@@ -1,6 +1,12 @@
 import Swal from "sweetalert2";
 import "../components/SweetAlert.css";
 
+/** Animaciones vacías = modal aparece al instante (sin demora del popup/icono). */
+const SWAL_FAST_CLASSES = {
+  showClass: { popup: "", backdrop: "", icon: "" },
+  hideClass: { popup: "", backdrop: "", icon: "" },
+};
+
 export async function sweetAlert({
   icon = "success",
   title = "",
@@ -14,6 +20,9 @@ export async function sweetAlert({
     text: html ? undefined : text,
     html: html || undefined,
     confirmButtonText,
+    showCloseButton: true,
+    closeButtonAriaLabel: "Cerrar",
+    ...SWAL_FAST_CLASSES,
   });
 }
 
@@ -31,6 +40,7 @@ export function sweetLoading({
     didOpen: () => {
       Swal.showLoading();
     },
+    ...SWAL_FAST_CLASSES,
   });
 }
 

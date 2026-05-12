@@ -1,4 +1,5 @@
 import { sweetAlert } from "../components/SweetAlert";
+import { toastSuccess } from "../lib/alerts/appAlert";
 import { apiUrl } from "../lib/api/baseUrl";
 
 function limpiarCedula(value) {
@@ -88,14 +89,6 @@ export async function verificarPin({ cedula, pin, navigate }) {
     const usuario = data?.usuario || "Usuario";
     const sede = data?.sede || "Sin sede";
 
-    await sweetAlert({
-      icon: "success",
-      title: "PIN ingresado correctamente",
-      html: `Bienvenid@, <b>${usuario}</b>!`,
-      confirmButtonText: "Continuar",
-    });
-
-    // ✅ CLAVE: enviar pin y cedula para que AutorizadosInicio no rebote
     navigate("/autorizados-inicio", {
       state: {
         usuario,
@@ -103,6 +96,11 @@ export async function verificarPin({ cedula, pin, navigate }) {
         pin: pinLimpio,
         cedula: cedulaLimpia,
       },
+    });
+
+    toastSuccess({
+      title: "Inicio de sesión exitoso",
+      text: `Bienvenid@, ${usuario}!`,
     });
   } catch (e) {
     console.error("❌ verificarPin.js catch:", e);

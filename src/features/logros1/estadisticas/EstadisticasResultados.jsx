@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
+import Swal from "sweetalert2";
 import Button from "../../../components/ButtonComponente";
 import {
   FormLabel,
@@ -569,6 +570,7 @@ export default function EstadisticasResultados() {
   const [buscando, setBuscando] = useState(false);
   const [registrosEncontrados, setRegistrosEncontrados] = useState([]);
   const [registroSeleccionado, setRegistroSeleccionado] = useState(null);
+  const [eliminandoId, setEliminandoId] = useState(null);
 
   const handleBuscar = async () => {
     if (filtroTipo !== "cedula") {
@@ -647,6 +649,156 @@ export default function EstadisticasResultados() {
       });
     } finally {
       setBuscando(false);
+    }
+  };
+
+  const confirmSwalEliminar = async (title, text) => {
+    const r = await Swal.fire({
+      title,
+      text,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí",
+      cancelButtonText: "No",
+      customClass: {
+        popup: "swal-eliminar-peligro",
+      },
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#2563eb",
+      reverseButtons: false,
+      focusCancel: true,
+    });
+    return r.isConfirmed === true;
+  };
+
+  /** Segundo paso: escribir la palabra clave para poder borrar. */
+  const confirmSwalEliminarEscribirPalabra = async () => {
+    const r = await Swal.fire({
+      title: "Confirmación final",
+      html:
+        "<p style=\"margin:0 0 12px;text-align:left\">" +
+        "Para confirmar el borrado, escribe la palabra <strong>eliminar</strong> " +
+        "(en minúsculas, sin comillas).</p>",
+      icon: "warning",
+      input: "text",
+      inputPlaceholder: "eliminar",
+      showCancelButton: true,
+      confirmButtonText: "Confirmar borrado",
+      cancelButtonText: "Cancelar",
+      customClass: {
+        popup: "swal-eliminar-peligro",
+      },
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#2563eb",
+      reverseButtons: false,
+      focusCancel: true,
+      inputAttributes: {
+        autocapitalize: "off",
+        autocorrect: "off",
+        spellcheck: "false",
+      },
+      inputValidator: (value) => {
+        const ok = String(value ?? "").trim() === "eliminar";
+        if (!ok) {
+          return "Debes escribir exactamente: eliminar (todo en minúsculas)";
+        }
+        return undefined;
+      },
+    });
+    return r.isConfirmed === true;
+  };
+
+  const textoDetalleEliminar = (json) => {
+    const d = json?.detail;
+    if (typeof d === "string" && d.trim()) return d.trim();
+    if (d && typeof d === "object") {
+      if (typeof d.userMessage === "string" && d.userMessage.trim()) {
+        return d.userMessage.trim();
+      }
+      if (typeof d.error === "string" && d.error.trim()) return d.error.trim();
+      if (typeof d.message === "string" && d.message.trim()) {
+        return d.message.trim();
+      }
+    }
+    if (typeof json?.message === "string" && json.message.trim()) {
+      return json.message.trim();
+    }
+    return "";
+  };
+
+  const handleEliminarRegistro = async (registro) => {
+    const spec = registro?.delete_spec;
+    if (!spec || typeof spec !== "object") {
+      await alertWarning({
+        title: "No se puede eliminar",
+        text:
+          "Este registro no tiene identificador interno para borrarlo (por ejemplo falta id_int en Logros 1). Vuelve a buscar; si sigue igual, puede ser un dato antiguo incompleto — contacta soporte.",
+      });
+      return;
+    }
+
+    const ok1 = await confirmSwalEliminar(
+      "¿Estás seguro de eliminar ese registro?",
+      registro?.etiqueta
+        ? `Se eliminará: ${registro.etiqueta}. Esta acción no se puede deshacer.`
+        : "El registro se borrará de la base de datos. Esta acción no se puede deshacer.",
+    );
+    if (!ok1) return;
+
+    const ok2 = await confirmSwalEliminarEscribirPalabra();
+    if (!ok2) return;
+
+    const documento = String(cedulaBusqueda).replace(/\D/g, "").trim();
+    setEliminandoId(registro.id);
+    try {
+      const res = await fetch(apiUrl("/verificacion/registros/eliminar"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documento,
+          delete_spec: spec,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detalle = textoDetalleEliminar(json);
+        await alertError({
+          title: "No se pudo eliminar",
+          text:
+            detalle ||
+            "Intenta de nuevo o revisa permisos en el servidor.",
+        });
+        return;
+      }
+      if (!json?.ok) {
+        await alertError({
+          title: "No se pudo eliminar",
+          text: json?.message || "Respuesta inesperada del servidor.",
+        });
+        return;
+      }
+
+      setRegistrosEncontrados((prev) => {
+        const next = prev.filter((x) => x.id !== registro.id);
+        setRegistroSeleccionado((cur) => {
+          if (cur?.id !== registro.id) return cur;
+          return next[0] ?? null;
+        });
+        return next;
+      });
+
+      await toastSuccess({
+        title: "Registro eliminado",
+        text: "La lista se actualizó.",
+      });
+    } catch (e) {
+      console.error(e);
+      await alertError({
+        title: "Error de conexión",
+        text: "No fue posible conectar con el servidor.",
+      });
+    } finally {
+      setEliminandoId(null);
     }
   };
 
@@ -828,15 +980,27 @@ export default function EstadisticasResultados() {
                     {fmtDate(r.created_at)} · {r.sede || "Sin sede"}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={registroSeleccionado?.id === r.id ? "teal" : "tealSoft"}
-                  className="estad-res__item-btn"
-                  onClick={() => setRegistroSeleccionado(r)}
-                >
-                  Visualizar
-                </Button>
+                <div className="estad-res__item-actions">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={registroSeleccionado?.id === r.id ? "teal" : "tealSoft"}
+                    className="estad-res__item-btn"
+                    onClick={() => setRegistroSeleccionado(r)}
+                  >
+                    Visualizar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="muted"
+                    className="estad-res__item-btn estad-res__item-btn--danger"
+                    disabled={!r.delete_spec || eliminandoId === r.id}
+                    onClick={() => handleEliminarRegistro(r)}
+                  >
+                    {eliminandoId === r.id ? "Eliminando…" : "Eliminar"}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

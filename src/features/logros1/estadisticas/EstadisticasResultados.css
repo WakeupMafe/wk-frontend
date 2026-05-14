@@ -158,6 +158,15 @@
   background: #fff;
 }
 
+.estad-res__item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
 .estad-res__item.is-active {
   border-color: rgba(47, 90, 130, 0.38);
   box-shadow: 0 0 0 2px rgba(47, 90, 130, 0.1);
@@ -180,10 +189,10 @@
   font-size: clamp(0.68rem, 0.95vw, 0.8rem);
 }
 
-.estad-res__item-btn {
-  min-height: clamp(1.9rem, 4.4vw, 2.2rem);
-  padding-inline: clamp(0.5rem, 1.6vw, 0.85rem);
-  border-radius: clamp(0.45rem, 1vw, 0.65rem);
+.estad-res__item-btn--danger:hover:not(:disabled) {
+  background: #fecaca !important;
+  color: #991b1b !important;
+  border-color: #f87171;
 }
 
 .estad-res__logros2 {
@@ -330,6 +339,16 @@
     align-items: stretch;
     flex-direction: column;
     gap: 0.45rem;
+  }
+
+  .estad-res__item-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .estad-res__item-actions .btn-componente {
+    flex: 1;
+    min-width: 0;
   }
 
   .estad-res__item-btn {

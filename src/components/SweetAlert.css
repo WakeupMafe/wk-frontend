@@ -69,6 +69,17 @@ button.swal2-close:focus {
   background-color: #1b9fe6 !important;
 }
 
+/* Confirmación destructiva (eliminar): el botón principal debe ser rojo */
+.swal2-popup.swal-eliminar-peligro .swal2-confirm {
+  background-color: #dc2626 !important;
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.35);
+}
+
+.swal2-popup.swal-eliminar-peligro .swal2-confirm:hover {
+  background-color: #b91c1c !important;
+  box-shadow: 0 6px 16px rgba(185, 28, 28, 0.45);
+}
+
 /* Icono success */
 .swal2-success-ring {
   border-color: #4a82bd !important;

@@ -38,6 +38,132 @@ function errBody(detail: unknown) {
   return { detail };
 }
 
+/** Comparación tolerante de instantes ISO (timestamptz vs string en JSON). */
+function sameInstantIso(a: unknown, b: unknown): boolean {
+  const sa = a != null ? String(a).trim() : "";
+  const sb = b != null ? String(b).trim() : "";
+  if (!sa || !sb) return false;
+  if (sa === sb) return true;
+  const ta = Date.parse(sa);
+  const tb = Date.parse(sb);
+  return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb;
+}
+
+/**
+ * Mensaje legible cuando Supabase/Postgres rechaza el DELETE (FK, permisos, etc.).
+ */
+function explainSupabaseDeleteError(err: {
+  message?: string;
+  code?: string;
+  details?: string;
+} | null): string {
+  const msg = (err?.message ?? "").trim();
+  const code = (err?.code ?? "").trim();
+  const low = msg.toLowerCase();
+  if (
+    code === "23503" ||
+    low.includes("foreign key") ||
+    low.includes("violates foreign key")
+  ) {
+    return (
+      "No se puede eliminar este registro porque otra tabla de la base de datos " +
+      "sigue referenciándolo (por ejemplo un seguimiento Logros 2 o un vínculo antiguo). " +
+      "Elimine primero los registros asociados o contacte soporte. " +
+      (msg ? `Detalle técnico: ${msg}` : "")
+    );
+  }
+  if (
+    code === "42501" ||
+    low.includes("permission denied") ||
+    low.includes("row-level security") ||
+    low.includes("rls")
+  ) {
+    return (
+      "No tiene permisos para borrar este registro en la base de datos. " +
+      (msg ? `Detalle: ${msg}` : "")
+    );
+  }
+  return msg || "Error desconocido al eliminar en la base de datos.";
+}
+
+/**
+ * True si hay Logros 2 (tabla moderna o legada) enlazado a esta fila de Logros 1
+ * por documento + fecha de creación de la fase 1.
+ */
+async function logros1TieneSeguimiento2Dependiente(
+  supabase: SupabaseClient,
+  documentoPacienteInt: number,
+  documentoPacienteStr: string,
+  fase1CreatedAt: unknown,
+): Promise<boolean> {
+  const f1At = fase1CreatedAt != null ? String(fase1CreatedAt).trim() : "";
+  if (!f1At) return false;
+
+  const fetchL2 = async (docVal: number | string) =>
+    supabase
+      .from("wakeup_seguimiento2")
+      .select("id, deleted_at, payload_origen")
+      .eq("documento", docVal);
+
+  let l2 = await fetchL2(documentoPacienteInt);
+  if (l2.error || !l2.data?.length) {
+    const l2s = await fetchL2(documentoPacienteStr);
+    if (!l2s.error && l2s.data?.length) {
+      l2 = l2s;
+    }
+  }
+
+  if (!l2.error && Array.isArray(l2.data)) {
+    for (const row of l2.data as Record<string, unknown>[]) {
+      if (row.deleted_at != null && String(row.deleted_at).trim() !== "") {
+        continue;
+      }
+      const po = row.payload_origen as Record<string, unknown> | null | undefined;
+      const ref = (po?.fase1_referencia as Record<string, unknown>) || {};
+      const refDocDigits = onlyDigits(String(ref.documento ?? ""));
+      if (
+        refDocDigits &&
+        refDocDigits !== onlyDigits(String(documentoPacienteStr))
+      ) {
+        continue;
+      }
+      if (sameInstantIso(ref.created_at, f1At)) {
+        return true;
+      }
+    }
+  }
+
+  const optCols = await supabase
+    .from("wakeup_seguimiento2")
+    .select("id")
+    .eq("fase1_documento", documentoPacienteInt)
+    .eq("fase1_created_at", f1At)
+    .limit(1);
+  if (!optCols.error && Array.isArray(optCols.data) && optCols.data.length > 0) {
+    return true;
+  }
+
+  const legInt = await supabase
+    .from("wakeup_seguimientos_logros2")
+    .select("id_int")
+    .eq("fase1_documento", documentoPacienteInt)
+    .eq("fase1_created_at", f1At)
+    .limit(1);
+
+  if (!legInt.error && Array.isArray(legInt.data) && legInt.data.length > 0) {
+    return true;
+  }
+
+  const legStr = await supabase
+    .from("wakeup_seguimientos_logros2")
+    .select("id_int")
+    .eq("fase1_documento", documentoPacienteStr)
+    .eq("fase1_created_at", f1At)
+    .limit(1);
+
+  return !legStr.error && Array.isArray(legStr.data) && legStr.data.length > 0;
+}
+
 function safeArray(value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) {
     return value.filter((v): v is Record<string, unknown> => !!v && typeof v === "object");
@@ -452,6 +578,185 @@ export async function handleVerificacion(
       );
     }
 
+    if (path === "/verificacion/registros/eliminar" && method === "POST") {
+      const payload = body as {
+        documento?: string;
+        delete_spec?: Record<string, unknown>;
+      } | null;
+      const docExpected = onlyDigits(String(payload?.documento ?? ""));
+      if (!docExpected) {
+        return jsonResponse(400, errBody("Documento requerido"), origin);
+      }
+      const spec = payload?.delete_spec;
+      if (!spec || typeof spec !== "object") {
+        return jsonResponse(400, errBody("delete_spec inválido"), origin);
+      }
+
+      const kind = String(spec.kind ?? "");
+      const supabase = getSupabase();
+
+      if (kind === "logros1") {
+        const idInt = Number(spec.id_int);
+        if (!Number.isFinite(idInt) || idInt <= 0) {
+          return jsonResponse(400, errBody("id_int inválido"), origin);
+        }
+        const sel = await supabase
+          .from("wakeup_seguimientos")
+          .select("id_int, documento, created_at")
+          .eq("id_int", idInt)
+          .maybeSingle();
+        if (sel.error) {
+          return jsonResponse(
+            400,
+            errBody({ where: "SELECT logros1", error: sel.error.message }),
+            origin,
+          );
+        }
+        if (!sel.data) {
+          return jsonResponse(404, errBody("Registro no encontrado"), origin);
+        }
+        const docRow = onlyDigits(String(sel.data.documento ?? ""));
+        if (docRow !== docExpected) {
+          return jsonResponse(
+            403,
+            errBody("El registro no corresponde al documento indicado."),
+            origin,
+          );
+        }
+
+        const docInt = parseInt(docExpected, 10);
+        const bloqueado =
+          Number.isFinite(docInt) &&
+          docInt > 0 &&
+          (await logros1TieneSeguimiento2Dependiente(
+            supabase,
+            docInt,
+            docExpected,
+            sel.data.created_at,
+          ));
+        if (bloqueado) {
+          return jsonResponse(
+            409,
+            errBody(
+              "No se puede eliminar esta encuesta de Logros 1 porque existe al menos un " +
+                "seguimiento Logros 2 (o una encuesta en el formato antiguo) asociado a la misma " +
+                "evaluación de fase 1. En el listado, elimine primero el registro de Logros 2 " +
+                "que corresponda a esa fecha; si no lo ve, contacte soporte.",
+            ),
+            origin,
+          );
+        }
+
+        const del = await supabase
+          .from("wakeup_seguimientos")
+          .delete()
+          .eq("id_int", idInt);
+        if (del.error) {
+          return jsonResponse(
+            400,
+            errBody(explainSupabaseDeleteError(del.error)),
+            origin,
+          );
+        }
+        return jsonResponse(200, { ok: true, eliminado: true }, origin);
+      }
+
+      if (kind === "logros2") {
+        const source = String(spec.source ?? "");
+        if (source === "modern") {
+          const id = Number(spec.id);
+          if (!Number.isFinite(id) || id <= 0) {
+            return jsonResponse(400, errBody("id inválido"), origin);
+          }
+          const sel = await supabase
+            .from("wakeup_seguimiento2")
+            .select("id, documento")
+            .eq("id", id)
+            .maybeSingle();
+          if (sel.error) {
+            return jsonResponse(
+              400,
+              errBody({ where: "SELECT logros2", error: sel.error.message }),
+              origin,
+            );
+          }
+          if (!sel.data) {
+            return jsonResponse(404, errBody("Registro no encontrado"), origin);
+          }
+          const docRow = onlyDigits(String(sel.data.documento ?? ""));
+          if (docRow !== docExpected) {
+            return jsonResponse(
+              403,
+              errBody("El registro no corresponde al documento indicado."),
+              origin,
+            );
+          }
+          await supabase
+            .from("wakeup_seguimiento2_items")
+            .delete()
+            .eq("seguimiento2_id", id);
+          const del = await supabase
+            .from("wakeup_seguimiento2")
+            .delete()
+            .eq("id", id);
+          if (del.error) {
+            return jsonResponse(
+              400,
+              errBody(explainSupabaseDeleteError(del.error)),
+              origin,
+            );
+          }
+          return jsonResponse(200, { ok: true, eliminado: true }, origin);
+        }
+
+        if (source === "legacy") {
+          const idInt = Number(spec.id_int);
+          if (!Number.isFinite(idInt) || idInt <= 0) {
+            return jsonResponse(400, errBody("id_int inválido"), origin);
+          }
+          const sel = await supabase
+            .from("wakeup_seguimientos_logros2")
+            .select("id_int, documento")
+            .eq("id_int", idInt)
+            .maybeSingle();
+          if (sel.error) {
+            return jsonResponse(
+              400,
+              errBody({ where: "SELECT logros2 legacy", error: sel.error.message }),
+              origin,
+            );
+          }
+          if (!sel.data) {
+            return jsonResponse(404, errBody("Registro no encontrado"), origin);
+          }
+          const docRow = onlyDigits(String(sel.data.documento ?? ""));
+          if (docRow !== docExpected) {
+            return jsonResponse(
+              403,
+              errBody("El registro no corresponde al documento indicado."),
+              origin,
+            );
+          }
+          const del = await supabase
+            .from("wakeup_seguimientos_logros2")
+            .delete()
+            .eq("id_int", idInt);
+          if (del.error) {
+            return jsonResponse(
+              400,
+              errBody(explainSupabaseDeleteError(del.error)),
+              origin,
+            );
+          }
+          return jsonResponse(200, { ok: true, eliminado: true }, origin);
+        }
+
+        return jsonResponse(400, errBody("source logros2 inválido"), origin);
+      }
+
+      return jsonResponse(400, errBody("kind inválido"), origin);
+    }
+
     const registrosMatch = path.match(/^\/verificacion\/registros\/(.+)$/);
     if (registrosMatch && method === "GET") {
       const rawCed = decodeURIComponent(registrosMatch[1] || "");
@@ -772,7 +1077,13 @@ export async function handleVerificacion(
       let countL1 = 0;
       let countL2 = 0;
       const registros = merged.map((r, idx) => {
+        let delete_spec: Record<string, unknown> | null = null;
         if (r.tipo === "logros1") {
+          const dd = r.data as Record<string, unknown>;
+          const idInt = dd?.id_int;
+          if (idInt != null && Number.isFinite(Number(idInt))) {
+            delete_spec = { kind: "logros1", id_int: Number(idInt) };
+          }
           countL1 += 1;
           return {
             id: `L1-${idx + 1}`,
@@ -784,7 +1095,29 @@ export async function handleVerificacion(
             created_at: r.created_at,
             sede: r.sede,
             data: r.data,
+            delete_spec,
           };
+        }
+        const fuente = String(r.fuente ?? "");
+        const dd = r.data as Record<string, unknown>;
+        if (fuente === "wakeup_seguimientos_logros2") {
+          const idInt = dd?.id_int;
+          if (idInt != null && Number.isFinite(Number(idInt))) {
+            delete_spec = {
+              kind: "logros2",
+              source: "legacy",
+              id_int: Number(idInt),
+            };
+          }
+        } else {
+          const id = dd?.id;
+          if (id != null && Number.isFinite(Number(id))) {
+            delete_spec = {
+              kind: "logros2",
+              source: "modern",
+              id: Number(id),
+            };
+          }
         }
         countL2 += 1;
         return {
@@ -798,6 +1131,7 @@ export async function handleVerificacion(
           sede: r.sede,
           fuente: r.fuente ?? null,
           data: r.data,
+          delete_spec,
         };
       });
 

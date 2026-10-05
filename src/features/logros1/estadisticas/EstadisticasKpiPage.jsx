@@ -180,9 +180,29 @@ export default function EstadisticasKpiPage() {
               aria-describedby="estad-kpi-ranking-desc"
             >
               <div className="estad-kpi__ranking-head">
-                <KpiLabel id="estad-kpi-ranking-title">
-                  Podio de encuestadores
-                </KpiLabel>
+                <div className="estad-kpi__ranking-title-row">
+                  <span className="estad-kpi__ranking-icon" aria-hidden>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <circle cx="9" cy="8" r="3.2" stroke="#64748b" strokeWidth="1.6" />
+                      <circle cx="16.5" cy="9" r="2.6" stroke="#64748b" strokeWidth="1.5" />
+                      <path
+                        d="M3.5 18.5c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"
+                        stroke="#64748b"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M14.2 14.2c1.5-.7 3.2-.5 4.8.8.9.7 1.5 1.7 1.8 2.8"
+                        stroke="#64748b"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+                  <KpiLabel id="estad-kpi-ranking-title">
+                    Podio de encuestadores
+                  </KpiLabel>
+                </div>
                 <p className="estad-kpi__ranking-lead" id="estad-kpi-ranking-desc">
                   Top 3 por volumen de encuestas aplicadas (tabla autorizados).
                 </p>

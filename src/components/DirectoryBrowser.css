@@ -98,7 +98,7 @@
   display: grid;
   place-items: center;
   font-size: 1rem;
-  background: rgba(37, 89, 199, 0.16);
+  background: rgba(142, 180, 216, 0.32);
   transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -108,11 +108,12 @@
 }
 
 .dir__icon--green {
-  background: rgba(56, 176, 0, 0.18);
+  /* accent “green” histórico → lila pastel */
+  background: rgba(184, 168, 224, 0.32);
 }
 
 .dir__icon--blue {
-  background: rgba(37, 89, 199, 0.16);
+  background: rgba(142, 180, 216, 0.35);
 }
 
 .dir__icon--asset {

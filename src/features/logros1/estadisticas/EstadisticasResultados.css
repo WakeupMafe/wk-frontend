@@ -4,6 +4,220 @@
   container-type: inline-size;
   container-name: resultados;
   min-width: 0;
+  font-size: clamp(0.8125rem, 2cqw, 0.9375rem);
+}
+
+.estad-res .estad-page__card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: clamp(0.7rem, 1.8cqw, 1.2rem);
+  gap: clamp(0.55rem, 1.4cqw, 0.95rem);
+}
+
+/* Tipografía de página — ligeramente más compacta que el resto del módulo */
+.estad-res .typo-page-title {
+  font-size: clamp(1rem, 2.1cqw, 1.32rem);
+}
+
+.estad-res .typo-page-meta {
+  font-size: clamp(0.75rem, 1.7cqw, 0.875rem);
+  line-height: 1.4;
+}
+
+.estad-res .typo-section-title,
+.estad-res .estad-filtros__viewer-title {
+  font-size: clamp(0.875rem, 1.55cqw, 0.975rem);
+}
+
+.estad-res .typo-form-label,
+.estad-res .estad-filtros__lbl {
+  font-size: clamp(0.8125rem, 1.8cqw, 0.9rem);
+}
+
+/* Pestañas: scroll horizontal en pantallas estrechas (sin apilar en columna) */
+.estad-res__tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: clamp(0.3rem, 1.2vw, 0.5rem);
+  margin-bottom: clamp(0.75rem, 1.8vw, 1rem);
+  padding-bottom: clamp(0.45rem, 1.2vw, 0.55rem);
+  border-bottom: 1px solid rgba(42, 79, 120, 0.14);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(42, 79, 120, 0.22) transparent;
+}
+
+.estad-res__tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.estad-res__tabs::-webkit-scrollbar-thumb {
+  background: rgba(42, 79, 120, 0.22);
+  border-radius: 999px;
+}
+
+.estad-res__tab {
+  appearance: none;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  border: 1px solid rgba(42, 79, 120, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #355d86;
+  font-weight: 600;
+  font-size: clamp(0.78rem, 1.8cqw, 0.88rem);
+  padding: clamp(0.35rem, 1.4vw, 0.42rem) clamp(0.7rem, 2.2vw, 0.9rem);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.estad-res__tab:hover:not(.is-active) {
+  background: var(--pastel-blue-soft);
+  border-color: rgba(142, 180, 216, 0.45);
+}
+
+.estad-res__tab.is-active {
+  background: linear-gradient(
+    180deg,
+    var(--pastel-blue-btn) 0%,
+    var(--pastel-blue-hover) 100%
+  );
+  border-color: var(--pastel-blue-hover);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(142, 180, 216, 0.35);
+}
+
+.estad-res__tabpanel {
+  min-width: 0;
+}
+
+/* Mis encuestas — barra y tabla */
+.estad-res__mis-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(0.5rem, 1.5vw, 0.75rem) clamp(0.65rem, 2vw, 1rem);
+  margin-bottom: clamp(0.65rem, 1.5vw, 0.85rem);
+}
+
+.estad-res__mis-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(0.35rem, 1.2vw, 0.45rem) clamp(0.5rem, 1.5vw, 0.65rem);
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.estad-res__ref-help {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(0.28rem, 0.8vw, 0.4rem);
+  flex: 0 0 auto;
+  min-width: 0;
+  padding-inline: clamp(0.55rem, 1.4vw, 0.75rem);
+}
+
+.estad-res__ref-help-icon {
+  display: inline-grid;
+  place-items: center;
+  width: clamp(1.05rem, 2.4vw, 1.2rem);
+  height: clamp(1.05rem, 2.4vw, 1.2rem);
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  font-size: clamp(0.65rem, 1.5vw, 0.72rem);
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.estad-res__ref-help-label {
+  font-size: clamp(0.75rem, 1.7vw, 0.875rem);
+  font-weight: 600;
+}
+
+.estad-res__mis-table-wrap {
+  margin-bottom: clamp(0.7rem, 1.5vw, 0.9rem);
+}
+
+.estad-res__mis-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 38rem;
+}
+
+.estad-res__mis-table th,
+.estad-res__mis-table td {
+  border-bottom: 1px solid rgba(42, 79, 120, 0.1);
+  text-align: left;
+  padding: clamp(0.38rem, 0.9vw, 0.52rem) clamp(0.35rem, 0.9vw, 0.55rem);
+  font-size: clamp(0.6875rem, 1.6cqw, 0.8125rem);
+  vertical-align: middle;
+  line-height: 1.35;
+}
+
+.estad-res__mis-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: #355d86;
+  background: #f3f7fc;
+  font-weight: 700;
+  font-size: clamp(0.7rem, 1.65cqw, 0.825rem);
+}
+
+.estad-res__mis-table tbody tr {
+  cursor: pointer;
+  background: #fff;
+}
+
+.estad-res__mis-table tbody tr:nth-child(even) {
+  background: #fbfdff;
+}
+
+.estad-res__mis-table tbody tr:hover {
+  background: #eef4fb;
+}
+
+.estad-res__mis-table tbody tr.is-active {
+  background: var(--pastel-blue-soft);
+  box-shadow: inset 3px 0 0 var(--pastel-blue-btn);
+}
+
+.estad-res__mis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(0.28rem, 0.9vw, 0.35rem);
+  white-space: nowrap;
+}
+
+.estad-res__tipo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(42, 79, 120, 0.2);
+  border-radius: 999px;
+  background: #f6f9fd;
+  color: var(--pastel-ink);
+  font-weight: 600;
+  font-size: clamp(0.58rem, 1.15cqw, 0.65rem);
+  line-height: 1.2;
+  padding: 0.06rem clamp(0.28rem, 0.75cqw, 0.34rem);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.estad-res__mis-viewer {
+  margin-top: clamp(0.25rem, 0.8vw, 0.35rem);
 }
 
 /* Panel: alineado con sidebar estadístico (azul pizarra, sin “neón”) */
@@ -11,22 +225,50 @@
   background: linear-gradient(180deg, #f4f7fb 0%, #eef2f8 100%);
   border: 1px solid rgba(42, 79, 120, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  padding: clamp(0.7rem, 1.8cqw, 1.15rem);
+  gap: clamp(0.6rem, 1.6cqw, 0.95rem);
 }
 
 .estad-res .estad-filtros__panel .typo-form-label.estad-filtros__lbl {
-  color: #2f5a82;
+  color: var(--pastel-blue-hover);
   font-weight: 600;
+}
+
+/* Grid fluido para filas del formulario (label | control | botón) */
+.estad-res .estad-filtros__field {
+  gap: clamp(0.35rem, 1.2cqw, 0.65rem);
+}
+
+.estad-res .estad-filtros__field--2 {
+  grid-template-columns:
+    minmax(0, clamp(5.25rem, 18cqw, 9rem))
+    minmax(0, 1fr);
+}
+
+.estad-res .estad-filtros__field--3 {
+  grid-template-columns:
+    minmax(0, clamp(5.25rem, 18cqw, 9rem))
+    minmax(0, 1fr)
+    auto;
 }
 
 .estad-res .estad-filtros__input,
 .estad-res .estad-filtros__select {
   border-color: rgba(42, 79, 120, 0.18);
+  font-size: clamp(0.8125rem, 2cqw, 0.9375rem);
+  padding: clamp(0.38rem, 1vw, 0.48rem) clamp(0.55rem, 1.3vw, 0.72rem);
+  min-height: clamp(2.75rem, 11vw, 2.875rem);
+  border-radius: clamp(0.45rem, 0.9vw, 0.58rem);
 }
 
 .estad-res .estad-filtros__input:focus,
 .estad-res .estad-filtros__select:focus {
-  border-color: #2f5a82;
-  box-shadow: 0 0 0 3px rgba(47, 90, 130, 0.14);
+  border-color: var(--pastel-blue-btn);
+  box-shadow: 0 0 0 3px rgba(142, 180, 216, 0.28);
+}
+
+.estad-res .estad-filtros__select {
+  max-width: min(100%, 20rem);
 }
 
 .estad-res .estad-filtros__divider {
@@ -41,67 +283,69 @@
 
 /* Fila exportación: ancho mínimo legible para “PDF / CSV / Excel” */
 .estad-res .estad-filtros__field--export .estad-filtros__select {
-  min-width: min(100%, 9.5rem);
+  min-width: min(100%, 8.75rem);
+}
+
+/* Botones: touch target ~44px, texto compacto */
+.estad-res .btn-componente {
+  min-height: clamp(2.75rem, 11vw, 2.875rem);
+  font-size: clamp(0.8125rem, 1.9cqw, 0.9rem);
+  padding-inline: clamp(0.65rem, 2vw, 0.9rem);
+}
+
+.estad-res .btn--sm {
+  min-height: clamp(2.75rem, 10vw, 2.875rem);
+  font-size: clamp(0.78rem, 1.8cqw, 0.875rem);
+  padding-inline: clamp(0.55rem, 1.8vw, 0.8rem);
+}
+
+.estad-res .estad-filtros__field--3 .btn-componente {
+  flex-shrink: 0;
 }
 
 /* Vista previa / título */
 .estad-res .estad-filtros__viewer-title {
-  color: #243d5f;
+  color: var(--pastel-ink);
 }
 
 /* Estado vacío: aviso tipo “notice” clínico (sin borde discontinuo chillón) */
 .estad-res .estad-filtros__empty {
-  margin-top: clamp(1rem, 2.5vw, 1.35rem);
-  padding: clamp(1rem, 2.5vw, 1.35rem) clamp(1rem, 2.5vw, 1.25rem);
-  border: 1px solid rgba(42, 79, 120, 0.12);
-  border-radius: clamp(0.65rem, 1.5vw, 0.85rem);
+  margin-top: clamp(0.85rem, 2vw, 1.15rem);
+  padding: clamp(0.85rem, 2vw, 1.15rem) clamp(0.85rem, 2vw, 1.1rem);
+  border: 1px solid rgba(142, 180, 216, 0.28);
+  border-radius: clamp(0.6rem, 1.4vw, 0.8rem);
   background: rgba(255, 255, 255, 0.75);
-  box-shadow: inset 4px 0 0 #2f5a82;
+  box-shadow: inset 4px 0 0 var(--pastel-blue-btn);
   text-align: left;
-  color: #475569;
-  font-size: clamp(0.88rem, 2.2cqw, 0.95rem);
+  color: var(--pastel-ink-soft);
+  font-size: clamp(0.8125rem, 2cqw, 0.9rem);
   line-height: 1.45;
 }
 
-/* —— Responsive: apilar filas (esta página no usa .estad-filtros como container) —— */
-@container resultados (max-width: 36rem) {
-  .estad-res .estad-filtros__field--2,
-  .estad-res .estad-filtros__field--3 {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    gap: 0.4rem 0.85rem;
-  }
-
-  .estad-res .estad-filtros__lbl {
-    align-self: start;
-    padding-top: 0.1rem;
-  }
-
-  .estad-res .estad-filtros__select {
-    max-width: 100%;
-  }
-
-  .estad-res .estad-filtros__field--3 .btn-componente {
-    width: 100%;
-    min-height: 44px;
-  }
-
-  .estad-res .estad-filtros__field--export .estad-filtros__btnIcon {
-    justify-content: center;
-  }
+/* Aviso: sesión de encuestador ausente al filtrar “Mis encuestas” */
+.estad-res__aviso {
+  margin: clamp(0.75rem, 1.8vw, 1rem) 0 0;
+  padding: clamp(0.75rem, 1.8vw, 1rem) clamp(0.85rem, 2vw, 1.1rem);
+  border: 1px solid rgba(146, 64, 14, 0.22);
+  border-radius: clamp(0.6rem, 1.4vw, 0.8rem);
+  background: #fffbeb;
+  box-shadow: inset 4px 0 0 #b45309;
+  color: #78350f;
+  font-size: clamp(0.8125rem, 2cqw, 0.9rem);
+  line-height: 1.45;
 }
 
-@media (max-width: 36rem) {
+/* Contenedor estrecho: apilar filas del formulario y toolbar */
+@container resultados (max-width: 34rem) {
   .estad-res .estad-filtros__field--2,
   .estad-res .estad-filtros__field--3 {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
-    gap: 0.4rem 0.85rem;
   }
 
   .estad-res .estad-filtros__lbl {
     align-self: start;
-    padding-top: 0.1rem;
+    padding-top: 0.08rem;
   }
 
   .estad-res .estad-filtros__select {
@@ -110,24 +354,53 @@
 
   .estad-res .estad-filtros__field--3 .btn-componente {
     width: 100%;
-    min-height: 44px;
+    justify-self: stretch;
   }
 
   .estad-res .estad-filtros__field--export .estad-filtros__btnIcon {
     justify-content: center;
+  }
+
+  .estad-res__mis-export {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .estad-res__mis-export .btn-componente {
+    flex: 1 1 auto;
+    min-width: min(100%, 8rem);
+  }
+
+  .estad-res__mis-export .estad-res__ref-help {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .estad-res__item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .estad-res__item-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .estad-res__item-actions .btn-componente {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 }
 
 .estad-res__resumen {
   display: grid;
-  gap: 0.55rem;
-  margin-bottom: 0.85rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
+  margin-bottom: clamp(0.65rem, 1.5vw, 0.85rem);
 }
 
 .estad-res__resumen-linea {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: clamp(0.35rem, 1vw, 0.45rem);
 }
 
 .estad-res__badge {
@@ -136,25 +409,25 @@
   border: 1px solid rgba(42, 79, 120, 0.18);
   background: #fff;
   border-radius: 999px;
-  padding: clamp(0.16rem, 0.9vw, 0.24rem) clamp(0.4rem, 1.8vw, 0.65rem);
-  font-size: clamp(0.7rem, 1vw, 0.83rem);
+  padding: clamp(0.14rem, 0.8vw, 0.2rem) clamp(0.35rem, 1.5vw, 0.58rem);
+  font-size: clamp(0.66rem, 1.5cqw, 0.78rem);
   color: #355d86;
 }
 
 .estad-res__lista {
   display: grid;
-  gap: 0.5rem;
-  margin-bottom: 0.9rem;
+  gap: clamp(0.4rem, 1vw, 0.5rem);
+  margin-bottom: clamp(0.7rem, 1.5vw, 0.9rem);
 }
 
 .estad-res__item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: clamp(0.45rem, 1.5vw, 0.7rem);
-  padding: clamp(0.5rem, 1.3vw, 0.7rem) clamp(0.55rem, 1.5vw, 0.8rem);
+  gap: clamp(0.4rem, 1.2vw, 0.65rem);
+  padding: clamp(0.45rem, 1.2vw, 0.65rem) clamp(0.5rem, 1.3vw, 0.75rem);
   border: 1px solid rgba(42, 79, 120, 0.14);
-  border-radius: clamp(0.5rem, 1.2vw, 0.75rem);
+  border-radius: clamp(0.45rem, 1.1vw, 0.7rem);
   background: #fff;
 }
 
@@ -163,7 +436,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.4rem;
+  gap: clamp(0.32rem, 0.9vw, 0.4rem);
   flex-shrink: 0;
 }
 
@@ -180,13 +453,13 @@
   margin: 0;
   color: #1f3d60;
   font-weight: 600;
-  font-size: clamp(0.76rem, 1.2vw, 0.94rem);
+  font-size: clamp(0.72rem, 1.5cqw, 0.875rem);
 }
 
 .estad-res__item-meta {
-  margin: 0.18rem 0 0;
+  margin: 0.14rem 0 0;
   color: #60768f;
-  font-size: clamp(0.68rem, 0.95vw, 0.8rem);
+  font-size: clamp(0.65rem, 1.35cqw, 0.76rem);
 }
 
 .estad-res__item-btn--danger:hover:not(:disabled) {
@@ -196,36 +469,38 @@
 }
 
 .estad-res__logros2 {
-  margin-top: 0.5rem;
+  margin-top: clamp(0.4rem, 1vw, 0.5rem);
   border: 1px solid rgba(42, 79, 120, 0.16);
-  border-radius: clamp(0.5rem, 1.1vw, 0.75rem);
+  border-radius: clamp(0.45rem, 1vw, 0.7rem);
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  padding: clamp(0.75rem, 1.9vw, 1rem);
+  padding: clamp(0.65rem, 1.6vw, 0.9rem);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .estad-res__logros2-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 0.65rem;
+  gap: clamp(0.45rem, 1.2vw, 0.65rem);
   align-items: flex-start;
-  margin-bottom: 0.7rem;
+  margin-bottom: clamp(0.55rem, 1.2vw, 0.7rem);
 }
 
 .estad-res__logros2-kicker {
   margin: 0;
   color: #59779a;
   font-weight: 600;
-  font-size: 0.76rem;
+  font-size: clamp(0.68rem, 1.4cqw, 0.74rem);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .estad-res__logros2-title {
-  margin: 0.15rem 0 0;
+  margin: 0.12rem 0 0;
   color: #1f3d60;
-  font-size: clamp(0.98rem, 1.45vw, 1.18rem);
+  font-size: clamp(0.9rem, 1.8cqw, 1.05rem);
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .estad-res__pill {
@@ -233,25 +508,26 @@
   align-items: center;
   border: 1px solid rgba(42, 79, 120, 0.24);
   background: #fff;
-  color: #294c74;
+  color: var(--pastel-ink);
   border-radius: 999px;
-  padding: 0.24rem 0.58rem;
-  font-size: 0.78rem;
+  padding: clamp(0.18rem, 0.8vw, 0.22rem) clamp(0.45rem, 1.2vw, 0.55rem);
+  font-size: clamp(0.7rem, 1.4cqw, 0.76rem);
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .estad-res__logros2-meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.55rem;
-  margin-bottom: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: clamp(0.45rem, 1vw, 0.55rem);
+  margin-bottom: clamp(0.6rem, 1.2vw, 0.75rem);
 }
 
 .estad-res__meta-card {
   border: 1px solid rgba(42, 79, 120, 0.12);
-  border-radius: 0.55rem;
+  border-radius: clamp(0.45rem, 0.9vw, 0.55rem);
   background: rgba(255, 255, 255, 0.92);
-  padding: 0.45rem 0.58rem;
+  padding: clamp(0.38rem, 0.9vw, 0.45rem) clamp(0.45rem, 1vw, 0.55rem);
   min-width: 0;
 }
 
@@ -261,9 +537,9 @@
 
 .estad-res__meta-label {
   display: block;
-  margin-bottom: 0.12rem;
+  margin-bottom: 0.1rem;
   color: #67809b;
-  font-size: 0.7rem;
+  font-size: clamp(0.64rem, 1.3cqw, 0.7rem);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   font-weight: 600;
@@ -271,42 +547,45 @@
 
 .estad-res__meta-value {
   color: #1f3d60;
-  font-size: 0.85rem;
+  font-size: clamp(0.78rem, 1.5cqw, 0.82rem);
   line-height: 1.25;
   font-weight: 600;
   word-break: break-word;
 }
 
 .estad-res__logros2-narrativa {
-  margin: 0 0 0.7rem;
+  margin: 0 0 clamp(0.55rem, 1.2vw, 0.7rem);
   border: 1px solid rgba(42, 79, 120, 0.1);
-  border-radius: 0.55rem;
+  border-radius: clamp(0.45rem, 0.9vw, 0.55rem);
   background: rgba(255, 255, 255, 0.88);
-  padding: 0.55rem 0.62rem;
+  padding: clamp(0.45rem, 1vw, 0.55rem) clamp(0.5rem, 1.1vw, 0.62rem);
   color: #3f5e81;
-  font-size: 0.82rem;
+  font-size: clamp(0.78rem, 1.6cqw, 0.82rem);
   line-height: 1.45;
 }
 
 .estad-res__table-wrap {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid rgba(42, 79, 120, 0.1);
-  border-radius: 0.62rem;
+  border-radius: clamp(0.5rem, 1vw, 0.62rem);
   background: #fff;
 }
 
 .estad-res__logros2-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 34rem;
+  min-width: 32rem;
 }
 
 .estad-res__logros2-table th,
 .estad-res__logros2-table td {
   border-bottom: 1px solid rgba(42, 79, 120, 0.1);
   text-align: left;
-  padding: clamp(0.45rem, 1vw, 0.58rem) clamp(0.4rem, 1vw, 0.62rem);
-  font-size: clamp(0.72rem, 0.96vw, 0.86rem);
+  padding: clamp(0.38rem, 0.9vw, 0.52rem) clamp(0.35rem, 0.9vw, 0.55rem);
+  font-size: clamp(0.6875rem, 1.6cqw, 0.8125rem);
+  line-height: 1.35;
 }
 
 .estad-res__logros2-table th {
@@ -316,6 +595,7 @@
   color: #355d86;
   background: #f3f7fc;
   font-weight: 700;
+  font-size: clamp(0.7rem, 1.65cqw, 0.825rem);
 }
 
 .estad-res__logros2-table tbody tr:nth-child(even) {
@@ -328,38 +608,8 @@
   border: 1px solid rgba(42, 79, 120, 0.2);
   border-radius: 999px;
   background: #f6f9fd;
-  color: #294c74;
+  color: var(--pastel-ink);
   font-weight: 600;
-  font-size: 0.74rem;
-  padding: 0.1rem 0.45rem;
-}
-
-@media (max-width: 36rem) {
-  .estad-res__item {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
-
-  .estad-res__item-actions {
-    width: 100%;
-    justify-content: stretch;
-  }
-
-  .estad-res__item-actions .btn-componente {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .estad-res__item-btn {
-    width: 100%;
-  }
-
-  .estad-res__logros2-title {
-    font-size: 1rem;
-  }
-
-  .estad-res__pill {
-    align-self: flex-start;
-  }
+  font-size: clamp(0.65rem, 1.5cqw, 0.72rem);
+  padding: 0.08rem 0.4rem;
 }

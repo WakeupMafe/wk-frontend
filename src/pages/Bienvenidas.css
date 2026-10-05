@@ -66,27 +66,29 @@
   margin-top: 0;
 }
 
-/* Boton de bienvenida*/
+/* Boton de bienvenida — azul pastel */
 .btn-entrar {
   align-items: center;
   border-radius: 20px;
-  border: 2px solid #1f3a5f;
+  border: 2px solid var(--pastel-blue-btn);
   font-family: "Poppins";
   height: auto;
   width: 50%;
   font-size: 2rem;
   padding: 0 1.2rem;
-  background-color: #1f3a5f;
+  background-color: var(--pastel-blue-btn);
   letter-spacing: 0.05rem;
   color: white;
   cursor: pointer;
-  box-shadow: 2px 5px 2px rgba(31, 58, 95, 0.4);
+  box-shadow: 2px 5px 2px rgba(142, 180, 216, 0.45);
   transition: ease-in-out 0.3s;
   /* Animacion de hover */
 }
 .btn-entrar:hover {
   scale: 1.05;
-  box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
+  background-color: var(--pastel-blue-hover);
+  border-color: var(--pastel-blue-hover);
+  box-shadow: 2px 8px 3px rgba(122, 163, 203, 0.5);
 }
 
 /* Reenvío PIN: usa ButtonComponente; solo layout */
@@ -110,22 +112,24 @@
 .btn-entrar-bienvenida {
   align-items: center;
   border-radius: clamp(14px, 2vw, 20px);
-  border: 2px solid #1f3a5f;
+  border: 2px solid var(--pastel-blue-btn);
   font-family: "Poppins", sans-serif;
   height: auto;
   width: min(92%, 22rem);
   font-size: clamp(1rem, 2.5vw + 0.5rem, 2rem);
   padding: clamp(0.45rem, 1.2vw, 0.75rem) clamp(0.85rem, 2vw, 1.2rem);
-  background-color: #1f3a5f;
+  background-color: var(--pastel-blue-btn);
   letter-spacing: 0.05rem;
   color: white;
   cursor: pointer;
-  box-shadow: 2px 5px 2px rgba(31, 58, 95, 0.4);
+  box-shadow: 2px 5px 2px rgba(142, 180, 216, 0.45);
   transition: ease-in-out 0.3s;
 }
 .btn-entrar-bienvenida:hover {
   scale: 1.05;
-  box-shadow: 2px 8px 3px rgba(72, 187, 213, 0.4);
+  background-color: var(--pastel-blue-hover);
+  border-color: var(--pastel-blue-hover);
+  box-shadow: 2px 8px 3px rgba(122, 163, 203, 0.5);
 }
 
 /* Tablet + móvil: texto centrado en el espacio central; avatar solo abajo (grid 1fr + auto) */
@@ -312,8 +316,8 @@
 }
 .input-cedula:focus {
   scale: 1.01;
-  border-color: #4a82bd; /* verde claro */
-  box-shadow: 0 0 8px rgba(74, 141, 189, 0.6);
+  border-color: var(--pastel-blue-btn);
+  box-shadow: 0 0 8px rgba(142, 180, 216, 0.55);
 }
 .input-cedula.value {
   margin-left: 10px;

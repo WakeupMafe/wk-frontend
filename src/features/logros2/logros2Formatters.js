@@ -1,10 +1,11 @@
 import {
   LIMITACION_MOVERSE,
   ACTIVIDADES_AFECTADAS,
-  PROBLEMAS,
   OBJETIVOS,
   ULTIMA_VEZ_OPTIONS,
   QUE_IMPIDE_OPTIONS,
+  formatObjetivoLabel,
+  formatProblemaLabel,
 } from "../../data/encuestaLogrosCatalog";
 
 /** @param {unknown} v */
@@ -101,12 +102,11 @@ export function mapLastTimeLabel(value) {
   return o?.label || humanizeToken(normStr(value)) || "—";
 }
 
-/** Etiqueta legible de síntoma (catálogo PROBLEMAS). */
+/** Etiqueta legible de síntoma (catálogo PROBLEMAS + legado). */
 export function mapSymptomLabel(value) {
   const v = normStr(value);
   if (!v) return "—";
-  const o = PROBLEMAS.find((p) => p.value === v);
-  return o?.label || humanizeToken(v);
+  return formatProblemaLabel(v) || humanizeToken(v);
 }
 
 /**
@@ -117,6 +117,8 @@ export function mapSymptomLabel(value) {
 export function mapGoalLabel(sintomaKey, objetivoValue) {
   const ov = normStr(objetivoValue);
   if (!ov) return "";
+  const formatted = formatObjetivoLabel(sintomaKey, ov);
+  if (formatted) return formatted;
   const opts = OBJETIVOS[sintomaKey]?.opciones || [];
   const o = opts.find((x) => x.value === ov);
   return o?.label || humanizeToken(ov);

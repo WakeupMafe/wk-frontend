@@ -15,17 +15,32 @@ import fondo2 from "../assets/fondo2.svg";
 import { alertError, alertSuccess, alertWarning } from "../lib/alerts/appAlert";
 import { formatApiDetail } from "../lib/formatApiDetail";
 import { sweetLoading, sweetClose } from "../components/SweetAlert";
+import RegistrosExistentesNotice from "./RegistrosExistentesNotice";
+import {
+  buildRegistrosExistentesHtml,
+  fetchRegistrosPorDocumento,
+} from "../lib/encuestas/registrosExistentes";
 
 import {
   TIPOS_DOCUMENTO,
   PATOLOGIA_RELACIONADA,
+  PATOLOGIA_RANK_LABELS,
   LIMITACION_MOVERSE,
   ACTIVIDADES_AFECTADAS,
   PROBLEMAS,
+  PROBLEMAS_CON_ACLARACION,
   OBJETIVOS,
+  MINUTOS_OBJETIVO_OPTIONS,
+  HORAS_OBJETIVO_OPTIONS,
   ULTIMA_VEZ_OPTIONS,
   QUE_IMPIDE_OPTIONS,
   INITIAL_FORM,
+  formatPatologiaLabel,
+  objetivoRequiereMinutos,
+  objetivoRequiereHoras,
+  objetivoRequiereTextoObjetivo,
+  textoObjetivoFormKey,
+  composeObjetivoPersistido,
 } from "../data/encuestaLogrosCatalog";
 
 import { ENUNCIADOS_OBJETIVOS } from "../data/encuestaLogrosEnunciados";
@@ -96,7 +111,7 @@ function TextField({
   );
 }
 
-function CheckboxGroup({ label, options, values, onToggle, error, note }) {
+function CheckboxGroup({ label, options, values, onToggle, error, note, rankLabels }) {
   return (
     <div className="field">
       {label ? <p className="field__label">{label}</p> : null}
@@ -106,7 +121,7 @@ function CheckboxGroup({ label, options, values, onToggle, error, note }) {
           style={{
             marginBottom: "0.5rem",
             opacity: 0.85,
-            color: "#2c70cc",
+            color: "var(--pastel-blue-hover)",
             fontSize: "1rem",
           }}
         >
@@ -115,19 +130,30 @@ function CheckboxGroup({ label, options, values, onToggle, error, note }) {
       ) : null}
 
       <div style={{ display: "grid", gap: 5, marginTop: 0 }}>
-        {options.map((opt) => (
-          <label
-            key={opt.value}
-            style={{ display: "flex", gap: 5, alignItems: "center" }}
-          >
-            <input
-              type="checkbox"
-              checked={values.includes(opt.value)}
-              onChange={() => onToggle(opt.value)}
-            />
-            <span>{opt.label}</span>
-          </label>
-        ))}
+        {options.map((opt) => {
+          const rankIdx = values.indexOf(opt.value);
+          const ranked = rankIdx >= 0 && Array.isArray(rankLabels);
+          return (
+            <label
+              key={opt.value}
+              style={{ display: "flex", gap: 5, alignItems: "center" }}
+            >
+              <input
+                type="checkbox"
+                checked={rankIdx >= 0}
+                onChange={() => onToggle(opt.value)}
+              />
+              <span>
+                {opt.label}
+                {ranked ? (
+                  <span style={{ marginLeft: 6, color: "#0b1729", fontWeight: 500 }}>
+                    — {rankIdx + 1}. {rankLabels[rankIdx] || `Zona ${rankIdx + 1}`}
+                  </span>
+                ) : null}
+              </span>
+            </label>
+          );
+        })}
       </div>
 
       {error ? <p className="field__error">{error}</p> : null}
@@ -245,6 +271,9 @@ export default function EncuestaLogrosWKP() {
   const [errors, setErrors] = useState({});
   const [showNombresHint, setShowNombresHint] = useState(false);
   const documentoAnalizadoRef = useRef({ key: "", data: null });
+  const [registrosExistentes, setRegistrosExistentes] = useState([]);
+  const [registrosExistentesLoading, setRegistrosExistentesLoading] =
+    useState(false);
   const nombrePacienteHintShownRef = useRef(false);
   const nombreHintTimeoutRef = useRef(null);
 
@@ -299,7 +328,37 @@ export default function EncuestaLogrosWKP() {
   };
 
   const onChange = (e) => {
-    setValue(e.target.name, e.target.value);
+    const { name, value } = e.target;
+    if (name === "limitacionMoverse") {
+      setForm((prev) => {
+        const next = { ...prev, limitacionMoverse: value };
+        if (value !== "poco") {
+          const nextObjetivos = { ...prev.objetivos };
+          if (nextObjetivos.dolor === "dolor_desaparece") {
+            nextObjetivos.dolor = "";
+          }
+          if (nextObjetivos.trastorno_trabajo === "trabajo_jornada_completa") {
+            nextObjetivos.trastorno_trabajo = "";
+          }
+          if (nextObjetivos.escaleras === "sin_dificultad") {
+            nextObjetivos.escaleras = "";
+          }
+          if (nextObjetivos.levantarse_silla_cama === "sin_dificultad") {
+            nextObjetivos.levantarse_silla_cama = "";
+          }
+          if (nextObjetivos.autocuidado === "independencia_total") {
+            nextObjetivos.autocuidado = "";
+          }
+          if (nextObjetivos.recoger_objetos === "varias_maneras_sin_dolor") {
+            nextObjetivos.recoger_objetos = "";
+          }
+          next.objetivos = nextObjetivos;
+        }
+        return next;
+      });
+      return;
+    }
+    setValue(name, value);
   };
 
   const onDocumentoChange = (e) => {
@@ -309,10 +368,12 @@ export default function EncuestaLogrosWKP() {
       if (tipo === "registro_civil" || tipo === "pasaporte") {
         const cleaned = raw.replace(/[^A-Za-z0-9\-]/g, "").slice(0, 30);
         documentoAnalizadoRef.current = { key: "", data: null };
+        setRegistrosExistentes([]);
         return { ...prev, documento: cleaned };
       }
       const onlyDigits = raw.replace(/\D/g, "").slice(0, 11);
       documentoAnalizadoRef.current = { key: "", data: null };
+      setRegistrosExistentes([]);
       return { ...prev, documento: onlyDigits };
     });
   };
@@ -325,6 +386,7 @@ export default function EncuestaLogrosWKP() {
       documento: "",
     }));
     documentoAnalizadoRef.current = { key: "", data: null };
+    setRegistrosExistentes([]);
     setErrors((prev) => {
       const next = { ...prev };
       delete next.documento;
@@ -370,10 +432,23 @@ export default function EncuestaLogrosWKP() {
 
       if (exists) {
         const next = arr.filter((x) => x !== value);
+        const nextObjetivos = { ...prev.objetivos };
+        const nextMinutos = { ...(prev.objetivosMinutos || {}) };
+        const nextHoras = { ...(prev.objetivosHoras || {}) };
+        const nextTextos = { ...(prev.textos || {}) };
+        delete nextObjetivos[value];
+        delete nextMinutos[value];
+        delete nextHoras[value];
+        delete nextTextos[value];
+        delete nextTextos[textoObjetivoFormKey(value)];
 
         return {
           ...prev,
           problemasTop: next,
+          objetivos: nextObjetivos,
+          objetivosMinutos: nextMinutos,
+          objetivosHoras: nextHoras,
+          textos: nextTextos,
           ...(value === "otro" ? { otroProblema: "" } : {}),
         };
       }
@@ -387,12 +462,81 @@ export default function EncuestaLogrosWKP() {
     });
   };
 
+  const togglePatologiaTop = (value) => {
+    setForm((prev) => {
+      const arr = Array.isArray(prev.patologiasTop) ? prev.patologiasTop : [];
+      const exists = arr.includes(value);
+
+      if (exists) {
+        return {
+          ...prev,
+          patologiasTop: arr.filter((x) => x !== value),
+          ...(value === "otro" ? { otraPatologia: "" } : {}),
+        };
+      }
+
+      if (arr.length >= 3) return prev;
+
+      return {
+        ...prev,
+        patologiasTop: [...arr, value],
+      };
+    });
+  };
+
   const setObjetivo = (problema, value) => {
+    setForm((prev) => {
+      const nextMinutos = { ...(prev.objetivosMinutos || {}) };
+      const nextHoras = { ...(prev.objetivosHoras || {}) };
+      const nextTextos = { ...(prev.textos || {}) };
+      if (!objetivoRequiereMinutos(problema, value)) {
+        delete nextMinutos[problema];
+      }
+      if (!objetivoRequiereHoras(problema, value)) {
+        delete nextHoras[problema];
+      }
+      if (!objetivoRequiereTextoObjetivo(problema, value)) {
+        delete nextTextos[textoObjetivoFormKey(problema)];
+      }
+      return {
+        ...prev,
+        objetivos: {
+          ...prev.objetivos,
+          [problema]: value,
+        },
+        objetivosMinutos: nextMinutos,
+        objetivosHoras: nextHoras,
+        textos: nextTextos,
+      };
+    });
+  };
+
+  const setObjetivoMinutos = (problema, minutos) => {
     setForm((prev) => ({
       ...prev,
-      objetivos: {
-        ...prev.objetivos,
-        [problema]: value,
+      objetivosMinutos: {
+        ...(prev.objetivosMinutos || {}),
+        [problema]: minutos,
+      },
+    }));
+  };
+
+  const setObjetivoHoras = (problema, horas) => {
+    setForm((prev) => ({
+      ...prev,
+      objetivosHoras: {
+        ...(prev.objetivosHoras || {}),
+        [problema]: horas,
+      },
+    }));
+  };
+
+  const setTextoProblema = (problema, texto) => {
+    setForm((prev) => ({
+      ...prev,
+      textos: {
+        ...(prev.textos || {}),
+        [problema]: texto,
       },
     }));
   };
@@ -400,6 +544,8 @@ export default function EncuestaLogrosWKP() {
   const resetForm = () => {
     setForm(createInitialForm());
     setErrors({});
+    setRegistrosExistentes([]);
+    documentoAnalizadoRef.current = { key: "", data: null };
   };
 
   const validate = () => {
@@ -411,58 +557,115 @@ export default function EncuestaLogrosWKP() {
   const validarDocumentoPrevio = async (opts = { mostrarAlert: false }) => {
     const documento = String(form.documento || "").trim();
     const tipoDocumento = String(form.tipoDocumento || "cedula").trim();
-    if (!documento || !tipoDocumento) return { ok: true, exists: false };
+    if (!documento || !tipoDocumento) {
+      setRegistrosExistentes([]);
+      return { ok: true, exists: false };
+    }
 
     const cacheKey = `${tipoDocumento}:${documento}`;
     if (documentoAnalizadoRef.current.key === cacheKey) {
       const cached = documentoAnalizadoRef.current.data || {};
-      if (cached?.exists === true && opts.mostrarAlert) {
+      const regs = Array.isArray(cached?.registros) ? cached.registros : [];
+      setRegistrosExistentes(regs);
+      if (opts.mostrarAlert && regs.length > 0) {
         sweetClose();
-        const patologia = cached?.patologia_relacionada
-          ? String(cached.patologia_relacionada).trim()
-          : "sin dato";
+        const patologia =
+          formatPatologiaLabel(cached?.patologia_relacionada) || "sin dato";
+        const footnote =
+          cached?.exists === true
+            ? `Ya existe al menos una evaluación Logros 1 (patología: ${patologia}). Puede continuar llenando según las reglas del proceso.`
+            : "Puede continuar llenando una nueva encuesta; este aviso es informativo.";
+        await alertWarning({
+          title: "Encuestas previas para este documento",
+          html: buildRegistrosExistentesHtml(regs, { footnote }),
+        });
+      } else if (cached?.exists === true && opts.mostrarAlert) {
+        sweetClose();
+        const patologia =
+          formatPatologiaLabel(cached?.patologia_relacionada) || "sin dato";
         await alertWarning({
           title: "Encuesta previa detectada",
           text: `Este usuario ya tiene presente una encuesta de logros 1 previa con [${patologia}].`,
         });
       }
-      return { ok: true, exists: cached?.exists === true, data: cached };
+      return {
+        ok: true,
+        exists: cached?.exists === true,
+        data: cached,
+        registros: regs,
+      };
     }
 
+    setRegistrosExistentesLoading(true);
     const tipoQ = encodeURIComponent(tipoDocumento);
-    const check = await fetch(
-      `${apiUrl(`/encuestas/exists/${encodeURIComponent(documento)}`)}?tipo_documento=${tipoQ}`,
-    );
-    const checkJson = await check.json().catch(() => ({}));
+    let checkJson = {};
 
-    if (!check.ok) {
-      const detalle = formatApiDetail(checkJson?.detail);
-      await alertError({
-        title: "No se pudo validar el documento",
-        text:
-          detalle ||
-          "No fue posible consultar si ya existe una encuesta para este documento. Revisa la conexión e intenta de nuevo.",
-      });
-      return { ok: false, exists: false };
+    try {
+      const [check, registrosFetched] = await Promise.all([
+        fetch(
+          `${apiUrl(`/encuestas/exists/${encodeURIComponent(documento)}`)}?tipo_documento=${tipoQ}`,
+        ),
+        fetchRegistrosPorDocumento(documento),
+      ]);
+      checkJson = await check.json().catch(() => ({}));
+      const registrosResult = registrosFetched;
+
+      if (!check.ok) {
+        const detalle = formatApiDetail(checkJson?.detail);
+        await alertError({
+          title: "No se pudo validar el documento",
+          text:
+            detalle ||
+            "No fue posible consultar si ya existe una encuesta para este documento. Revisa la conexión e intenta de nuevo.",
+        });
+        setRegistrosExistentes([]);
+        return { ok: false, exists: false };
+      }
+
+      const regs = Array.isArray(registrosResult?.registros)
+        ? registrosResult.registros
+        : [];
+      setRegistrosExistentes(regs);
+
+      const merged = {
+        ...checkJson,
+        registros: regs,
+        conteo: registrosResult?.conteo || checkJson?.conteo,
+        registros_ok: registrosResult?.ok === true,
+      };
+
+      if (opts.mostrarAlert && regs.length > 0) {
+        sweetClose();
+        const patologia =
+          formatPatologiaLabel(checkJson?.patologia_relacionada) || "sin dato";
+        const footnote =
+          checkJson?.exists === true
+            ? `Ya existe al menos una evaluación Logros 1 (patología: ${patologia}). Puede continuar llenando según las reglas del proceso.`
+            : "Puede continuar llenando una nueva encuesta; este aviso es informativo.";
+        await alertWarning({
+          title: "Encuestas previas para este documento",
+          html: buildRegistrosExistentesHtml(regs, { footnote }),
+        });
+      } else if (checkJson?.exists === true && opts.mostrarAlert) {
+        sweetClose();
+        const patologia =
+          formatPatologiaLabel(checkJson?.patologia_relacionada) || "sin dato";
+        await alertWarning({
+          title: "Encuesta previa detectada",
+          text: `Este usuario ya tiene presente una encuesta de logros 1 previa con [${patologia}].`,
+        });
+      }
+
+      documentoAnalizadoRef.current = { key: cacheKey, data: merged };
+      return {
+        ok: true,
+        exists: checkJson?.exists === true,
+        data: merged,
+        registros: regs,
+      };
+    } finally {
+      setRegistrosExistentesLoading(false);
     }
-
-    if (checkJson?.exists === true && opts.mostrarAlert) {
-      sweetClose();
-      const patologia = checkJson?.patologia_relacionada
-        ? String(checkJson.patologia_relacionada).trim()
-        : "sin dato";
-      await alertWarning({
-        title: "Encuesta previa detectada",
-        text: `Este usuario ya tiene presente una encuesta de logros 1 previa con [${patologia}].`,
-      });
-    }
-
-    documentoAnalizadoRef.current = { key: cacheKey, data: checkJson };
-    return {
-      ok: true,
-      exists: checkJson?.exists === true,
-      data: checkJson,
-    };
   };
 
   const onDocumentoBlur = async () => {
@@ -517,6 +720,26 @@ export default function EncuestaLogrosWKP() {
 
     const cedulaEncuestador = String(encuestadorCache).trim();
 
+    const objetivosPayload = {};
+    for (const [problema, base] of Object.entries(form.objetivos || {})) {
+      if (!base) continue;
+      objetivosPayload[problema] = composeObjetivoPersistido(problema, base, {
+        minutos: form.objetivosMinutos?.[problema] || "",
+        horas: form.objetivosHoras?.[problema] || "",
+      });
+    }
+
+    const textosPayload = { ...(form.textos || {}) };
+    for (const problema of form.problemasTop) {
+      const base = form.objetivos?.[problema];
+      if (!base || !objetivoRequiereTextoObjetivo(problema, base)) continue;
+      const key = textoObjetivoFormKey(problema);
+      const txt = String(textosPayload[key] || "").trim();
+      if (txt && key !== problema) {
+        textosPayload[problema] = txt;
+      }
+    }
+
     const payload = {
       encuestador: cedulaEncuestador,
       sede: sedeFormulario,
@@ -524,18 +747,43 @@ export default function EncuestaLogrosWKP() {
       apellidos: form.apellidos,
       tipoDocumento: form.tipoDocumento,
       documento: form.documento,
-      patologiaRelacionada: form.patologiaRelacionada,
+      patologiaRelacionada: form.patologiasTop,
+      otraPatologia: form.otraPatologia,
       limitacionMoverse: form.limitacionMoverse,
       actividadesAfectadas: form.actividadesAfectadas,
       sintomasTop: form.problemasTop,
       otroSintoma: form.otroProblema,
-      objetivos: form.objetivos,
-      textos: form.textos || {},
+      objetivos: objetivosPayload,
+      textos: textosPayload,
       objetivoExtra: form.objetivoExtra || null,
       adicionalNoPuede: form.adicionalNoPuede || null,
       ultimaVez: form.ultimaVez || null,
       queImpide: form.queImpide,
     };
+
+    // #region agent log
+    fetch("http://127.0.0.1:7824/ingest/0b4a9a59-f4c8-4fc1-bc15-332e88853d32", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "1643f0",
+      },
+      body: JSON.stringify({
+        sessionId: "1643f0",
+        location: "EncuestaLogrosWKP.jsx:submit",
+        message: "frontend payload summary",
+        data: {
+          payloadKeys: Object.keys(payload),
+          sintomasTop: payload.sintomasTop,
+          objetivoKeys: Object.keys(payload.objetivos || {}),
+          textosKeys: Object.keys(payload.textos || {}),
+          patologiaRelacionada: payload.patologiaRelacionada,
+          objetivos: payload.objetivos,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     console.log("[ENCUESTA] Payload a enviar:", payload);
     console.log("[ENCUESTA] Iniciando request...");
@@ -748,19 +996,36 @@ export default function EncuestaLogrosWKP() {
           }
         />
 
+        <RegistrosExistentesNotice
+          registros={registrosExistentes}
+          loading={registrosExistentesLoading}
+        />
+
                 <h3 className="encuesta-logros-seccion">
                   Sección 2: Estado y limitación
                 </h3>
 
-        <RadioGroup
-          label="5. Patología relacionada"
-          name="patologiaRelacionada"
+        <CheckboxGroup
+          label="5. Patología relacionada (zonas)"
           options={PATOLOGIA_RELACIONADA}
-          value={form.patologiaRelacionada}
-          onChange={onChange}
-          required
-          error={errors.patologiaRelacionada}
+          values={form.patologiasTop}
+          onToggle={togglePatologiaTop}
+          error={errors.patologiasTop}
+          rankLabels={PATOLOGIA_RANK_LABELS}
+          note="Elija 1 a 3 zonas. El orden de selección define: 1. Prioritaria, 2. Secundaria, 3. Terciaria. Si tiene más de 3 molestias, elija solo las tres más importantes."
         />
+
+        {form.patologiasTop.includes("otro") && (
+          <TextField
+            label="5b. Si seleccionó “Otro”, indique la zona"
+            name="otraPatologia"
+            value={form.otraPatologia}
+            onChange={onChange}
+            required
+            error={errors.otraPatologia}
+            placeholder="Ej. inguinal, pubis, columna dorsal…"
+          />
+        )}
 
         <RadioGroup
           label="6. ¿Qué tan limitada está su vida para moverse?"
@@ -789,6 +1054,24 @@ export default function EncuestaLogrosWKP() {
           note="(Seleccione mínimo 1 y máximo 3)"
         />
 
+        {form.problemasTop
+          .filter((p) => PROBLEMAS_CON_ACLARACION.has(p))
+          .map((problema) => {
+            const meta = PROBLEMAS.find((p) => p.value === problema);
+            return (
+              <TextField
+                key={`acl_${problema}`}
+                label={`Aclare este problema (${meta?.label || problema})`}
+                name={`texto_${problema}`}
+                value={form.textos?.[problema] || ""}
+                onChange={(e) => setTextoProblema(problema, e.target.value)}
+                required
+                error={errors[`texto_${problema}`]}
+                placeholder="Ej. me duele ir a mercar, no aguanto estar en reuniones…"
+              />
+            );
+          })}
+
         {form.problemasTop.includes("otro") && (
           <TextField
             label="9. Si seleccionó “Otro”, diga cuál y sea específico"
@@ -814,6 +1097,53 @@ export default function EncuestaLogrosWKP() {
 
             if (!meta) return null;
 
+            let opciones = meta.opciones;
+            if (problema === "dolor") {
+              opciones =
+                form.limitacionMoverse === "poco"
+                  ? meta.opciones
+                  : meta.opciones.filter(
+                      (o) => o.value !== "dolor_desaparece",
+                    );
+            } else if (problema === "trastorno_trabajo") {
+              opciones =
+                form.limitacionMoverse === "poco"
+                  ? meta.opciones
+                  : meta.opciones.filter(
+                      (o) => o.value !== "trabajo_jornada_completa",
+                    );
+            } else if (problema === "escaleras") {
+              opciones =
+                form.limitacionMoverse === "poco"
+                  ? meta.opciones
+                  : meta.opciones.filter((o) => o.value !== "sin_dificultad");
+            } else if (problema === "levantarse_silla_cama") {
+              opciones =
+                form.limitacionMoverse === "poco"
+                  ? meta.opciones
+                  : meta.opciones.filter((o) => o.value !== "sin_dificultad");
+            } else if (problema === "autocuidado") {
+              opciones =
+                form.limitacionMoverse === "poco"
+                  ? meta.opciones
+                  : meta.opciones.filter(
+                      (o) => o.value !== "independencia_total",
+                    );
+            } else if (problema === "recoger_objetos") {
+              opciones =
+                form.limitacionMoverse === "poco"
+                  ? meta.opciones
+                  : meta.opciones.filter(
+                      (o) => o.value !== "varias_maneras_sin_dolor",
+                    );
+            }
+
+            const objVal = form.objetivos[problema] || "";
+            const needsMinutos = objetivoRequiereMinutos(problema, objVal);
+            const needsHoras = objetivoRequiereHoras(problema, objVal);
+            const needsTextoObj = objetivoRequiereTextoObjetivo(problema, objVal);
+            const textoObjKey = textoObjetivoFormKey(problema);
+
             return (
               <div className="objetivo-card" key={problema}>
                 <p className="objetivo-card__title">
@@ -824,12 +1154,69 @@ export default function EncuestaLogrosWKP() {
                   <SelectInput
                     label="Objetivo específico"
                     name={`obj_${problema}`}
-                    value={form.objetivos[problema] || ""}
+                    value={objVal}
                     onChange={(e) => setObjetivo(problema, e.target.value)}
-                    options={meta.opciones}
+                    options={opciones.map(({ value, label }) => ({
+                      value,
+                      label,
+                    }))}
                     required
                     error={errors[`obj_${problema}`]}
                   />
+
+                  {needsMinutos ? (
+                    <SelectInput
+                      label="¿Por cuántos minutos?"
+                      name={`obj_min_${problema}`}
+                      value={form.objetivosMinutos?.[problema] || ""}
+                      onChange={(e) =>
+                        setObjetivoMinutos(problema, e.target.value)
+                      }
+                      options={MINUTOS_OBJETIVO_OPTIONS}
+                      required
+                      error={errors[`obj_min_${problema}`]}
+                    />
+                  ) : null}
+
+                  {needsHoras ? (
+                    <SelectInput
+                      label="¿Por cuántas horas?"
+                      name={`obj_hor_${problema}`}
+                      value={form.objetivosHoras?.[problema] || ""}
+                      onChange={(e) =>
+                        setObjetivoHoras(problema, e.target.value)
+                      }
+                      options={HORAS_OBJETIVO_OPTIONS}
+                      required
+                      error={errors[`obj_hor_${problema}`]}
+                    />
+                  ) : null}
+
+                  {needsTextoObj ? (
+                    <TextField
+                      label={
+                        problema === "limitacion_deporte"
+                          ? "¿Qué ejercicio?"
+                          : problema === "autocuidado"
+                            ? "¿En qué actividad necesitas esa ayuda?"
+                            : "Indique el tipo de actividades de ocio"
+                      }
+                      name={`texto_obj_${problema}`}
+                      value={form.textos?.[textoObjKey] || ""}
+                      onChange={(e) =>
+                        setTextoProblema(textoObjKey, e.target.value)
+                      }
+                      required
+                      error={errors[`texto_obj_${problema}`]}
+                      placeholder={
+                        problema === "limitacion_deporte"
+                          ? "Ej. caminata en cinta, bicicleta estática…"
+                          : problema === "autocuidado"
+                            ? "Mencione la actividad específica (ej. bañarme, vestirme, alimentarme…)"
+                            : "Ej. ver televisión, leer, comer en restaurante…"
+                      }
+                    />
+                  ) : null}
                 </div>
               </div>
             );

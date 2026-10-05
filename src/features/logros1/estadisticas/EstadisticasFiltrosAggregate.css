@@ -2,10 +2,10 @@
 
 /* —— Vista Filtros: tono clínico / institucional —— */
 .estad-filtros {
-  --cli-teal: #0f766e;
-  --cli-teal-soft: #ecfdf5;
-  --cli-teal-border: #99f6e4;
-  --cli-teal-hover: #0d9488;
+  --cli-teal: var(--pastel-lilac-deep);
+  --cli-teal-soft: var(--pastel-lilac-soft);
+  --cli-teal-border: var(--pastel-lilac-border);
+  --cli-teal-hover: var(--pastel-lilac-hover);
   --cli-slate-900: #0f172a;
   --cli-slate-700: #334155;
   --cli-slate-600: #475569;
@@ -115,7 +115,7 @@
 .estad-filtros .estad-agg__select:focus {
   outline: none;
   border-color: var(--cli-teal);
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  box-shadow: 0 0 0 3px rgba(184, 168, 224, 0.28);
 }
 
 .estad-agg__select {
@@ -276,7 +276,7 @@
   box-sizing: border-box;
 }
 
-/* “Añadir síntoma”: estilos de color en ButtonComponente (tealSoft) */
+/* “Añadir síntoma”: estilos de color en ButtonComponente (tealSoft → lila) */
 .estad-sb-sym__trigger {
   flex-shrink: 1;
   min-width: 0;
@@ -458,7 +458,7 @@
   font-family: "Poppins", sans-serif;
   font-size: clamp(1.25rem, 3.5vw, 1.85rem);
   font-weight: 800;
-  color: #2563eb;
+  color: var(--pastel-blue-hover);
 }
 
 .estad-filtros .estad-agg__stat-label {
@@ -511,7 +511,7 @@
 .estad-agg__table th {
   text-align: left;
   padding: clamp(0.55rem, 1.2vw, 0.75rem) clamp(0.5rem, 1.2vw, 0.65rem);
-  background: #4a83d5;
+  background: var(--pastel-blue-btn);
   color: #fff;
   font-weight: 700;
   white-space: nowrap;

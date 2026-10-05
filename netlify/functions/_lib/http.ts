@@ -65,6 +65,20 @@ export function parseJsonBody(event: HandlerEvent): unknown {
   }
 }
 
+function jsonStringifySafe(data: unknown): string {
+  try {
+    return JSON.stringify(data, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value,
+    );
+  } catch (e) {
+    console.error("[http] JSON.stringify falló:", e);
+    return JSON.stringify({
+      detail: "No se pudo serializar la respuesta.",
+      code: "SERIALIZE",
+    });
+  }
+}
+
 export function jsonResponse(
   statusCode: number,
   data: unknown,
@@ -78,7 +92,7 @@ export function jsonResponse(
       ...corsHeaders(origin),
       ...extraHeaders,
     },
-    body: JSON.stringify(data),
+    body: jsonStringifySafe(data),
   };
 }
 

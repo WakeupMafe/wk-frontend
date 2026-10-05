@@ -2,10 +2,9 @@
   "name": "frontend",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:netlify": "netlify dev",
+    "dev:netlify": "node scripts/run-netlify-dev.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

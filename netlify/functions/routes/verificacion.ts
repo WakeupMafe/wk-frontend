@@ -49,6 +49,25 @@ function sameInstantIso(a: unknown, b: unknown): boolean {
   return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb;
 }
 
+function parseJsonObject(raw: unknown): Record<string, unknown> | null {
+  if (raw != null && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return null;
+    try {
+      const p = JSON.parse(t) as unknown;
+      if (p != null && typeof p === "object" && !Array.isArray(p)) {
+        return p as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 /**
  * Mensaje legible cuando Supabase/Postgres rechaza el DELETE (FK, permisos, etc.).
  */
@@ -87,17 +106,19 @@ function explainSupabaseDeleteError(err: {
 }
 
 /**
- * True si hay Logros 2 (tabla moderna o legada) enlazado a esta fila de Logros 1
- * por documento + fecha de creación de la fase 1.
+ * True si hay Logros 2 (tabla moderna o legada) enlazado a esta fila de Logros 1.
+ * Prioriza `fase1_referencia.id_int` (coincidencia exacta con wakeup_seguimientos.id_int);
+ * si no existe en datos viejos, usa documento + created_at de fase 1.
  */
 async function logros1TieneSeguimiento2Dependiente(
   supabase: SupabaseClient,
   documentoPacienteInt: number,
   documentoPacienteStr: string,
   fase1CreatedAt: unknown,
+  l1IdInt: number,
 ): Promise<boolean> {
   const f1At = fase1CreatedAt != null ? String(fase1CreatedAt).trim() : "";
-  if (!f1At) return false;
+  const docExpectedDigits = onlyDigits(String(documentoPacienteStr));
 
   const fetchL2 = async (docVal: number | string) =>
     supabase
@@ -118,19 +139,32 @@ async function logros1TieneSeguimiento2Dependiente(
       if (row.deleted_at != null && String(row.deleted_at).trim() !== "") {
         continue;
       }
-      const po = row.payload_origen as Record<string, unknown> | null | undefined;
+      const po = parseJsonObject(row.payload_origen);
       const ref = (po?.fase1_referencia as Record<string, unknown>) || {};
+      const refIdRaw = ref.id_int ?? ref.id_wakeup_seguimiento_1;
+      if (refIdRaw != null && String(refIdRaw).trim() !== "") {
+        const refId = Number(refIdRaw);
+        if (Number.isFinite(refId) && refId === l1IdInt) {
+          return true;
+        }
+        // Referencia explícita a otra fila L1: no usar created_at como señal.
+        continue;
+      }
       const refDocDigits = onlyDigits(String(ref.documento ?? ""));
       if (
         refDocDigits &&
-        refDocDigits !== onlyDigits(String(documentoPacienteStr))
+        refDocDigits !== docExpectedDigits
       ) {
         continue;
       }
-      if (sameInstantIso(ref.created_at, f1At)) {
+      if (f1At && sameInstantIso(ref.created_at, f1At)) {
         return true;
       }
     }
+  }
+
+  if (!f1At) {
+    return false;
   }
 
   const optCols = await supabase
@@ -633,6 +667,7 @@ export async function handleVerificacion(
             docInt,
             docExpected,
             sel.data.created_at,
+            idInt,
           ));
         if (bloqueado) {
           return jsonResponse(
@@ -650,11 +685,23 @@ export async function handleVerificacion(
         const del = await supabase
           .from("wakeup_seguimientos")
           .delete()
-          .eq("id_int", idInt);
+          .eq("id_int", idInt)
+          .select("id_int");
         if (del.error) {
           return jsonResponse(
             400,
             errBody(explainSupabaseDeleteError(del.error)),
+            origin,
+          );
+        }
+        const deletedRows = Array.isArray(del.data) ? del.data.length : 0;
+        if (deletedRows === 0) {
+          return jsonResponse(
+            404,
+            errBody(
+              "No se eliminó ninguna fila: el registro puede haber sido borrado antes, " +
+                "o la base de datos no aplicó el borrado (permisos o políticas).",
+            ),
             origin,
           );
         }
@@ -759,7 +806,12 @@ export async function handleVerificacion(
 
     const registrosMatch = path.match(/^\/verificacion\/registros\/(.+)$/);
     if (registrosMatch && method === "GET") {
-      const rawCed = decodeURIComponent(registrosMatch[1] || "");
+      let rawCed = registrosMatch[1] || "";
+      try {
+        rawCed = decodeURIComponent(rawCed);
+      } catch {
+        /* mantener raw si % mal formado */
+      }
       const cedulaStr = onlyDigits(rawCed);
       if (!cedulaStr) {
         return jsonResponse(400, errBody("Documento inválido"), origin);
@@ -768,12 +820,7 @@ export async function handleVerificacion(
       const cedulaInt = toIntOr400(cedulaStr, "Documento");
       const supabase = getSupabase();
 
-      // Logros 1 (wakeup_seguimientos)
-      let l1Rows: Record<string, unknown>[] = [];
-      const l1TryString = await supabase
-        .from("wakeup_seguimientos")
-        .select(
-          `
+      const l1Select = `
             created_at,
             nombres,
             apellidos,
@@ -799,59 +846,191 @@ export async function handleVerificacion(
             referencia_registro,
             sede,
             encuestador
-          `,
-        )
-        .eq("documento", cedulaStr)
-        .order("created_at", { ascending: true });
+          `;
 
-      if (l1TryString.error) {
-        const l1TryInt = await supabase
+      const loadL1Rows = async (): Promise<
+        | { ok: true; rows: Record<string, unknown>[] }
+        | { ok: false; message: string }
+      > => {
+        const l1TryString = await supabase
           .from("wakeup_seguimientos")
-          .select(
-            `
-              created_at,
-              nombres,
-              apellidos,
-              tipo_documento,
-              documento,
-              patologia_relacionada,
-              limitacion_moverse,
-              actividades_afectadas,
-              sintoma_1,
-              sintoma_2,
-              sintoma_3,
-              otro_sintoma,
-              objetivo_1,
-              objetivo_2,
-              objetivo_3,
-              objetivos_seleccionados,
-              objetivo_extra,
-              adicional_no_puede,
-              ultima_vez,
-              que_impide,
-              id_int,
-              id_registro,
-              referencia_registro,
-              sede,
-              encuestador
-            `,
-          )
-          .eq("documento", cedulaInt)
+          .select(l1Select)
+          .eq("documento", cedulaStr)
           .order("created_at", { ascending: true });
-        if (l1TryInt.error) {
-          return jsonResponse(
-            400,
-            errBody({
-              where: "SUPABASE SELECT REGISTROS LOGROS1",
-              error: l1TryInt.error.message,
-            }),
-            origin,
-          );
+
+        if (l1TryString.error) {
+          const l1TryInt = await supabase
+            .from("wakeup_seguimientos")
+            .select(l1Select)
+            .eq("documento", cedulaInt)
+            .order("created_at", { ascending: true });
+          if (l1TryInt.error) {
+            return { ok: false, message: l1TryInt.error.message };
+          }
+          return { ok: true, rows: (l1TryInt.data || []) as Record<string, unknown>[] };
         }
-        l1Rows = (l1TryInt.data || []) as Record<string, unknown>[];
-      } else {
-        l1Rows = (l1TryString.data || []) as Record<string, unknown>[];
+        return { ok: true, rows: (l1TryString.data || []) as Record<string, unknown>[] };
+      };
+
+      const l2Select = `
+        id,
+        codigo_seguimiento,
+        created_at,
+        sede,
+        estado,
+        origen,
+        documento,
+        nombres,
+        apellidos,
+        encuestador,
+        encuestador_nombre,
+        limitacion_moverse_label,
+        actividades_afectadas_label,
+        adicional_no_puede_label,
+        ultima_vez_label,
+        que_impide_label,
+        meta_complementaria_previa,
+        payload_origen,
+        payload_respuesta
+      `;
+
+      const l2LegacySelect = `
+            id_int,
+            created_at,
+            sede,
+            documento,
+            fase1_documento,
+            fase1_created_at,
+            respuestas
+          `;
+
+      const docIsNumeric = cedulaStr === String(cedulaInt);
+
+      /** Búsqueda por JSONB `contains` puede ser muy lenta sin índice GIN; acotamos tiempo y filas. */
+      const payloadOrigenTimeoutMs = 12_000;
+      const queryL2ByPayloadOrigen = async (): Promise<
+        Record<string, unknown>[]
+      > => {
+        let q = supabase
+          .from("wakeup_seguimiento2")
+          .select(l2Select)
+          .contains("payload_origen", {
+            fase1_referencia: { documento: cedulaInt },
+          })
+          .order("created_at", { ascending: true })
+          .limit(100);
+        if (
+          typeof AbortSignal !== "undefined" &&
+          typeof AbortSignal.timeout === "function"
+        ) {
+          q = q.abortSignal(AbortSignal.timeout(payloadOrigenTimeoutMs));
+        }
+        const res = await q;
+        if (res.error) {
+          if (res.error.code !== "42P01" && res.error.name !== "AbortError") {
+            console.warn(
+              "[verificacion/registros] payload_origen contains:",
+              res.error.message,
+            );
+          }
+          return [];
+        }
+        return (res.data || []) as Record<string, unknown>[];
+      };
+
+      const loadL2ModernRows = async (): Promise<
+        | { ok: true; rows: Record<string, unknown>[] }
+        | { ok: false; message: string }
+      > => {
+        const primaryDoc: string | number = docIsNumeric ? cedulaInt : cedulaStr;
+        const primary = await supabase
+          .from("wakeup_seguimiento2")
+          .select(l2Select)
+          .eq("documento", primaryDoc)
+          .order("created_at", { ascending: true });
+        if (primary.error && primary.error.code !== "42P01") {
+          return { ok: false, message: primary.error.message };
+        }
+        let rows = ((primary.data || []) as Record<string, unknown>[]) ?? [];
+
+        if (!rows.length && !docIsNumeric && Number.isFinite(cedulaInt)) {
+          const alt = await supabase
+            .from("wakeup_seguimiento2")
+            .select(l2Select)
+            .eq("documento", cedulaInt)
+            .order("created_at", { ascending: true });
+          if (alt.error && alt.error.code !== "42P01") {
+            return { ok: false, message: alt.error.message };
+          }
+          rows = (alt.data || []) as Record<string, unknown>[];
+        }
+
+        if (!rows.length) {
+          rows = await queryL2ByPayloadOrigen();
+        }
+        return { ok: true, rows };
+      };
+
+      const loadL2LegacyRows = async (): Promise<
+        | { ok: true; rows: Record<string, unknown>[] }
+        | { ok: false; message: string }
+      > => {
+        const primaryDoc: string | number = docIsNumeric ? cedulaInt : cedulaStr;
+        const primary = await supabase
+          .from("wakeup_seguimientos_logros2")
+          .select(l2LegacySelect)
+          .eq("documento", primaryDoc)
+          .order("created_at", { ascending: true });
+        if (primary.error && primary.error.code !== "42P01") {
+          return { ok: false, message: primary.error.message };
+        }
+        let rows = ((primary.data || []) as Record<string, unknown>[]) ?? [];
+
+        if (!rows.length && !docIsNumeric && Number.isFinite(cedulaInt)) {
+          const alt = await supabase
+            .from("wakeup_seguimientos_logros2")
+            .select(l2LegacySelect)
+            .eq("documento", cedulaInt)
+            .order("created_at", { ascending: true });
+          if (alt.error && alt.error.code !== "42P01") {
+            return { ok: false, message: alt.error.message };
+          }
+          rows = (alt.data || []) as Record<string, unknown>[];
+        }
+
+        if (!rows.length && Number.isFinite(cedulaInt)) {
+          const byFase1 = await supabase
+            .from("wakeup_seguimientos_logros2")
+            .select(l2LegacySelect)
+            .eq("fase1_documento", cedulaInt)
+            .order("created_at", { ascending: true });
+          if (byFase1.error && byFase1.error.code !== "42P01") {
+            return { ok: false, message: byFase1.error.message };
+          }
+          rows = (byFase1.data || []) as Record<string, unknown>[];
+        }
+
+        return { ok: true, rows };
+      };
+
+      const [l1Result, l2ModernResult, l2LegacyResult] = await Promise.all([
+        loadL1Rows(),
+        loadL2ModernRows(),
+        loadL2LegacyRows(),
+      ]);
+
+      if (!l1Result.ok) {
+        return jsonResponse(
+          400,
+          errBody({
+            where: "SUPABASE SELECT REGISTROS LOGROS1",
+            error: l1Result.message,
+          }),
+          origin,
+        );
       }
+
+      let l1Rows = l1Result.rows;
 
       // Enriquecer Logros 1 con nombre del profesional (autorizados)
       // para mostrar "cedula - nombres apellidos" en frontend y PDF.
@@ -894,143 +1073,33 @@ export async function handleVerificacion(
         l1Rows = l1Rows.map((r) => ({ ...r, encuestador_nombre: "" }));
       }
 
-      // Logros 2 actual (wakeup_seguimiento2) con búsqueda robusta
-      let l2Rows: Record<string, unknown>[] = [];
-      const l2Select = `
-        id,
-        codigo_seguimiento,
-        created_at,
-        sede,
-        estado,
-        origen,
-        documento,
-        nombres,
-        apellidos,
-        encuestador,
-        encuestador_nombre,
-        limitacion_moverse_label,
-        actividades_afectadas_label,
-        adicional_no_puede_label,
-        ultima_vez_label,
-        que_impide_label,
-        meta_complementaria_previa,
-        payload_origen,
-        payload_respuesta
-      `;
-
-      const l2ModernInt = await supabase
-        .from("wakeup_seguimiento2")
-        .select(l2Select)
-        .eq("documento", cedulaInt)
-        .order("created_at", { ascending: true });
-
-      if (!l2ModernInt.error && l2ModernInt.data) {
-        l2Rows.push(...((l2ModernInt.data || []) as Record<string, unknown>[]));
-      } else if (l2ModernInt.error && l2ModernInt.error.code !== "42P01") {
+      if (!l2ModernResult.ok) {
         return jsonResponse(
           400,
           errBody({
-            where: "SUPABASE SELECT REGISTROS LOGROS2 documento(int)",
-            error: l2ModernInt.error.message,
+            where: "SUPABASE SELECT REGISTROS LOGROS2 documento",
+            error: l2ModernResult.message,
           }),
           origin,
         );
       }
 
-      const l2ModernStr = await supabase
-        .from("wakeup_seguimiento2")
-        .select(l2Select)
-        .eq("documento", cedulaStr)
-        .order("created_at", { ascending: true });
-
-      if (!l2ModernStr.error && l2ModernStr.data) {
-        l2Rows.push(...((l2ModernStr.data || []) as Record<string, unknown>[]));
-      }
-
-      // fallback: referencia a fase1 dentro de payload_origen
-      const l2ModernByPayload = await supabase
-        .from("wakeup_seguimiento2")
-        .select(l2Select)
-        .contains("payload_origen", { fase1_referencia: { documento: cedulaInt } })
-        .order("created_at", { ascending: true });
-      if (!l2ModernByPayload.error && l2ModernByPayload.data) {
-        l2Rows.push(...((l2ModernByPayload.data || []) as Record<string, unknown>[]));
-      }
-
-      l2Rows = dedupeRowsBy(l2Rows, (row) =>
-        String(row.id ?? row.codigo_seguimiento ?? row.created_at ?? ""),
-      );
-
-      // Logros 2 legado (wakeup_seguimientos_logros2)
-      const l2LegacyInt = await supabase
-        .from("wakeup_seguimientos_logros2")
-        .select(
-          `
-            id_int,
-            created_at,
-            sede,
-            documento,
-            fase1_documento,
-            fase1_created_at,
-            respuestas
-          `,
-        )
-        .eq("documento", cedulaInt)
-        .order("created_at", { ascending: true });
-
-      let l2LegacyRows: Record<string, unknown>[] = [];
-      if (!l2LegacyInt.error && l2LegacyInt.data) {
-        l2LegacyRows.push(...((l2LegacyInt.data || []) as Record<string, unknown>[]));
-      } else if (l2LegacyInt.error && l2LegacyInt.error.code !== "42P01") {
+      if (!l2LegacyResult.ok) {
         return jsonResponse(
           400,
           errBody({
             where: "SUPABASE SELECT REGISTROS LOGROS2_LEGADO",
-            error: l2LegacyInt.error.message,
+            error: l2LegacyResult.message,
           }),
           origin,
         );
       }
 
-      const l2LegacyStr = await supabase
-        .from("wakeup_seguimientos_logros2")
-        .select(
-          `
-            id_int,
-            created_at,
-            sede,
-            documento,
-            fase1_documento,
-            fase1_created_at,
-            respuestas
-          `,
-        )
-        .eq("documento", cedulaStr)
-        .order("created_at", { ascending: true });
-      if (!l2LegacyStr.error && l2LegacyStr.data) {
-        l2LegacyRows.push(...((l2LegacyStr.data || []) as Record<string, unknown>[]));
-      }
+      let l2Rows = dedupeRowsBy(l2ModernResult.rows, (row) =>
+        String(row.id ?? row.codigo_seguimiento ?? row.created_at ?? ""),
+      );
 
-      const l2LegacyByFase1 = await supabase
-        .from("wakeup_seguimientos_logros2")
-        .select(
-          `
-            id_int,
-            created_at,
-            sede,
-            documento,
-            fase1_documento,
-            fase1_created_at,
-            respuestas
-          `,
-        )
-        .eq("fase1_documento", cedulaInt)
-        .order("created_at", { ascending: true });
-      if (!l2LegacyByFase1.error && l2LegacyByFase1.data) {
-        l2LegacyRows.push(...((l2LegacyByFase1.data || []) as Record<string, unknown>[]));
-      }
-
-      l2LegacyRows = dedupeRowsBy(l2LegacyRows, (row) =>
+      let l2LegacyRows = dedupeRowsBy(l2LegacyResult.rows, (row) =>
         String(row.id_int ?? row.created_at ?? row.documento ?? ""),
       );
 
@@ -1076,7 +1145,7 @@ export async function handleVerificacion(
 
       let countL1 = 0;
       let countL2 = 0;
-      const registros = merged.map((r, idx) => {
+      let registros = merged.map((r, idx) => {
         let delete_spec: Record<string, unknown> | null = null;
         if (r.tipo === "logros1") {
           const dd = r.data as Record<string, unknown>;
@@ -1135,6 +1204,31 @@ export async function handleVerificacion(
         };
       });
 
+      // Filtro opcional: ?encuestador=… o ?solo_mias=1&encuestador=…
+      // Registros sin encuestador se excluyen cuando el filtro está activo.
+      const encuestadorQ = onlyDigits(
+        String(query?.encuestador ?? query?.encuestador_cedula ?? "").trim(),
+      );
+      const soloMias =
+        String(query?.solo_mias ?? "").trim() === "1" ||
+        String(query?.solo_mias ?? "").toLowerCase() === "true";
+      if (encuestadorQ || soloMias) {
+        if (!encuestadorQ) {
+          registros = [];
+          countL1 = 0;
+          countL2 = 0;
+        } else {
+          registros = registros.filter((r) => {
+            const enc = onlyDigits(
+              String((r.data as Record<string, unknown>)?.encuestador ?? ""),
+            );
+            return enc.length > 0 && enc === encuestadorQ;
+          });
+          countL1 = registros.filter((r) => r.tipo === "logros1").length;
+          countL2 = registros.filter((r) => r.tipo === "logros2").length;
+        }
+      }
+
       return jsonResponse(
         200,
         {
@@ -1147,6 +1241,7 @@ export async function handleVerificacion(
           },
           resumen: registros.map((r) => r.etiqueta),
           registros,
+          filtro_encuestador: encuestadorQ || null,
         },
         origin,
       );

@@ -15,10 +15,16 @@ import fondo2 from "../../assets/fondo2.svg";
 import {
   alertConfirm,
   alertError,
+  alertInfo,
   alertSuccess,
   alertWarning,
 } from "../../lib/alerts/appAlert";
 import { sweetLoading, sweetClose } from "../../components/SweetAlert";
+import RegistrosExistentesNotice from "../../components/RegistrosExistentesNotice";
+import {
+  buildRegistrosExistentesHtml,
+  fetchRegistrosPorDocumento,
+} from "../../lib/encuestas/registrosExistentes";
 
 import { NIVEL_MEJORA, getOpcionesNuevoObjetivo } from "./logros2Catalog";
 import {
@@ -32,17 +38,13 @@ import {
   mapLastTimeLabel,
 } from "./logros2Formatters";
 
-import { PATOLOGIA_RELACIONADA } from "../../data/encuestaLogrosCatalog";
+import { formatPatologiaLabel } from "../../data/encuestaLogrosCatalog";
 import { apiUrl } from "../../lib/api/baseUrl";
 import {
   WK_PERFIL_ACTUALIZADO,
   emitPerfilActualizado,
   readAutorizadoCache,
 } from "../../lib/autorizadoPerfilEvents";
-
-const PATOLOGIA_RELACIONADA_LABEL = Object.fromEntries(
-  PATOLOGIA_RELACIONADA.map((o) => [o.value, o.label]),
-);
 
 function TextField({
   label,
@@ -167,6 +169,9 @@ export default function EncuestaLogros2() {
   const [fase1Referencia, setFase1Referencia] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [errors, setErrors] = useState({});
+  const [registrosExistentes, setRegistrosExistentes] = useState([]);
+  const [registrosExistentesLoading, setRegistrosExistentesLoading] =
+    useState(false);
 
   /** @type {Record<string, { nivel: string; nuevo: string }>} */
   const [respuestas, setRespuestas] = useState({});
@@ -231,6 +236,7 @@ export default function EncuestaLogros2() {
       if (!res.ok) {
         setFase1(null);
         setFase1Referencia(null);
+        setRegistrosExistentes([]);
         await alertWarning({
           title: "Sin evaluación previa",
           text:
@@ -244,6 +250,7 @@ export default function EncuestaLogros2() {
       if (!row) {
         setFase1(null);
         setFase1Referencia(null);
+        setRegistrosExistentes([]);
         return false;
       }
 
@@ -265,10 +272,33 @@ export default function EncuestaLogros2() {
       }
       setRespuestas(init);
       setMostrarSugerencias(false);
+
+      setRegistrosExistentesLoading(true);
+      try {
+        const regPack = await fetchRegistrosPorDocumento(doc);
+        const regs = Array.isArray(regPack?.registros) ? regPack.registros : [];
+        setRegistrosExistentes(regs);
+        if (regPack?.ok && regs.length > 0) {
+          const footnote =
+            (regPack.conteo?.logros2 || 0) > 0
+              ? "Ya hay seguimientos Logros 2 para este documento. Puede continuar con uno nuevo; al enviar se pedirá confirmación si aplica."
+              : "Se muestra el historial del documento (Logros 1 y/o Logros 2). Puede continuar con el seguimiento.";
+          await alertInfo({
+            title: "Encuestas registradas para este documento",
+            html: buildRegistrosExistentesHtml(regs, { footnote }),
+          });
+        }
+      } catch {
+        setRegistrosExistentes([]);
+      } finally {
+        setRegistrosExistentesLoading(false);
+      }
+
       return true;
     } catch {
       setFase1(null);
       setFase1Referencia(null);
+      setRegistrosExistentes([]);
       await alertError({
         title: "Error",
         text: "No fue posible recuperar la evaluación previa. Intente nuevamente.",
@@ -514,10 +544,27 @@ export default function EncuestaLogros2() {
 
     let seguimiento2PadreId = null;
     if (preJson.tiene_seguimientos_previos) {
+      let confirmHtml = "";
+      let confirmText =
+        "El documento de este usuario ya existe en nuestra base de datos. ¿Está seguro de enviar un segundo seguimiento?";
+      try {
+        const regPack = await fetchRegistrosPorDocumento(docPaciente);
+        const regs = Array.isArray(regPack?.registros) ? regPack.registros : [];
+        if (regs.length > 0) {
+          setRegistrosExistentes(regs);
+          confirmHtml = buildRegistrosExistentesHtml(regs, {
+            intro:
+              "El documento de este usuario ya tiene encuestas registradas. ¿Está seguro de enviar un seguimiento adicional?",
+          });
+          confirmText = "";
+        }
+      } catch {
+        /* mantener mensaje genérico */
+      }
       const okSecond = await alertConfirm({
         title: "Seguimiento adicional",
-        text:
-          "El documento de este usuario ya existe en nuestra base de datos. ¿Está seguro de enviar un segundo seguimiento?",
+        text: confirmText,
+        html: confirmHtml,
         confirmButtonText: "Sí, enviar",
         cancelButtonText: "No",
       });
@@ -562,9 +609,8 @@ export default function EncuestaLogros2() {
         que_impide_label: queImpideTxt !== "—" ? queImpideTxt : null,
         meta_complementaria_previa: String(fase1.objetivo_extra || "").trim() || null,
         patologia_relacionada_label: (() => {
-          const code = fase1.patologia_relacionada;
-          if (!code) return null;
-          return PATOLOGIA_RELACIONADA_LABEL[code] || String(code);
+          const label = formatPatologiaLabel(fase1.patologia_relacionada);
+          return label || null;
         })(),
       },
     };
@@ -786,6 +832,11 @@ export default function EncuestaLogros2() {
                   {cargando ? "Consultando…" : "Cargar evaluación previa"}
                 </Button>
               </div>
+
+              <RegistrosExistentesNotice
+                registros={registrosExistentes}
+                loading={registrosExistentesLoading}
+              />
 
           {fase1 && slots.length > 0 ? (
             <form onSubmit={onSubmit}>

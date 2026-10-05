@@ -15,23 +15,30 @@ div:where(.swal2-container) {
   position: relative;
 }
 
-/* Botón X (cerrar) — mismo estilo que SweetAlert2, más visible */
+/* Botón X (cerrar) — rojo pastel por convención (tokens en index.css) */
 button.swal2-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 40px;
+  min-height: 40px;
   font-family: "Poppins", sans-serif;
   font-size: 1.75rem;
   font-weight: 400;
   line-height: 1;
-  color: #64748b;
+  color: var(--pastel-close);
   transition: color 0.15s ease, transform 0.15s ease;
 }
 
 button.swal2-close:hover {
-  color: #0b1729;
+  color: var(--pastel-close-hover);
   transform: scale(1.08);
 }
 
 button.swal2-close:focus {
-  outline: 2px solid #4a82bd;
+  outline: 2px solid var(--pastel-close);
   outline-offset: 2px;
 }
 
@@ -39,7 +46,7 @@ button.swal2-close:focus {
 .swal2-title {
   font-size: 1.4rem;
   font-weight: 500;
-  color: #0b1729;
+  color: var(--pastel-ink);
   margin-bottom: 0.4rem;
 }
 
@@ -47,26 +54,43 @@ button.swal2-close:focus {
 .swal2-html-container {
   font-size: 1rem;
   font-weight: 400;
-  color: #4d617e;
+  color: var(--pastel-ink-soft);
   margin-top: 0.2rem;
 }
 
-/* Botón confirmar */
+/* Botón confirmar — lila pastel */
 .swal2-confirm {
   font-family: "Poppins", sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
   padding: 0.55rem 1.6rem;
   border-radius: 999px;
-  background-color: #4a82bd !important;
-  box-shadow: 0 6px 14px rgba(74, 130, 189, 0.35);
+  background-color: var(--pastel-lilac-btn) !important;
+  box-shadow: 0 6px 14px rgba(184, 168, 224, 0.45);
   transition: all 0.2s ease-in-out;
 }
 
 /* Hover botón */
 .swal2-confirm:hover {
   transform: scale(1.1);
-  background-color: #1b9fe6 !important;
+  background-color: var(--pastel-lilac-hover) !important;
+}
+
+/* Cancelar — azul pastel suave */
+.swal2-cancel {
+  font-family: "Poppins", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.55rem 1.6rem;
+  border-radius: 999px;
+  background-color: var(--pastel-blue-btn) !important;
+  box-shadow: 0 4px 12px rgba(142, 180, 216, 0.35);
+  transition: all 0.2s ease-in-out;
+}
+
+.swal2-cancel:hover {
+  transform: scale(1.05);
+  background-color: var(--pastel-blue-hover) !important;
 }
 
 /* Confirmación destructiva (eliminar): el botón principal debe ser rojo */
@@ -80,12 +104,12 @@ button.swal2-close:focus {
   box-shadow: 0 6px 16px rgba(185, 28, 28, 0.45);
 }
 
-/* Icono success */
+/* Icono success — azul pastel */
 .swal2-success-ring {
-  border-color: #4a82bd !important;
+  border-color: var(--pastel-blue-btn) !important;
 }
 
 .swal2-success-line-tip,
 .swal2-success-line-long {
-  background-color: #4a82bd !important;
+  background-color: var(--pastel-blue-btn) !important;
 }

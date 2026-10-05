@@ -15,15 +15,15 @@ const VARIANTS = new Set([
  * Botón unificado de la app.
  *
  * @param {"normal" | "emphasis" | "muted" | "primary" | "teal" | "outline" | "tealSoft" | "ghost" | "accent" | "bare"} variant
- *   - normal — azul grisáceo (acción estándar)
+ *   - normal — azul pastel (acción estándar)
  *   - primary — alias de normal
- *   - emphasis — azul oscuro (#1f3a5f)
+ *   - emphasis — lila profundo (envío / cierre importante)
  *   - muted — gris secundario
- *   - teal — primario clínico (#0f766e)
- *   - outline — contorno teal, fondo blanco
- *   - tealSoft — teal claro (p. ej. “Añadir síntoma”)
+ *   - teal — primario lila pastel (API histórica “teal”)
+ *   - outline — contorno lila, fondo blanco
+ *   - tealSoft — lila claro (p. ej. “Añadir síntoma”)
  *   - ghost — transparente, iconos / quitar
- *   - accent — azul encuesta (#4a83d5), compatibilidad visor
+ *   - accent — azul pastel (login / visor)
  *   - bare — sin estilos base; solo `className` (p. ej. botón circular sidebar)
  * @param {"sm" | "md"} size
  */

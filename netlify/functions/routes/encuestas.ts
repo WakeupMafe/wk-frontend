@@ -81,6 +81,58 @@ function aColumnaFija(
   return out;
 }
 
+const OBJETIVO_DETALLE_SEP = "|";
+
+function resolveDetalleParaSintoma(
+  textos: Record<string, string>,
+  sintoma: string,
+): string | null {
+  const direct = String(textos[sintoma] ?? "").trim();
+  if (direct) return direct;
+  const fromObj = String(textos[`${sintoma}__obj`] ?? "").trim();
+  return fromObj || null;
+}
+
+function embedDetalleEnObjetivo(
+  objetivo: string | null | undefined,
+  detalle: string | null | undefined,
+): string | null {
+  const obj = String(objetivo ?? "").trim();
+  if (!obj) return null;
+  const det = String(detalle ?? "")
+    .trim()
+    .replace(/\|/g, " ");
+  if (!det) return obj;
+  return `${obj}${OBJETIVO_DETALLE_SEP}${det}`;
+}
+
+const DEBUG_INGEST =
+  "http://127.0.0.1:7824/ingest/0b4a9a59-f4c8-4fc1-bc15-332e88853d32";
+const DEBUG_SESSION = "1643f0";
+
+function agentDebugLog(
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+): void {
+  // #region agent log
+  fetch(DEBUG_INGEST, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": DEBUG_SESSION,
+    },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+}
+
 class HttpErr extends Error {
   constructor(
     public status: number,
@@ -93,6 +145,7 @@ class HttpErr extends Error {
 const SINTOMAS_VALIDOS = new Set([
   "dolor",
   "intolerancia_postura",
+  "intolerancia_sentado",
   "limitacion_deporte",
   "trastorno_trabajo",
   "vida_social",
@@ -116,17 +169,72 @@ const TIPOS_DOC_VALIDOS = new Set([
   "registro_civil",
 ]);
 
+/** Códigos aceptados en escrituras nuevas (sin "funcional"; legacy solo lectura). */
 const PATOLOGIA_RELACIONADA_VALIDAS = new Set([
   "rodilla",
   "hombro",
   "cadera",
   "lumbar",
-  "funcional",
   "mano",
   "codo",
   "cuello",
   "pie",
+  "otro",
 ]);
+
+/**
+ * Serializa zonas (1–3) + texto opcional "otro" a TEXT:
+ * un solo código no-otro, o JSON `{"zonas":[...],"otro":"..."}`.
+ */
+function serializePatologiaRelacionada(
+  raw: unknown,
+  otroTexto: unknown,
+): string | null {
+  let zonas: string[] = [];
+  if (Array.isArray(raw)) {
+    zonas = raw.map((z) => String(z ?? "").trim()).filter(Boolean).slice(0, 3);
+  } else if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return null;
+    if (s.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(s) as { zonas?: unknown; otro?: unknown };
+        if (Array.isArray(parsed.zonas)) {
+          zonas = parsed.zonas
+            .map((z) => String(z ?? "").trim())
+            .filter(Boolean)
+            .slice(0, 3);
+          if (!otroTexto && parsed.otro != null) {
+            otroTexto = parsed.otro;
+          }
+        }
+      } catch {
+        zonas = [s];
+      }
+    } else if (s.includes(",")) {
+      zonas = s
+        .split(",")
+        .map((z) => z.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    } else {
+      zonas = [s];
+    }
+  }
+
+  if (!zonas.length) return null;
+  if (zonas.length < 1 || zonas.length > 3) return null;
+  if (zonas.some((z) => !PATOLOGIA_RELACIONADA_VALIDAS.has(z))) return null;
+
+  const otro = String(otroTexto ?? "").trim();
+  if (zonas.includes("otro") && !otro) return null;
+
+  if (zonas.length === 1 && zonas[0] !== "otro") return zonas[0]!;
+  return JSON.stringify({
+    zonas,
+    ...(zonas.includes("otro") && otro ? { otro } : {}),
+  });
+}
 
 function sintomasEnFila(row: Row): Set<string> {
   return new Set(
@@ -234,6 +342,274 @@ async function rankingAutorizadosDesdeTabla(
   return out;
 }
 
+function dedupeRowsByKey<T extends Record<string, unknown>>(
+  rows: T[],
+  keyOf: (row: T) => string,
+): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const r of rows) {
+    const k = keyOf(r);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+  }
+  return out;
+}
+
+function etiquetaReferenciaL1(row: Row): string {
+  const ref = String(row.referencia_registro ?? "").trim();
+  if (ref) return ref;
+  const doc = String(row.documento ?? "").trim();
+  const idReg = row.id_registro;
+  if (doc && idReg != null) return `${doc}-R${idReg}`;
+  return "Logros 1";
+}
+
+async function queryL2PorEncuestador(
+  supabase: ReturnType<typeof getSupabase>,
+  encInt: number,
+  cols: string,
+  limit: number,
+) {
+  const withDeleted = await supabase
+    .from("wakeup_seguimiento2")
+    .select(cols)
+    .eq("encuestador", encInt)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (!withDeleted.error) {
+    return (withDeleted.data || []) as unknown as Row[];
+  }
+
+  const retry = await supabase
+    .from("wakeup_seguimiento2")
+    .select(cols)
+    .eq("encuestador", encInt)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (retry.error) throw retry.error;
+  return (retry.data || []) as unknown as Row[];
+}
+
+/** Listado unificado de encuestas realizadas por un encuestador (Logros 1 + Logros 2). */
+async function listarMisEncuestas(
+  query: Record<string, string | undefined> | null,
+  origin: string | null,
+): Promise<HandlerResponse> {
+  const encRaw = String(query?.encuestador ?? "").trim();
+  if (!encRaw) {
+    return jsonResponse(400, errBody("Falta el parámetro encuestador."), origin);
+  }
+
+  let encStr: string;
+  try {
+    encStr = limpiarDocumentoEncuestador(encRaw);
+  } catch (e) {
+    if (e instanceof HttpErr) {
+      return jsonResponse(e.status, errBody(e.message), origin);
+    }
+    return jsonResponse(400, errBody("Cédula de encuestador inválida."), origin);
+  }
+
+  const encInt = parseInt(encStr, 10);
+  const encIsNumeric = Number.isFinite(encInt) && encStr === String(encInt);
+  const limit = Math.min(
+    500,
+    Math.max(1, parseInt(query?.limit ?? "300", 10) || 300),
+  );
+
+  const supabase = getSupabase();
+  const l1Cols =
+    "created_at,documento,nombres,apellidos,sede,id_int,id_registro,referencia_registro,encuestador";
+
+  const l1StrPromise = supabase
+    .from("wakeup_seguimientos")
+    .select(l1Cols)
+    .eq("encuestador", encStr)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  const l1IntPromise =
+    Number.isFinite(encInt) && !encIsNumeric
+      ? supabase
+          .from("wakeup_seguimientos")
+          .select(l1Cols)
+          .eq("encuestador", encInt)
+          .order("created_at", { ascending: false })
+          .limit(limit)
+      : Promise.resolve({ data: [] as Row[], error: null });
+
+  const l2Cols =
+    "id,codigo_seguimiento,created_at,documento,nombres,apellidos,sede,encuestador,encuestador_nombre";
+
+  const [l1StrRes, l1IntRes, l2Rows, l2LegacyRes] = await Promise.all([
+    l1StrPromise,
+    l1IntPromise,
+    Number.isFinite(encInt)
+      ? queryL2PorEncuestador(supabase, encInt, l2Cols, limit)
+      : Promise.resolve([] as Row[]),
+    Number.isFinite(encInt)
+      ? supabase
+          .from("wakeup_seguimientos_logros2")
+          .select("id_int,created_at,documento,sede,encuestador")
+          .eq("encuestador", encInt)
+          .order("created_at", { ascending: false })
+          .limit(limit)
+      : Promise.resolve({ data: [] as Row[], error: null }),
+  ]);
+
+  if (l1StrRes.error) {
+    return jsonResponse(
+      400,
+      errBody({ where: "mis-encuestas L1", error: l1StrRes.error.message }),
+      origin,
+    );
+  }
+  if (l1IntRes.error) {
+    return jsonResponse(
+      400,
+      errBody({ where: "mis-encuestas L1 int", error: l1IntRes.error.message }),
+      origin,
+    );
+  }
+  if (l2LegacyRes.error && l2LegacyRes.error.code !== "42P01") {
+    return jsonResponse(
+      400,
+      errBody({ where: "mis-encuestas L2 legacy", error: l2LegacyRes.error.message }),
+      origin,
+    );
+  }
+
+  let l1Rows = dedupeRowsByKey(
+    [...((l1StrRes.data || []) as Row[]), ...((l1IntRes.data || []) as Row[])],
+    (r) => `L1-${String(r.id_int ?? r.created_at ?? "")}`,
+  );
+
+  type MisRow = {
+    row_id: string;
+    tipo: "logros1" | "logros2";
+    tipo_label: string;
+    documento: string;
+    nombres: string;
+    apellidos: string;
+    paciente: string;
+    created_at: unknown;
+    sede: string | null;
+    etiqueta: string;
+    referencia: string;
+    fuente: string | null;
+    id_int: number | null;
+    id: number | null;
+    delete_spec: Record<string, unknown> | null;
+  };
+
+  const rows: MisRow[] = [];
+
+  for (const row of l1Rows) {
+    const nombres = String(row.nombres ?? "").trim();
+    const apellidos = String(row.apellidos ?? "").trim();
+    const paciente = [nombres, apellidos].filter(Boolean).join(" ").trim();
+    const idInt = row.id_int != null ? Number(row.id_int) : null;
+    rows.push({
+      row_id: `L1-${idInt ?? row.created_at ?? rows.length}`,
+      tipo: "logros1",
+      tipo_label: "Logros 1",
+      documento: String(row.documento ?? "").trim(),
+      nombres,
+      apellidos,
+      paciente: paciente || "—",
+      created_at: row.created_at ?? null,
+      sede: row.sede != null ? String(row.sede) : null,
+      etiqueta: etiquetaReferenciaL1(row),
+      referencia: etiquetaReferenciaL1(row),
+      fuente: "wakeup_seguimientos",
+      id_int: idInt != null && Number.isFinite(idInt) ? idInt : null,
+      id: null,
+      delete_spec:
+        idInt != null && Number.isFinite(idInt)
+          ? { kind: "logros1", id_int: idInt }
+          : null,
+    });
+  }
+
+  for (const row of l2Rows) {
+    const nombres = String(row.nombres ?? "").trim();
+    const apellidos = String(row.apellidos ?? "").trim();
+    const paciente = [nombres, apellidos].filter(Boolean).join(" ").trim();
+    const id = row.id != null ? Number(row.id) : null;
+    const codigo = String(row.codigo_seguimiento ?? "").trim();
+    rows.push({
+      row_id: `L2-${id ?? row.created_at ?? rows.length}`,
+      tipo: "logros2",
+      tipo_label: "Logros 2",
+      documento: String(row.documento ?? "").trim(),
+      nombres,
+      apellidos,
+      paciente: paciente || "—",
+      created_at: row.created_at ?? null,
+      sede: row.sede != null ? String(row.sede) : null,
+      etiqueta: codigo || "Logros 2",
+      referencia: codigo || "Logros 2",
+      fuente: "wakeup_seguimiento2",
+      id_int: null,
+      id: id != null && Number.isFinite(id) ? id : null,
+      delete_spec:
+        id != null && Number.isFinite(id)
+          ? { kind: "logros2", source: "modern", id }
+          : null,
+    });
+  }
+
+  for (const row of (l2LegacyRes.data || []) as Row[]) {
+    const idInt = row.id_int != null ? Number(row.id_int) : null;
+    rows.push({
+      row_id: `L2L-${idInt ?? row.created_at ?? rows.length}`,
+      tipo: "logros2",
+      tipo_label: "Logros 2",
+      documento: String(row.documento ?? "").trim(),
+      nombres: "",
+      apellidos: "",
+      paciente: "—",
+      created_at: row.created_at ?? null,
+      sede: row.sede != null ? String(row.sede) : null,
+      etiqueta: "Logros 2 (legado)",
+      referencia: "Logros 2 (legado)",
+      fuente: "wakeup_seguimientos_logros2",
+      id_int: idInt != null && Number.isFinite(idInt) ? idInt : null,
+      id: null,
+      delete_spec:
+        idInt != null && Number.isFinite(idInt)
+          ? { kind: "logros2", source: "legacy", id_int: idInt }
+          : null,
+    });
+  }
+
+  rows.sort((a, b) => {
+    const ta = String(a.created_at ?? "");
+    const tb = String(b.created_at ?? "");
+    return tb.localeCompare(ta);
+  });
+
+  const trimmed = rows.slice(0, limit);
+
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      encuestador: encStr,
+      total: trimmed.length,
+      rows: trimmed,
+      actualizado_en: new Date().toISOString(),
+    },
+    origin,
+    { "Cache-Control": "no-store" },
+  );
+}
+
 async function porSedeEncuestas(
   supabase: ReturnType<typeof getSupabase>,
 ): Promise<{ sede: string; count: number }[]> {
@@ -309,12 +685,15 @@ async function crearEncuesta(
     }
   }
 
-  const patologiaRel = String(data.patologiaRelacionada ?? "").trim();
-  if (!PATOLOGIA_RELACIONADA_VALIDAS.has(patologiaRel)) {
+  const patologiaRel = serializePatologiaRelacionada(
+    data.patologiaRelacionada,
+    data.otraPatologia,
+  );
+  if (!patologiaRel) {
     return jsonResponse(
       400,
       errBody(
-        "Seleccione una patología relacionada válida (rodilla, hombro, cadera, lumbar, funcional, mano, codo, cuello o pie).",
+        "Seleccione 1 a 3 zonas de patología relacionadas válidas (rodilla, hombro, cadera, lumbar, mano, codo, cuello, pie u otro). Si eligió «otro», indique la zona.",
       ),
       origin,
     );
@@ -325,17 +704,26 @@ async function crearEncuesta(
   const sintomasOrdenados = sintomasTop.slice(0, 3);
   const textos = (data.textos as Record<string, string>) || {};
   const objetivosOrdenados: (string | null)[] = [];
-  const detallesOrdenados: (string | null | undefined)[] = [];
 
   for (const s of sintomasOrdenados) {
+    const detalle = resolveDetalleParaSintoma(textos, s);
     if (s in objetivos) {
-      objetivosOrdenados.push(objetivos[s]!);
-      detallesOrdenados.push(textos[s]);
+      objetivosOrdenados.push(
+        embedDetalleEnObjetivo(objetivos[s]!, detalle),
+      );
     } else {
       objetivosOrdenados.push(null);
-      detallesOrdenados.push(textos[s]);
     }
   }
+
+  agentDebugLog("encuestas.ts:crearEncuesta", "payload summary", {
+    payloadKeys: Object.keys(data),
+    sintomasTop,
+    objetivoKeys: Object.keys(objetivos),
+    textosKeys: Object.keys(textos),
+    patologiaRel,
+    objetivosPersistidos: objetivosOrdenados.filter(Boolean),
+  });
 
   const objetivosSeleccionados = objetivosOrdenados.filter(
     (o): o is string => o != null && String(o).trim() !== "",
@@ -405,8 +793,18 @@ async function crearEncuesta(
     };
 
     res = await supabase.from("wakeup_seguimientos").insert(row).select();
-    if (!res.error) break;
+    if (!res.error) {
+      agentDebugLog("encuestas.ts:crearEncuesta", "insert success", {
+        idRegistro,
+        referenciaRegistro,
+      });
+      break;
+    }
     if (!esErrorDuplicadoSupabase(res.error)) {
+      agentDebugLog("encuestas.ts:crearEncuesta", "insert failure", {
+        error: res.error.message,
+        code: res.error.code,
+      });
       return jsonResponse(
         400,
         errBody({
@@ -634,7 +1032,7 @@ async function crearLogros2(
   const check = await supabase
     .from("wakeup_seguimientos")
     .select(
-      "documento, nombres, apellidos, tipo_documento, created_at, patologia_relacionada, limitacion_moverse, actividades_afectadas, adicional_no_puede, ultima_vez, que_impide, objetivo_extra",
+      "id_int, documento, nombres, apellidos, tipo_documento, created_at, patologia_relacionada, limitacion_moverse, actividades_afectadas, adicional_no_puede, ultima_vez, que_impide, objetivo_extra",
     )
     .eq("documento", refDocNum)
     .eq("created_at", refCreatedAt)
@@ -661,6 +1059,7 @@ async function crearLogros2(
   }
 
   const rowF1 = check.data as Record<string, unknown>;
+  const f1IdInt = Number(rowF1.id_int);
   const docF1 = rowF1.documento;
   if (
     docF1 != null &&
@@ -778,7 +1177,11 @@ async function crearLogros2(
     meta_complementaria_previa:
       (fr.meta_complementaria_previa as string | null) ?? null,
     payload_origen: {
-      fase1_referencia: { documento: refDocNum, created_at: refCreatedAt },
+      fase1_referencia: {
+        documento: refDocNum,
+        created_at: refCreatedAt,
+        ...(Number.isFinite(f1IdInt) && f1IdInt > 0 ? { id_int: f1IdInt } : {}),
+      },
       patologia_fase1: rowF1.patologia_relacionada ?? null,
       sede: sedeClean,
     },
@@ -1206,6 +1609,10 @@ export async function handleEncuestas(
         Pragma: "no-cache",
         "X-WK-Ranking-Autorizados": "1",
       });
+    }
+
+    if (path === "/encuestas/mis-encuestas" && method === "GET") {
+      return await listarMisEncuestas(query, origin);
     }
 
     if (path === "/encuestas/listado-filtrado" && method === "GET") {

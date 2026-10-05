@@ -23,6 +23,36 @@ function queryWithoutPath(
 }
 
 export const handler: Handler = async (event) => {
+  // #region agent log
+  try {
+    await fetch(
+      "http://127.0.0.1:7824/ingest/0b4a9a59-f4c8-4fc1-bc15-332e88853d32",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "1643f0",
+        },
+        body: JSON.stringify({
+          sessionId: "1643f0",
+          runId: "post-fix",
+          hypothesisId: "A",
+          location: "api.ts:handler:entry",
+          message: "api handler entered (module loaded)",
+          data: {
+            path: event.path,
+            method: event.httpMethod,
+            hasQueryPath: Boolean(event.queryStringParameters?.__path),
+          },
+          timestamp: Date.now(),
+        }),
+      },
+    );
+  } catch {
+    /* ignore debug ingest errors */
+  }
+  // #endregion
+
   const opt = handleOptions(event);
   if (opt) return opt;
 

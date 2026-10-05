@@ -1,4 +1,11 @@
-import { PATOLOGIA_RELACIONADA } from "../../data/encuestaLogrosCatalog";
+import {
+  PATOLOGIA_RELACIONADA,
+  PROBLEMAS_CON_ACLARACION,
+  objetivoRequiereMinutos,
+  objetivoRequiereHoras,
+  objetivoRequiereTextoObjetivo,
+  textoObjetivoFormKey,
+} from "../../data/encuestaLogrosCatalog";
 
 const PATOLOGIA_RELACIONADA_VALUES = new Set(
   PATOLOGIA_RELACIONADA.map((o) => o.value),
@@ -47,11 +54,20 @@ export function validateEncuestaLogros(form, objetivosAResponder) {
   const errDoc = validateDocumentoPorTipo(form.tipoDocumento, form.documento);
   if (errDoc) nextErrors.documento = errDoc;
 
-  if (
-    !form.patologiaRelacionada ||
-    !PATOLOGIA_RELACIONADA_VALUES.has(form.patologiaRelacionada)
-  ) {
-    nextErrors.patologiaRelacionada = "Seleccione una patología relacionada.";
+  const zonas = Array.isArray(form.patologiasTop) ? form.patologiasTop : [];
+  if (zonas.length < 1) {
+    nextErrors.patologiasTop =
+      "Seleccione al menos 1 zona (prioritaria). Máximo 3.";
+  } else if (zonas.length > 3) {
+    nextErrors.patologiasTop =
+      "Máximo 3 zonas (prioritaria, secundaria y terciaria).";
+  } else if (zonas.some((z) => !PATOLOGIA_RELACIONADA_VALUES.has(z))) {
+    nextErrors.patologiasTop = "Hay una zona no válida en la selección.";
+  }
+
+  if (zonas.includes("otro") && !String(form.otraPatologia || "").trim()) {
+    nextErrors.otraPatologia =
+      "Especifique la otra zona (ej. inguinal, pubis, dorsal).";
   }
 
   if (!form.limitacionMoverse) {
@@ -70,9 +86,73 @@ export function validateEncuestaLogros(form, objetivosAResponder) {
     nextErrors.otroProblema = "Especifique el otro problema.";
   }
 
+  for (const problema of form.problemasTop) {
+    if (!PROBLEMAS_CON_ACLARACION.has(problema)) continue;
+    if (!String(form.textos?.[problema] || "").trim()) {
+      nextErrors[`texto_${problema}`] =
+        "Describa brevemente cómo le afecta este problema.";
+    }
+  }
+
   for (const problema of objetivosAResponder) {
-    if (!form.objetivos[problema]) {
+    const obj = form.objetivos[problema];
+    if (!obj) {
       nextErrors[`obj_${problema}`] = "Seleccione un objetivo.";
+    } else if (
+      problema === "dolor" &&
+      obj === "dolor_desaparece" &&
+      form.limitacionMoverse !== "poco"
+    ) {
+      nextErrors[`obj_${problema}`] =
+        "Esa opción solo aplica si la limitación para moverse es «Poco».";
+    } else if (
+      problema === "trastorno_trabajo" &&
+      obj === "trabajo_jornada_completa" &&
+      form.limitacionMoverse !== "poco"
+    ) {
+      nextErrors[`obj_${problema}`] =
+        "Esa opción solo aplica si la limitación para moverse es «Poco».";
+    } else if (
+      (problema === "escaleras" || problema === "levantarse_silla_cama") &&
+      obj === "sin_dificultad" &&
+      form.limitacionMoverse !== "poco"
+    ) {
+      nextErrors[`obj_${problema}`] =
+        "Esa opción solo aplica si la limitación para moverse es «Poco».";
+    } else if (
+      problema === "autocuidado" &&
+      obj === "independencia_total" &&
+      form.limitacionMoverse !== "poco"
+    ) {
+      nextErrors[`obj_${problema}`] =
+        "Esa opción solo aplica si la limitación para moverse es «Poco».";
+    } else if (
+      problema === "recoger_objetos" &&
+      obj === "varias_maneras_sin_dolor" &&
+      form.limitacionMoverse !== "poco"
+    ) {
+      nextErrors[`obj_${problema}`] =
+        "Esa opción solo aplica si la limitación para moverse es «Poco».";
+    } else if (objetivoRequiereMinutos(problema, obj)) {
+      if (!String(form.objetivosMinutos?.[problema] || "").trim()) {
+        nextErrors[`obj_min_${problema}`] = "Seleccione los minutos.";
+      }
+    } else if (objetivoRequiereHoras(problema, obj)) {
+      if (!String(form.objetivosHoras?.[problema] || "").trim()) {
+        nextErrors[`obj_hor_${problema}`] = "Seleccione las horas.";
+      }
+    }
+
+    if (objetivoRequiereTextoObjetivo(problema, obj)) {
+      const textoKey = textoObjetivoFormKey(problema);
+      if (!String(form.textos?.[textoKey] || "").trim()) {
+        nextErrors[`texto_obj_${problema}`] =
+          problema === "limitacion_deporte"
+            ? "Indique qué ejercicio."
+            : problema === "autocuidado"
+              ? "Indique en qué actividad necesita esa ayuda."
+              : "Indique el tipo de actividades.";
+      }
     }
   }
 

@@ -93,18 +93,18 @@
   width: 22px;
   height: 26px;
   border-radius: 4px;
-  border: 2px solid #2b66ff;
+  border: 2px solid var(--pastel-blue-btn);
   position: relative;
   background: #ffffff;
 }
 
 .fn-icon.file .fn-icon-shape {
-  border-color: #2b66ff;
+  border-color: var(--pastel-blue-btn);
 }
 
 .fn-icon.folder .fn-icon-shape {
-  border-color: #2bb673;
-  background: #eafff2;
+  border-color: var(--pastel-lilac-hover);
+  background: var(--pastel-lilac-soft);
 }
 
 .fn-icon.folder .fn-icon-shape::before {
@@ -115,9 +115,9 @@
   width: 12px;
   height: 8px;
   border-radius: 4px 4px 0 0;
-  border: 2px solid #2bb673;
+  border: 2px solid var(--pastel-lilac-hover);
   border-bottom: none;
-  background: #eafff2;
+  background: var(--pastel-lilac-soft);
 }
 
 .fn-empty {

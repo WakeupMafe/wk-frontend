@@ -1,14 +1,15 @@
 import { useMemo } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { PODIUM_COLORS } from "./ProfesionalesBarRank";
 
+/** Soft pastels — first three match Podio de encuestadores */
 const COLORS = [
-  "#2563eb",
-  "#0d9488",
-  "#d97706",
-  "#7c3aed",
-  "#dc2626",
-  "#0891b2",
-  "#475569",
+  ...PODIUM_COLORS,
+  "#F2C8A8", // peach
+  "#9DD4C8", // soft mint-teal
+  "#E8B4C8", // soft rose
+  "#D4E5B8", // pale lime
+  "#C5D5F0", // periwinkle
 ];
 
 /**

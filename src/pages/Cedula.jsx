@@ -33,13 +33,43 @@ export default function Cedula() {
     try {
       setError("");
 
-      const res = await fetch(apiUrl("/verificacion/cedula"), {
+      const t0 = Date.now();
+      const cedulaUrl = apiUrl("/verificacion/cedula");
+      const res = await fetch(cedulaUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cedula: cedula }), // ✅ string
       });
 
       const data = await res.json().catch(() => ({}));
+      const elapsedMs = Date.now() - t0;
+
+      // #region agent log
+      fetch("http://127.0.0.1:7824/ingest/0b4a9a59-f4c8-4fc1-bc15-332e88853d32", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "1643f0",
+        },
+        body: JSON.stringify({
+          sessionId: "1643f0",
+          runId: "post-fix",
+          hypothesisId: "A",
+          location: "Cedula.jsx:handleEnterSystem",
+          message: "verificacion/cedula response",
+          data: {
+            status: res.status,
+            ok: res.ok,
+            elapsedMs,
+            bodyKeys: data && typeof data === "object" ? Object.keys(data) : [],
+            hasDetail: typeof data?.detail === "string",
+            code: data?.code ?? null,
+            bodyEmpty: !data || Object.keys(data).length === 0,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
 
       if (!res.ok) {
         if (res.status === 503 && data?.code === "SUPABASE_CONFIG") {

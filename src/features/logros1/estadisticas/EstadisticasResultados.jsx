@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import Swal from "sweetalert2";
@@ -7,7 +7,6 @@ import {
   FormLabel,
   Muted,
   PageHeader,
-  PageLead,
   PageMeta,
   PageTitle,
   SectionTitle,
@@ -19,6 +18,8 @@ import {
   toastError,
   toastSuccess,
 } from "../../../lib/alerts/appAlert";
+import { sweetClose, sweetLoading } from "../../../components/SweetAlert";
+import { readAutorizadoCache } from "../../../lib/autorizadoPerfilEvents";
 import LogrosFase1Viewer from "../LogrosFase1Viewer";
 import { buildLogrosFase1DownloadContext } from "../logrosFase1BuildContext";
 import { downloadLogrosFase1Pdf } from "../logrosFase1DownloadPdf.jsx";
@@ -30,6 +31,47 @@ import "./EstadisticasFiltros.css";
 import "./EstadisticasResultados.css";
 
 import { apiUrl } from "../../../lib/api/baseUrl";
+import ReferenciaHelpButton from "./ReferenciaHelpButton";
+
+/** Cédula del fisioterapeuta en sesión (`wk_autorizado`). */
+function cedulaEncuestadorSesion() {
+  return String(readAutorizadoCache()?.cedula ?? "")
+    .replace(/\D/g, "")
+    .trim();
+}
+
+/** Empareja fila de «Mis encuestas» con registro completo del paciente. */
+function registroCoincideFila(registro, fila) {
+  if (!registro || !fila || registro.tipo !== fila.tipo) return false;
+
+  const ta = Date.parse(String(registro.created_at ?? ""));
+  const tb = Date.parse(String(fila.created_at ?? ""));
+  const fechasOk =
+    (Number.isFinite(ta) && Number.isFinite(tb) && ta === tb) ||
+    String(registro.created_at ?? "") === String(fila.created_at ?? "");
+  if (!fechasOk) return false;
+
+  if (fila.tipo === "logros1" && fila.id_int != null) {
+    return Number(registro.data?.id_int) === Number(fila.id_int);
+  }
+  if (fila.tipo === "logros2" && fila.fuente === "wakeup_seguimiento2" && fila.id != null) {
+    return Number(registro.data?.id) === Number(fila.id);
+  }
+  if (
+    fila.tipo === "logros2" &&
+    fila.fuente === "wakeup_seguimientos_logros2" &&
+    fila.id_int != null
+  ) {
+    return Number(registro.data?.id_int) === Number(fila.id_int);
+  }
+  return true;
+}
+
+function nombrePacienteFila(fila) {
+  const directo = String(fila?.paciente ?? "").trim();
+  if (directo && directo !== "—") return directo;
+  return [fila?.nombres, fila?.apellidos].filter(Boolean).join(" ").trim() || "—";
+}
 
 const FORMATOS = [
   { value: "pdf", label: "PDF" },
@@ -563,7 +605,13 @@ function Logros2Viewer({ registro }) {
 /**
  * Resultados: búsqueda por documento y descarga de la encuesta de un paciente.
  */
+const TABS = [
+  { id: "documento", label: "Consulta por documento" },
+  { id: "mis", label: "Mis encuestas" },
+];
+
 export default function EstadisticasResultados() {
+  const [tabActiva, setTabActiva] = useState("documento");
   const [filtroTipo, setFiltroTipo] = useState("cedula");
   const [cedulaBusqueda, setCedulaBusqueda] = useState("");
   const [formato, setFormato] = useState("pdf");
@@ -571,6 +619,150 @@ export default function EstadisticasResultados() {
   const [registrosEncontrados, setRegistrosEncontrados] = useState([]);
   const [registroSeleccionado, setRegistroSeleccionado] = useState(null);
   const [eliminandoId, setEliminandoId] = useState(null);
+  const [misEncuestas, setMisEncuestas] = useState([]);
+  const [misFilaSeleccionada, setMisFilaSeleccionada] = useState(null);
+  const [registroMisSeleccionado, setRegistroMisSeleccionado] = useState(null);
+  const [cargandoMis, setCargandoMis] = useState(false);
+  const [cargandoVistaMis, setCargandoVistaMis] = useState(false);
+
+  useEffect(() => {
+    setRegistroSeleccionado((cur) => {
+      if (registrosEncontrados.length === 0) return null;
+      if (cur && registrosEncontrados.some((r) => r.id === cur.id)) return cur;
+      return registrosEncontrados[0];
+    });
+  }, [registrosEncontrados]);
+
+  const alertSesionEncuestadorFaltante = async () => {
+    await alertWarning({
+      title: "Sesión de profesional no disponible",
+      text: "No hay cédula de encuestador en la sesión. Inicia sesión de nuevo para ver tus encuestas.",
+    });
+  };
+
+  const alertSinEncuestasRealizadas = async () => {
+    await alertWarning({
+      title: "No tienes encuestas realizadas",
+      text: "Aún no figura ninguna encuesta asociada a tu cédula de profesional.",
+    });
+  };
+
+  const cargarMisEncuestas = async () => {
+    const ced = cedulaEncuestadorSesion();
+    if (!ced) {
+      setMisEncuestas([]);
+      setMisFilaSeleccionada(null);
+      setRegistroMisSeleccionado(null);
+      await alertSesionEncuestadorFaltante();
+      return;
+    }
+
+    setCargandoMis(true);
+    sweetLoading({
+      title: "Buscando en base de datos, por favor espere",
+      text: "Consultando tus encuestas en la base de datos…",
+    });
+
+    try {
+      const res = await fetch(
+        apiUrl(`/encuestas/mis-encuestas?encuestador=${encodeURIComponent(ced)}`),
+      );
+      const json = await res.json().catch(() => ({}));
+      sweetClose();
+
+      if (!res.ok) {
+        await alertError({
+          title: "Error",
+          text:
+            (typeof json?.detail === "string" && json.detail) ||
+            "No se pudo consultar tus encuestas.",
+        });
+        return;
+      }
+
+      const rows = Array.isArray(json?.rows) ? json.rows : [];
+      setMisEncuestas(rows);
+      setMisFilaSeleccionada(null);
+      setRegistroMisSeleccionado(null);
+
+      if (rows.length === 0) {
+        await alertSinEncuestasRealizadas();
+      }
+    } catch (error) {
+      console.error(error);
+      sweetClose();
+      await alertError({
+        title: "Error de conexión",
+        text: "No fue posible conectar con el servidor.",
+      });
+    } finally {
+      setCargandoMis(false);
+    }
+  };
+
+  const handleTabChange = (tabId) => {
+    setTabActiva(tabId);
+    if (tabId === "mis") {
+      void cargarMisEncuestas();
+    }
+  };
+
+  const handleVerMisEncuesta = async (fila) => {
+    const documento = String(fila?.documento ?? "").replace(/\D/g, "").trim();
+    if (!documento) {
+      await alertWarning({
+        title: "Documento no disponible",
+        text: "Este registro no tiene documento de paciente asociado.",
+      });
+      return;
+    }
+
+    setCargandoVistaMis(true);
+    sweetLoading({
+      title: "Buscando en base de datos, por favor espere",
+      text: "Cargando el detalle de la encuesta…",
+    });
+
+    try {
+      const res = await fetch(
+        apiUrl(`/verificacion/registros/${encodeURIComponent(documento)}`),
+      );
+      const json = await res.json().catch(() => ({}));
+      sweetClose();
+
+      if (!res.ok) {
+        await alertError({
+          title: "Error",
+          text:
+            (typeof json?.detail === "string" && json.detail) ||
+            "No se pudo cargar el registro del paciente.",
+        });
+        return;
+      }
+
+      const registros = Array.isArray(json?.registros) ? json.registros : [];
+      const match = registros.find((r) => registroCoincideFila(r, fila));
+      if (!match) {
+        await alertWarning({
+          title: "Registro no encontrado",
+          text: "No se pudo localizar el detalle completo de esta encuesta.",
+        });
+        return;
+      }
+
+      setMisFilaSeleccionada(fila);
+      setRegistroMisSeleccionado(match);
+    } catch (error) {
+      console.error(error);
+      sweetClose();
+      await alertError({
+        title: "Error de conexión",
+        text: "No fue posible conectar con el servidor.",
+      });
+    } finally {
+      setCargandoVistaMis(false);
+    }
+  };
 
   const handleBuscar = async () => {
     if (filtroTipo !== "cedula") {
@@ -664,7 +856,7 @@ export default function EstadisticasResultados() {
         popup: "swal-eliminar-peligro",
       },
       confirmButtonColor: "#dc2626",
-      cancelButtonColor: "#2563eb",
+      cancelButtonColor: "#8eb4d8",
       reverseButtons: false,
       focusCancel: true,
     });
@@ -689,7 +881,7 @@ export default function EstadisticasResultados() {
         popup: "swal-eliminar-peligro",
       },
       confirmButtonColor: "#dc2626",
-      cancelButtonColor: "#2563eb",
+      cancelButtonColor: "#8eb4d8",
       reverseButtons: false,
       focusCancel: true,
       inputAttributes: {
@@ -748,8 +940,18 @@ export default function EstadisticasResultados() {
     const ok2 = await confirmSwalEliminarEscribirPalabra();
     if (!ok2) return;
 
-    const documento = String(cedulaBusqueda).replace(/\D/g, "").trim();
-    setEliminandoId(registro.id);
+    const documento =
+      String(registro?.data?.documento ?? cedulaBusqueda).replace(/\D/g, "").trim();
+    if (!documento) {
+      await alertWarning({
+        title: "Documento no disponible",
+        text: "No se pudo determinar el documento del paciente para eliminar.",
+      });
+      return;
+    }
+
+    const elimKey = registro.id ?? spec?.id_int ?? spec?.id ?? "x";
+    setEliminandoId(elimKey);
     try {
       const res = await fetch(apiUrl("/verificacion/registros/eliminar"), {
         method: "POST",
@@ -778,14 +980,21 @@ export default function EstadisticasResultados() {
         return;
       }
 
-      setRegistrosEncontrados((prev) => {
-        const next = prev.filter((x) => x.id !== registro.id);
-        setRegistroSeleccionado((cur) => {
-          if (cur?.id !== registro.id) return cur;
-          return next[0] ?? null;
-        });
-        return next;
-      });
+      setRegistrosEncontrados((prev) => prev.filter((x) => x.id !== registro.id));
+      setRegistroMisSeleccionado((cur) =>
+        cur && cur.id === registro.id ? null : cur,
+      );
+      setMisEncuestas((prev) =>
+        prev.filter((fila) => {
+          if (fila.delete_spec && spec) {
+            return JSON.stringify(fila.delete_spec) !== JSON.stringify(spec);
+          }
+          return fila.row_id !== misFilaSeleccionada?.row_id;
+        }),
+      );
+      setMisFilaSeleccionada((cur) =>
+        cur && JSON.stringify(cur.delete_spec) === JSON.stringify(spec) ? null : cur,
+      );
 
       await toastSuccess({
         title: "Registro eliminado",
@@ -802,8 +1011,11 @@ export default function EstadisticasResultados() {
     }
   };
 
+  const registroActivo =
+    tabActiva === "mis" ? registroMisSeleccionado : registroSeleccionado;
+
   const handleDescargar = async () => {
-    if (!registroSeleccionado) {
+    if (!registroActivo) {
       await alertWarning({
         title: "Sin datos",
         text: "Primero selecciona un registro para descargar.",
@@ -812,8 +1024,8 @@ export default function EstadisticasResultados() {
     }
 
     try {
-      if (registroSeleccionado.tipo === "logros1") {
-        const ctx = buildLogrosFase1DownloadContext(registroSeleccionado.data);
+      if (registroActivo.tipo === "logros1") {
+        const ctx = buildLogrosFase1DownloadContext(registroActivo.data);
         if (!ctx) return;
         if (formato === "pdf") {
           await downloadLogrosFase1Pdf(ctx);
@@ -824,11 +1036,11 @@ export default function EstadisticasResultados() {
         }
       } else {
         if (formato === "pdf") {
-          await downloadLogros2Pdf(registroSeleccionado);
+          await downloadLogros2Pdf(registroActivo);
         } else if (formato === "csv") {
-          downloadLogros2Csv(registroSeleccionado);
+          downloadLogros2Csv(registroActivo);
         } else {
-          downloadLogros2Xlsx(registroSeleccionado);
+          downloadLogros2Xlsx(registroActivo);
         }
       }
 
@@ -851,16 +1063,36 @@ export default function EstadisticasResultados() {
     <section className="estad-page estad-res" aria-labelledby="estad-res-title">
       <PageHeader>
         <PageTitle id="estad-res-title">Resultados</PageTitle>
-        <PageLead>
-          Busca por documento y descarga la encuesta del paciente en PDF, CSV o
-          Excel.
-        </PageLead>
         <PageMeta tone="neutral">
-          Consulta individual: un documento por búsqueda.
+          Consulta por documento del paciente o revisa las encuestas que realizaste.
         </PageMeta>
       </PageHeader>
 
       <div className="estad-page__card">
+        <div className="estad-res__tabs" role="tablist" aria-label="Modo de consulta">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`estad-res-tab-${tab.id}`}
+              aria-selected={tabActiva === tab.id}
+              aria-controls={`estad-res-panel-${tab.id}`}
+              className={`estad-res__tab ${tabActiva === tab.id ? "is-active" : ""}`}
+              onClick={() => handleTabChange(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {tabActiva === "documento" ? (
+          <div
+            id="estad-res-panel-documento"
+            role="tabpanel"
+            aria-labelledby="estad-res-tab-documento"
+            className="estad-res__tabpanel"
+          >
       <div className="estad-filtros__panel">
         <div className="estad-filtros__field estad-filtros__field--2">
           <FormLabel htmlFor="res-filtro-tipo" className="estad-filtros__lbl">
@@ -1010,17 +1242,174 @@ export default function EstadisticasResultados() {
           </SectionTitle>
           {registroSeleccionado?.tipo === "logros1" ? (
             <LogrosFase1Viewer paciente={registroSeleccionado.data} />
-          ) : (
+          ) : registroSeleccionado ? (
             <Logros2Viewer registro={registroSeleccionado} />
-          )}
+          ) : null}
         </div>
       ) : (
         <Muted className="estad-filtros__empty">
-          Ingresa un documento y pulsa Buscar para listar todos los registros del
+          Ingresa un documento y pulsa Buscar para listar los registros del
           paciente (Logros 1 y Logros 2), visualizar cada uno y decidir cuál
           descargar.
         </Muted>
       )}
+          </div>
+        ) : (
+          <div
+            id="estad-res-panel-mis"
+            role="tabpanel"
+            aria-labelledby="estad-res-tab-mis"
+            className="estad-res__tabpanel"
+          >
+            <div className="estad-res__mis-toolbar">
+              <div className="estad-res__mis-export">
+                <FormLabel htmlFor="res-formato-mis" className="estad-filtros__lbl">
+                  Formato
+                </FormLabel>
+                <select
+                  id="res-formato-mis"
+                  className="estad-filtros__select"
+                  value={formato}
+                  onChange={(e) => setFormato(e.target.value)}
+                >
+                  {FORMATOS.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={handleDescargar}
+                  disabled={!registroMisSeleccionado}
+                  title="Descargar encuesta seleccionada"
+                  className="estad-filtros__btnIcon"
+                >
+                  Descargar
+                </Button>
+                <ReferenciaHelpButton />
+                <Button
+                  variant="tealSoft"
+                  size="sm"
+                  type="button"
+                  onClick={() => void cargarMisEncuestas()}
+                  disabled={cargandoMis}
+                >
+                  {cargandoMis ? "Actualizando…" : "Actualizar"}
+                </Button>
+              </div>
+            </div>
+
+            {misEncuestas.length > 0 ? (
+              <>
+                <div className="estad-res__table-wrap estad-res__mis-table-wrap">
+                  <table className="estad-res__mis-table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Documento</th>
+                        <th>Paciente</th>
+                        <th>Sede</th>
+                        <th>Referencia</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {misEncuestas.map((fila) => {
+                        const activa = misFilaSeleccionada?.row_id === fila.row_id;
+                        const elimKey =
+                          fila.row_id ??
+                          fila.delete_spec?.id_int ??
+                          fila.delete_spec?.id ??
+                          "x";
+                        return (
+                          <tr
+                            key={fila.row_id}
+                            className={activa ? "is-active" : ""}
+                            onClick={() => void handleVerMisEncuesta(fila)}
+                          >
+                            <td>{fmtDate(fila.created_at)}</td>
+                            <td>
+                              <span className="estad-res__tipo-chip">
+                                {fila.tipo_label ??
+                                  (fila.tipo === "logros2" ? "Logros 2" : "Logros 1")}
+                              </span>
+                            </td>
+                            <td>{fila.documento || "—"}</td>
+                            <td>{nombrePacienteFila(fila)}</td>
+                            <td>{fila.sede || "Sin sede"}</td>
+                            <td>{fila.referencia || fila.etiqueta || "—"}</td>
+                            <td className="estad-res__mis-actions">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={activa ? "teal" : "tealSoft"}
+                                className="estad-res__item-btn"
+                                disabled={cargandoVistaMis}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleVerMisEncuesta(fila);
+                                }}
+                              >
+                                Ver
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="muted"
+                                className="estad-res__item-btn estad-res__item-btn--danger"
+                                disabled={
+                                  !fila.delete_spec ||
+                                  eliminandoId === elimKey ||
+                                  !activa ||
+                                  !registroMisSeleccionado
+                                }
+                                title={
+                                  !activa
+                                    ? "Visualiza el registro antes de eliminar"
+                                    : undefined
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (registroMisSeleccionado) {
+                                    void handleEliminarRegistro(registroMisSeleccionado);
+                                  }
+                                }}
+                              >
+                                {eliminandoId === elimKey ? "Eliminando…" : "Eliminar"}
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {registroMisSeleccionado ? (
+                  <div className="estad-filtros__viewer estad-res__mis-viewer">
+                    <SectionTitle className="estad-filtros__viewer-title">
+                      Vista previa del registro seleccionado
+                    </SectionTitle>
+                    {registroMisSeleccionado.tipo === "logros1" ? (
+                      <LogrosFase1Viewer paciente={registroMisSeleccionado.data} />
+                    ) : (
+                      <Logros2Viewer registro={registroMisSeleccionado} />
+                    )}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <Muted className="estad-filtros__empty">
+                {cargandoMis
+                  ? "Consultando tus encuestas…"
+                  : "Selecciona esta pestaña para cargar las encuestas que realizaste como profesional."}
+              </Muted>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

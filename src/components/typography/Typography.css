@@ -126,7 +126,7 @@
   font-family: var(--font-sans);
   font-size: clamp(1.25rem, 3.5cqw, 2.1rem);
   font-weight: 800;
-  color: #2563eb;
+  color: var(--pastel-blue-hover);
   line-height: 1.1;
   overflow-wrap: anywhere;
   word-break: break-word;

@@ -26,17 +26,17 @@
   flex-direction: column;
   align-items: center;
 
-  /* Azul institucional / clínico (menos saturado que el eléctrico #2563eb) */
+  /* Lila suave (familia KPI lavender #CDC5ED), tono medio para texto blanco */
   background: linear-gradient(
     180deg,
-    #3d6d9a 0%,
-    #2f5a82 42%,
-    #284a6e 100%
+    #a89cd8 0%,
+    #9587c8 42%,
+    #8476b8 100%
   );
   color: #fff;
   padding: clamp(0.75rem, 2.5cqw, 1.5rem) clamp(0.5rem, 1.5cqw, 0.75rem);
   gap: clamp(0.75rem, 2cqw, 1.5rem);
-  box-shadow: 4px 0 22px rgba(20, 45, 72, 0.32);
+  box-shadow: 4px 0 22px rgba(90, 75, 140, 0.26);
 }
 
 .estad-sidebar__brand {
@@ -76,15 +76,15 @@
 }
 
 .estad-sidebar__link:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(205, 197, 237, 0.22);
   color: #fff;
 }
 
 .estad-sidebar__link--active {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(205, 197, 237, 0.32);
   font-weight: 700;
   color: #fff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .estad-sidebar__back {
@@ -96,12 +96,12 @@
   border-radius: 50%;
   border: none;
   background: #fff;
-  color: #2f5a82;
+  color: #6f5fa8;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 10px rgba(90, 75, 140, 0.14);
 }
 
 .estad-sidebar__back:hover {
@@ -185,7 +185,7 @@
   font-family: "Poppins", system-ui, sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
-  color: #1f3a5f;
+  color: var(--pastel-ink);
   text-decoration: none;
   padding: 0.55rem 0.75rem;
   border-radius: 0.65rem;
@@ -193,12 +193,12 @@
 }
 
 .estad-mobile-nav__link:hover {
-  background: rgba(47, 90, 130, 0.12);
-  color: #2f5a82;
+  background: rgba(142, 180, 216, 0.22);
+  color: var(--pastel-blue-hover);
 }
 
 .estad-mobile-nav__link--active {
-  background: rgba(47, 90, 130, 0.2);
+  background: rgba(184, 168, 224, 0.28);
   font-weight: 700;
-  color: #243d5f;
+  color: var(--pastel-lilac-deep);
 }

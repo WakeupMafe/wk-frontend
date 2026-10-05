@@ -49,7 +49,7 @@ export default function LogrosFase1PdfTemplate({
           style={{
             margin: 0,
             fontSize: "28px",
-            color: "#1d4ed8",
+            color: "#8eb4d8",
             fontWeight: 700,
           }}
         >

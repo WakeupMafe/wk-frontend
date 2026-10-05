@@ -26,8 +26,8 @@
 }
 
 .aside-dot.active {
-  background: #171c34; /* activo azul */
-  border-color: #171c34;
+  background: var(--pastel-lilac-deep);
+  border-color: var(--pastel-lilac-deep);
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
   transform: scale(1.15);
 }

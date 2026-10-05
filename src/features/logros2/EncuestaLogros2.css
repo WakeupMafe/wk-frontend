@@ -10,11 +10,11 @@
   padding: clamp(15px, 3vw, 21px) clamp(15px, 3.5vw, 23px);
   background: linear-gradient(135deg, #f7fbff 0%, #eef4ff 100%);
   border-radius: 12px;
-  border-left: 4px solid #7da1c1;
+  border-left: 4px solid var(--pastel-blue-btn);
 }
 
 .logros2-chat strong {
-  color: #1f3a5f;
+  color: var(--pastel-ink);
   font-weight: 600;
 }
 
@@ -32,7 +32,7 @@
 .logros2-slot__title {
   font-size: clamp(1rem, 0.95rem + 0.25vw, 1.08rem);
   font-weight: 600;
-  color: #1f3a5f;
+  color: var(--pastel-ink);
   margin: 0 0 0.35rem;
 }
 

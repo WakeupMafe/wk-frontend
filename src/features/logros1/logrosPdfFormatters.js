@@ -1,5 +1,5 @@
 export const LIMITACION_LABELS = {
-  mucho: "Mucho",
+  mucho: "Severamente",
   bastante: "Bastante",
   poco: "Poco",
   nada: "Nada",

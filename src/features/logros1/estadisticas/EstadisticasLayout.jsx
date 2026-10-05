@@ -81,7 +81,7 @@ export default function EstadisticasLayout() {
               `estad-sidebar__link${isActive ? " estad-sidebar__link--active" : ""}`
             }
           >
-            Filtros
+            Compendios globales
           </NavLink>
           <NavLink
             to="/estadisticas/resultados"
@@ -89,7 +89,7 @@ export default function EstadisticasLayout() {
               `estad-sidebar__link${isActive ? " estad-sidebar__link--active" : ""}`
             }
           >
-            Resultados
+            Búsqueda individual
           </NavLink>
         </nav>
 
@@ -145,7 +145,7 @@ export default function EstadisticasLayout() {
                     `estad-mobile-nav__link${isActive ? " estad-mobile-nav__link--active" : ""}`
                   }
                 >
-                  Filtros
+                  Compendios globales
                 </NavLink>
                 <NavLink
                   to="/estadisticas/resultados"
@@ -153,7 +153,7 @@ export default function EstadisticasLayout() {
                     `estad-mobile-nav__link${isActive ? " estad-mobile-nav__link--active" : ""}`
                   }
                 >
-                  Resultados
+                  Búsqueda individual
                 </NavLink>
               </nav>
             }

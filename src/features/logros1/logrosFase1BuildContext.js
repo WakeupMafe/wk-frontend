@@ -1,27 +1,41 @@
 import {
-  PROBLEMAS as SINTOMAS,
-  OBJETIVOS,
-  PATOLOGIA_RELACIONADA,
+  formatPatologiaLabel,
+  formatObjetivoLabel,
+  formatProblemaLabel,
+  textoObjetivoFormKey,
 } from "../../data/encuestaLogrosCatalog";
 
 function getSintomaLabel(value) {
   if (!value) return "-";
-  const found = SINTOMAS.find((s) => s.value === value);
-  return found?.label || value;
+  return formatProblemaLabel(value) || value;
 }
 
-function getObjetivoLabel(sintomaValue, objetivoValue) {
+function parseTextosRow(raw) {
+  if (raw == null) return {};
+  if (typeof raw === "object" && !Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function getObjetivoLabel(sintomaValue, objetivoValue, textos = {}) {
   if (!objetivoValue) return "-";
-  const meta = OBJETIVOS[sintomaValue];
-  if (!meta) return objetivoValue;
-  const found = meta.opciones?.find((o) => o.value === objetivoValue);
-  return found?.label || objetivoValue;
-}
-
-function getPatologiaLabel(value) {
-  if (!value) return "";
-  const found = PATOLOGIA_RELACIONADA.find((p) => p.value === value);
-  return found?.label || String(value);
+  const detalleExterno =
+    textos[sintomaValue] ||
+    textos[textoObjetivoFormKey(sintomaValue)] ||
+    "";
+  return (
+    formatObjetivoLabel(sintomaValue, objetivoValue, detalleExterno) ||
+    objetivoValue
+  );
 }
 
 /**
@@ -55,6 +69,8 @@ export function buildLogrosFase1DownloadContext(row) {
     }
   }
 
+  const textos = parseTextosRow(row.textos ?? row.detalles);
+
   const items = [
     { numero: 1, sintomaValue: row.sintoma_1, objetivoValue: row.objetivo_1 },
     { numero: 2, sintomaValue: row.sintoma_2, objetivoValue: row.objetivo_2 },
@@ -65,7 +81,11 @@ export function buildLogrosFase1DownloadContext(row) {
     numero: item.numero,
     sintomaValue: item.sintomaValue,
     sintoma: getSintomaLabel(item.sintomaValue),
-    objetivo: getObjetivoLabel(item.sintomaValue, item.objetivoValue),
+    objetivo: getObjetivoLabel(
+      item.sintomaValue,
+      item.objetivoValue,
+      textos,
+    ),
   }));
 
   const fechaRegistro = row.created_at
@@ -77,7 +97,7 @@ export function buildLogrosFase1DownloadContext(row) {
     fechaRegistro,
     totalObjetivos,
     row,
-    patologiaLabel: getPatologiaLabel(row.patologia_relacionada),
+    patologiaLabel: formatPatologiaLabel(row.patologia_relacionada),
     actividades,
     sintomasConObjetivos,
   };

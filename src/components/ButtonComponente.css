@@ -1,11 +1,11 @@
-/* Variables: un solo sitio para el acento “clínico” y el azul legado */
+/* Variables de botón: lila (primario) + azul pastel (acento) — tokens en index.css */
 :root {
-  --btn-teal: #0f766e;
-  --btn-teal-hover: #0d9488;
-  --btn-teal-soft-bg: #ecfdf5;
-  --btn-teal-soft-border: #99f6e4;
-  --btn-accent: #4a83d5;
-  --btn-accent-hover: #3d6eb8;
+  --btn-teal: var(--pastel-lilac-btn);
+  --btn-teal-hover: var(--pastel-lilac-hover);
+  --btn-teal-soft-bg: var(--pastel-lilac-soft);
+  --btn-teal-soft-border: var(--pastel-lilac-border);
+  --btn-accent: var(--pastel-blue-btn);
+  --btn-accent-hover: var(--pastel-blue-hover);
 }
 
 .btn-componente {
@@ -45,14 +45,14 @@
   font-weight: 600;
 }
 
-/* Normal: azul grisáceo + hover verde */
+/* Normal: azul pastel */
 .btn--normal {
-  background: #7da1c1;
+  background: var(--pastel-blue-btn);
   color: #fff;
 }
 
 .btn--normal:hover:not(:disabled) {
-  background: #3d8f6b;
+  background: var(--pastel-blue-hover);
   filter: brightness(1.02);
 }
 
@@ -60,14 +60,14 @@
   transform: scale(0.98);
 }
 
-/* Prioritario / cierre importante */
+/* Prioritario / cierre importante — lila pastel */
 .btn--emphasis {
-  background: #1f3a5f;
+  background: var(--pastel-lilac-deep);
   color: #fff;
 }
 
 .btn--emphasis:hover:not(:disabled) {
-  background: #2a4d75;
+  background: var(--pastel-lilac-hover);
 }
 
 .btn--emphasis:active:not(:disabled) {
@@ -88,13 +88,13 @@
   transform: scale(0.98);
 }
 
-/* Primario clínico (estadísticas, consultar) */
+/* Primario (variante teal → lila pastel) */
 .btn--teal {
   background: var(--btn-teal);
   color: #fff;
   font-weight: 600;
   letter-spacing: 0.02em;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(74, 100, 124, 0.08);
 }
 
 .btn--teal:hover:not(:disabled) {
@@ -108,8 +108,8 @@
 /* Secundario con borde (descargar, exportar) */
 .btn--outline {
   background: #fff;
-  color: var(--btn-teal);
-  border: 1px solid var(--btn-teal);
+  color: var(--pastel-lilac-deep);
+  border: 1px solid var(--pastel-lilac-hover);
   font-weight: 600;
 }
 
@@ -121,23 +121,23 @@
   transform: scale(0.98);
 }
 
-/* Trigger suave (añadir ítem) */
+/* Trigger suave (añadir ítem) — lila suave */
 .btn--tealSoft {
   background: var(--btn-teal-soft-bg);
-  color: var(--btn-teal);
+  color: var(--pastel-lilac-deep);
   border: 1px solid var(--btn-teal-soft-border);
   font-weight: 600;
 }
 
 .btn--tealSoft:hover:not(:disabled) {
-  background: #d1fae5;
-  border-color: #5eead4;
+  background: #e4dcf5;
+  border-color: var(--pastel-lilac-hover);
 }
 
 /* Icono / quitar chip */
 .btn--ghost {
   background: transparent;
-  color: #64748b;
+  color: var(--pastel-ink-soft);
   min-height: auto;
   padding: 0.15rem 0.35rem;
   border-radius: 0.35rem;
@@ -146,11 +146,11 @@
 }
 
 .btn--ghost:hover:not(:disabled) {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--pastel-lilac-soft);
+  color: var(--pastel-ink);
 }
 
-/* Azul encuesta (visor logros, tablas legacy) */
+/* Azul pastel (visor logros, login) */
 .btn--accent {
   background: var(--btn-accent);
   color: #fff;

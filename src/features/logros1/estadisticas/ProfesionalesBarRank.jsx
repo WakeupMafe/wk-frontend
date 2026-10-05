@@ -1,166 +1,130 @@
-import { useId, useMemo } from "react";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-/**
- * Top 3 desde `autorizados` por encuestas_realizadas (1.º arriba).
- */
-export default function ProfesionalesBarRank({ data, loading }) {
-  const gradId = useId().replace(/:/g, "");
-
-  const chartData = useMemo(() => {
-    const rows = Array.isArray(data) ? data : [];
-    const norm = rows
-      .map((d) => {
-        if (!d || typeof d !== "object") return null;
-        if (!("encuestas_realizadas" in d)) return null;
-        const nom = [d.nombres, d.apellidos].filter(Boolean).join(" ").trim();
-        const ced = d.cedula != null ? String(d.cedula) : "";
-        const label = nom || ced || "—";
-        const sede = (d.sede && String(d.sede).trim()) || "";
-        const tooltip = [nom || null, sede ? `Sede: ${sede}` : null, ced ? `CC ${ced}` : null]
-          .filter(Boolean)
-          .join(" · ");
-        const short =
-          label.length > 26 ? `${label.slice(0, 24).trim()}…` : label;
-        return {
-          etiqueta: short,
-          etiquetaTooltip: tooltip || label,
-          encuestas_realizadas: Number(d.encuestas_realizadas) || 0,
-        };
-      })
-      .filter(Boolean);
-    if (!norm.length) return [];
-    const top3 = [...norm]
-      .sort(
-        (a, b) =>
-          (b.encuestas_realizadas ?? 0) - (a.encuestas_realizadas ?? 0),
-      )
-      .slice(0, 3);
-    return top3.map((row, i) => ({
-      ...row,
-      puesto: i + 1,
-      etiqueta: `${i + 1}º  ${row.etiqueta}`,
-    }));
-  }, [data]);
-
-  if (loading) {
-    return (
-      <div className="estad-kpi__chart-placeholder estad-kpi__ranking-pro__loading" aria-busy="true">
-        …
-      </div>
-    );
-  }
-
-  if (!chartData.length) {
-    return (
-      <p className="estad-kpi__chart-empty estad-kpi__ranking-pro__empty">
-        No hay datos de ranking en autorizados o todos tienen encuestas sin
-        registrar.
-      </p>
-    );
-  }
-
-  const maxVal = Math.max(
-    ...chartData.map((d) => Number(d.encuestas_realizadas) || 0),
-    1,
-  );
-
-  const domainMax = Math.max(maxVal, Math.ceil(maxVal * 1.12));
-  const h = 210;
-
-  return (
-    <div className="estad-kpi__ranking-pro">
-      <ResponsiveContainer width="100%" height={h}>
-        <BarChart
-          layout="vertical"
-          data={chartData}
-          margin={{ top: 8, right: 28, left: 4, bottom: 8 }}
-          barCategoryGap="18%"
-        >
-          <defs>
-            <linearGradient id={`${gradId}-b1`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#0c4a6e" />
-              <stop offset="100%" stopColor="#1d4ed8" />
-            </linearGradient>
-            <linearGradient id={`${gradId}-b2`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#1e40af" />
-              <stop offset="100%" stopColor="#3b82f6" />
-            </linearGradient>
-            <linearGradient id={`${gradId}-b3`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#2563eb" />
-              <stop offset="100%" stopColor="#60a5fa" />
-            </linearGradient>
-          </defs>
-          <XAxis
-            type="number"
-            domain={[0, domainMax]}
-            tick={{ fontSize: 11, fill: "#64748b", fontWeight: 500 }}
-            axisLine={{ stroke: "#cbd5e1" }}
-            tickLine={false}
-            allowDecimals={false}
-          />
-          <YAxis
-            type="category"
-            dataKey="etiqueta"
-            width={168}
-            tick={{
-              fontSize: 11,
-              fill: "#0f172a",
-              fontWeight: 600,
-              fontFamily: '"Poppins", system-ui, sans-serif',
-            }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip
-            cursor={{ fill: "rgba(241, 245, 249, 0.65)" }}
-            formatter={(value) => [`${value} encuesta(s)`, "Realizadas"]}
-            labelFormatter={(_, payload) =>
-              payload?.[0]?.payload?.etiquetaTooltip ?? ""
-            }
-            contentStyle={{
-              borderRadius: "10px",
-              border: "1px solid #e2e8f0",
-              boxShadow: "0 10px 40px rgba(15, 23, 42, 0.08)",
-              fontFamily: '"Poppins", system-ui, sans-serif',
-              fontSize: "0.8rem",
-            }}
-            labelStyle={{ fontWeight: 700, color: "#0f172a", marginBottom: 4 }}
-          />
-          <Bar
-            dataKey="encuestas_realizadas"
-            name="Encuestas"
-            radius={[0, 8, 8, 0]}
-            isAnimationActive={false}
-            maxBarSize={22}
-          >
-            {chartData.map((_, i) => (
-              <Cell
-                key={`rank-cell-${i}`}
-                fill={`url(#${gradId}-b${i + 1})`}
-              />
-            ))}
-            <LabelList
-              dataKey="encuestas_realizadas"
-              position="right"
-              offset={10}
-              fill="#0f172a"
-              fontSize={12}
-              fontWeight={700}
-              fontFamily='"Poppins", system-ui, sans-serif'
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
+import { useMemo } from "react";
+
+/** Soft sage / sky / lavender — shared with SedePieChart */
+export const PODIUM_COLORS = ["#A3D19D", "#B6D0ED", "#CDC5ED"];
+
+function CrownIcon({ fill }) {
+  return (
+    <svg
+      className="estad-kpi__podium-crown"
+      width="14"
+      height="12"
+      viewBox="0 0 14 12"
+      fill="none"
+      aria-hidden
+    >
+      <path
+        d="M1.2 9.6 2.4 3.8l2.6 2.4L7 1.6l2 4.6 2.6-2.4 1.2 5.8H1.2Z"
+        fill={fill}
+      />
+      <rect x="1.1" y="9.4" width="11.8" height="1.5" rx="0.5" fill={fill} />
+    </svg>
+  );
+}
+
+/**
+ * Top 3 desde `autorizados` por encuestas_realizadas (1.º arriba).
+ * Capsule progress bars + rank badges (custom HTML to match podium mock).
+ */
+export default function ProfesionalesBarRank({ data, loading }) {
+  const chartData = useMemo(() => {
+    const rows = Array.isArray(data) ? data : [];
+    const norm = rows
+      .map((d) => {
+        if (!d || typeof d !== "object") return null;
+        if (!("encuestas_realizadas" in d)) return null;
+        const nom = [d.nombres, d.apellidos].filter(Boolean).join(" ").trim();
+        const ced = d.cedula != null ? String(d.cedula) : "";
+        const label = nom || ced || "—";
+        const sede = (d.sede && String(d.sede).trim()) || "";
+        const tooltip = [nom || null, sede ? `Sede: ${sede}` : null, ced ? `CC ${ced}` : null]
+          .filter(Boolean)
+          .join(" · ");
+        return {
+          name: label,
+          etiquetaTooltip: tooltip || label,
+          encuestas_realizadas: Number(d.encuestas_realizadas) || 0,
+        };
+      })
+      .filter(Boolean);
+    if (!norm.length) return [];
+    return [...norm]
+      .sort(
+        (a, b) =>
+          (b.encuestas_realizadas ?? 0) - (a.encuestas_realizadas ?? 0),
+      )
+      .slice(0, 3)
+      .map((row, i) => ({
+        ...row,
+        puesto: i + 1,
+        color: PODIUM_COLORS[i] ?? PODIUM_COLORS[PODIUM_COLORS.length - 1],
+      }));
+  }, [data]);
+
+  if (loading) {
+    return (
+      <div className="estad-kpi__chart-placeholder estad-kpi__ranking-pro__loading" aria-busy="true">
+        …
+      </div>
+    );
+  }
+
+  if (!chartData.length) {
+    return (
+      <p className="estad-kpi__chart-empty estad-kpi__ranking-pro__empty">
+        No hay datos de ranking en autorizados o todos tienen encuestas sin
+        registrar.
+      </p>
+    );
+  }
+
+  const maxVal = Math.max(
+    ...chartData.map((d) => Number(d.encuestas_realizadas) || 0),
+    1,
+  );
+
+  return (
+    <ol className="estad-kpi__podium" aria-label="Top 3 encuestadores">
+      {chartData.map((row) => {
+        const pct = Math.max(
+          6,
+          Math.round((Number(row.encuestas_realizadas) / maxVal) * 100),
+        );
+        return (
+          <li
+            key={`${row.puesto}-${row.name}`}
+            className="estad-kpi__podium-row"
+            title={row.etiquetaTooltip}
+          >
+            <div
+              className="estad-kpi__podium-badge"
+              style={{ backgroundColor: row.color }}
+              aria-label={`Puesto ${row.puesto}`}
+            >
+              <CrownIcon fill="#5b6470" />
+              <span className="estad-kpi__podium-rank">{row.puesto}</span>
+            </div>
+            <div className="estad-kpi__podium-body">
+              <div className="estad-kpi__podium-meta">
+                <span className="estad-kpi__podium-name">{row.name}</span>
+                <span className="estad-kpi__podium-count">
+                  {row.encuestas_realizadas}
+                </span>
+              </div>
+              <div className="estad-kpi__podium-track" aria-hidden>
+                <div
+                  className="estad-kpi__podium-fill"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: row.color,
+                  }}
+                />
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+

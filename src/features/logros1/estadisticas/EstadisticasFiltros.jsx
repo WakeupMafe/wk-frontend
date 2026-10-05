@@ -7,7 +7,12 @@ import {
   PageMeta,
   PageTitle,
 } from "../../../components/typography";
-import { PROBLEMAS, TIPOS_DOCUMENTO } from "../../../data/encuestaLogrosCatalog";
+import {
+  PROBLEMAS,
+  PROBLEMAS_LEGACY,
+  TIPOS_DOCUMENTO,
+  formatProblemaLabel,
+} from "../../../data/encuestaLogrosCatalog";
 import {
   alertWarning,
   toastError,
@@ -29,7 +34,10 @@ const SEDES = [
   { value: "Barranquilla", label: "Barranquilla" },
 ];
 
-const SINTOMAS_OPCIONES = PROBLEMAS.filter((p) => p.value !== "otro");
+const SINTOMAS_OPCIONES = [
+  ...PROBLEMAS.filter((p) => p.value !== "otro"),
+  ...PROBLEMAS_LEGACY,
+];
 
 const TIPO_DOC_FILTRO = [
   { value: "", label: "Cualquiera" },
@@ -58,7 +66,7 @@ function sintomasCelda(row) {
 }
 
 function etiquetaSintoma(value) {
-  return SINTOMAS_OPCIONES.find((p) => p.value === value)?.label ?? value;
+  return formatProblemaLabel(value) || value;
 }
 
 /**
@@ -204,7 +212,7 @@ export default function EstadisticasFiltros() {
   return (
     <section className="estad-page estad-filtros" aria-labelledby="estad-agg-title">
       <PageHeader>
-        <PageTitle id="estad-agg-title">Filtros</PageTitle>
+        <PageTitle id="estad-agg-title">Compendios globales</PageTitle>
         <PageMeta tone="neutral">
           Última actualización:{" "}
           <time dateTime={meta?.actualizado_en}>

@@ -22,7 +22,7 @@
 .field__input {
   height: 44px;
   border-radius: 12px;
-  border: 2px solid #b7cdfa;
+  border: 2px solid var(--pastel-blue);
   outline: none;
   padding: 10px 14px;
   font-family: "Poppins", sans-serif;
@@ -33,7 +33,7 @@
 }
 
 .field__input:focus {
-  border-color: #7fa8ff;
+  border-color: var(--pastel-blue-btn);
 }
 
 .field__input--error {

@@ -26,7 +26,7 @@
 
 .top-bar-button {
   border-radius: 15px;
-  border: 2px solid #2c70cc;
+  border: 2px solid var(--pastel-blue-btn);
   font-family: "Poppins";
   height: 2.5rem;
   width: auto;
@@ -35,12 +35,14 @@
   background-color: transparent;
   letter-spacing: 0.05rem;
   cursor: pointer;
+  color: var(--pastel-ink);
   transition: ease-in-out 0.3s;
 }
 
 .top-bar-button:hover {
   transform: scale(1.05);
-  border-color: #92bd4a; /* verde claro */
+  border-color: var(--pastel-lilac-btn);
+  background: var(--pastel-lilac-soft);
 }
 
 /* Tablets: badge “Ingreso Primera Vez” y logo un poco más presentes */

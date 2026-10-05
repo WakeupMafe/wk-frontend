@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { inferGenderFromName } from "../lib/inferGenderFromName";
 import logoWakeup from "../assets/logo.svg";
@@ -163,6 +163,8 @@ export default function AutorizadosHeader({
   onPerfilActualizado,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const enInicio = location.pathname === "/autorizados-inicio";
   const [menuOpen, setMenuOpen] = useState(false);
   const closeBtnRef = useRef(null);
   const menuId = useId();
@@ -381,8 +383,25 @@ export default function AutorizadosHeader({
     ? draftSede || sede
     : sede;
 
+  /** Menú «Ir al inicio»: siempre vuelve a la pantalla de inicio (sin cerrar sesión). */
   const irInicio = () => {
-    navigate("/");
+    navigate("/autorizados-inicio");
+    setMenuOpen(false);
+  };
+
+  /**
+   * Botón casita (desktop + móvil):
+   * - Fuera de Inicio → navega a `/autorizados-inicio` (sesión intacta).
+   * - En Inicio → cierra sesión y va al flujo de login (`/`).
+   */
+  const irHome = () => {
+    if (enInicio) {
+      clearSesionLocal();
+      setMenuOpen(false);
+      navigate("/");
+      return;
+    }
+    navigate("/autorizados-inicio");
     setMenuOpen(false);
   };
 
@@ -635,9 +654,9 @@ export default function AutorizadosHeader({
                 className="Autorizados-home autorizados-desktop-bar__side"
                 role="button"
                 tabIndex={0}
-                onClick={irInicio}
-                onKeyDown={(e) => (e.key === "Enter" ? irInicio() : null)}
-                aria-label="Ir al inicio"
+                onClick={irHome}
+                onKeyDown={(e) => (e.key === "Enter" ? irHome() : null)}
+                aria-label={enInicio ? "Ir a iniciar sesión" : "Ir al inicio"}
               >
                 <HomeIcon
                   className="autorizados-home-img"
@@ -699,8 +718,8 @@ export default function AutorizadosHeader({
           <button
             type="button"
             className="autorizados-compact-home"
-            onClick={irInicio}
-            aria-label="Ir al inicio"
+            onClick={irHome}
+            aria-label={enInicio ? "Ir a iniciar sesión" : "Ir al inicio"}
           >
             <HomeIcon
               className="autorizados-home-img"

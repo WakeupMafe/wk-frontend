@@ -3,7 +3,6 @@ import WelcomeLayout from "../layouts/WelcomeLayout";
 import fondo from "../assets/fondo2.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./AutorizadosInicio.css";
-import ButtonC from "../components/ButtonComponente";
 import FloatingFolders from "../components/FloatingFolders.jsx";
 import AutorizadosHeader from "../components/AutorizadosHeader";
 import { sweetAlert } from "../components/SweetAlert";
@@ -152,36 +151,21 @@ export default function AutorizadosInicio() {
           }}
         />
 
-        <div className="Autorizados-botones">
-          <ButtonC
-            onClick={() =>
-              navigate(`/sede/${encodeURIComponent(sede)}/encuestas`, {
-                state: {
-                  usuario,
-                  sede,
-                  cedula,
-                  pin,
-                  encuestasRealizadas,
-                },
-              })
-            }
-          >
-            Encuestas Disponibles
-          </ButtonC>
-
-          <ButtonC onClick={() => navigate("/estadisticas")}>
-            Estadísticas
-          </ButtonC>
-        </div>
-
         <div className="Autorizados-tarjetas">
           <FloatingFolders
             items={[
               { title: "Poblado" },
               { title: "Laureles" },
               { title: "Barranquilla" },
+              { title: "Estadísticas", href: "/estadisticas", color: "#F5B8A8" },
             ]}
-            onFolderClick={(item) => abrirSede(item.title)}
+            onFolderClick={(item) => {
+              if (item.href) {
+                navigate(item.href);
+                return;
+              }
+              abrirSede(item.title);
+            }}
           />
         </div>
       </div>

@@ -20,7 +20,7 @@ import { verificarPin } from "../services/verificarPin";
 
 import logo from "../assets/logo.svg";
 import fondo from "../assets/fondo2.svg";
-import { homeIconSrcForGender } from "../assets/homeIconSrc.js";
+import HomeIcon from "../components/HomeIcon.jsx";
 import { inferGenderFromName } from "../lib/inferGenderFromName";
 
 const SEDES = [
@@ -360,12 +360,10 @@ export default function LoginFirstTime() {
               }
             }}
           >
-            <img
+            <HomeIcon
               className="first-time-header__home"
-              src={homeIconSrcForGender(inferGenderFromName(form.nombres))}
-              alt=""
-              decoding="async"
-              loading="lazy"
+              gender={inferGenderFromName(form.nombres)}
+              size={36}
             />
           </div>
         </header>

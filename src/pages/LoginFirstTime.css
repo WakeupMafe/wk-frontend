@@ -77,9 +77,7 @@ body {
 .first-time-header__home {
   width: clamp(1.75rem, 5vw + 0.5rem, 2.75rem);
   height: clamp(1.75rem, 5vw + 0.5rem, 2.75rem);
-  object-fit: contain;
   display: block;
-  transition: transform 0.15s ease;
 }
 
 .first-time-header__logo:hover,

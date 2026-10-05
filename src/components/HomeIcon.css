@@ -1,0 +1,26 @@
+/* Casita SVG — HomeIcon.jsx */
+.home-icon {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+  transition: transform 0.25s ease, color 0.2s ease;
+}
+
+.home-icon__fill {
+  fill: currentColor;
+  opacity: 0.16;
+}
+
+.home-icon__stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+}
+
+.home-icon--male {
+  color: var(--pastel-blue-btn);
+}
+
+.home-icon--female {
+  color: var(--pastel-lilac-btn);
+}

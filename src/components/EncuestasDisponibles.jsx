@@ -121,9 +121,28 @@ export default function EncuestasDisponibles() {
 
         <div className="contenedorOpcionesEncuestas">
           <DirectoryBrowser
-            breadcrumb={[sede, "Encuestas"]}
+            breadcrumb={["Inicio", sede, "Encuestas"]}
             items={items}
             onItemClick={onItemClick}
+            onCrumbClick={(idx) => {
+              if (idx === 0) {
+                navigate("/autorizados-inicio", {
+                  state: pin ? { pin } : undefined,
+                });
+                return;
+              }
+              if (idx === 1) {
+                navigate(`/sede/${encodeURIComponent(sede)}/encuestas`, {
+                  state: {
+                    usuario,
+                    sede,
+                    encuestasRealizadas,
+                    cedula,
+                    ...(pin ? { pin } : {}),
+                  },
+                });
+              }
+            }}
             backTo="/autorizados-inicio"
             backState={pin ? { pin } : undefined}
             backAriaLabel="Volver al inicio autorizados"

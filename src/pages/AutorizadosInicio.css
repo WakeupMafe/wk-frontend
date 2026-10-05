@@ -31,28 +31,6 @@
   box-sizing: border-box;
 }
 
-.Autorizados-botones {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: center;
-  margin: 0 auto;
-  gap: clamp(12px, 3vw, 28px);
-  width: 100%;
-  max-width: min(720px, 96vw);
-  padding: clamp(12px, 2vw, 20px);
-  box-sizing: border-box;
-}
-
-/* Mismo ancho para ambos botones (el texto no estira uno más que el otro) */
-.Autorizados-botones .btn-componente {
-  flex: 1 1 0;
-  min-width: min(100%, 200px);
-  width: auto !important;
-  max-width: 100%;
-}
-
 .Autorizados-tarjetas {
   display: grid;
   margin: 0 auto;
@@ -69,23 +47,7 @@
     height: auto;
   }
 
-  .Autorizados-botones {
-    padding: clamp(10px, 2vw, 16px);
-    gap: clamp(10px, 2.5vw, 18px);
-  }
-
   .Autorizados-tarjetas {
     height: auto;
-  }
-}
-@media (max-width: 480px) {
-  .Autorizados-botones {
-    flex-direction: column;
-  }
-
-  .Autorizados-botones .btn-componente {
-    flex: 1 1 auto;
-    min-width: 0;
-    width: 100% !important;
   }
 }

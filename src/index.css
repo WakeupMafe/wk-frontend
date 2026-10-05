@@ -75,6 +75,7 @@ html {
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
   overflow-y: auto;
+  font-family: var(--font-sans, "Poppins", system-ui, sans-serif);
 }
 
 body {
@@ -87,4 +88,15 @@ body {
   font-family: var(--font-sans, "Poppins", system-ui, sans-serif);
   /* Evita “arrastre” horizontal raro en iOS cuando hay overflow residual */
   overscroll-behavior-x: none;
+}
+
+#root {
+  font-family: var(--font-sans, "Poppins", system-ui, sans-serif);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }

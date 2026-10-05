@@ -7,8 +7,9 @@
   align-items: stretch;
   justify-content: flex-start;
   width: 100%;
-  padding: clamp(0.35rem, 1vw, 0.55rem) 0 clamp(0.5rem, 1.15vw, 0.75rem);
+  padding: 0;
   box-sizing: border-box;
+  font-family: "Poppins", system-ui, sans-serif;
 }
 
 .autorizados-desktop-brand {
@@ -20,29 +21,42 @@
   width: 100%;
   padding: clamp(0.85rem, 1.6vw, 1.25rem) clamp(1rem, 2.2vw, 1.75rem);
   box-sizing: border-box;
+  font-family: "Poppins", system-ui, sans-serif;
 }
 
-/* Logo + letrero en el centro de la barra pastilla (avatar | marca | inicio) */
+/* Logo + letrero a la izquierda; acciones (perfil + inicio) a la derecha */
 .autorizados-desktop-brand--in-toolbar {
-  justify-self: stretch;
+  justify-content: flex-start;
+  flex: 0 1 auto;
   min-width: 0;
-  width: 100%;
+  width: auto;
   max-width: 100%;
   padding: 0;
-  gap: clamp(0.45rem, 1.1vw, 0.75rem);
+  gap: clamp(0.55rem, 1.1vw, 0.75rem);
   pointer-events: none;
 }
 
 .autorizados-desktop-brand--in-toolbar .autorizados-desktop-brand__logo {
-  height: clamp(36px, 3.9vw, 52px);
+  height: clamp(32px, 3.4vw, 42px);
+}
+
+.autorizados-desktop-brand--in-toolbar .autorizados-desktop-brand__text {
+  gap: 0.02rem;
 }
 
 .autorizados-desktop-brand--in-toolbar .autorizados-desktop-brand__title {
-  font-size: clamp(1.02rem, 1.9vw, 1.38rem);
+  font-size: clamp(1.02rem, 1.7vw, 1.22rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--pastel-ink);
 }
 
 .autorizados-desktop-brand--in-toolbar .autorizados-desktop-brand__subtitle {
-  font-size: clamp(0.78rem, 1.25vw, 0.95rem);
+  font-size: clamp(0.7rem, 1.05vw, 0.82rem);
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--pastel-ink-soft);
 }
 
 .autorizados-desktop-brand__logo {
@@ -63,21 +77,21 @@
 }
 
 .autorizados-desktop-brand__title {
-  font-family: "Poppins", sans-serif;
-  font-weight: 700;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-weight: 600;
   font-size: clamp(1.35rem, 2.4vw, 1.75rem);
   line-height: 1.05;
   letter-spacing: -0.02em;
-  color: #1b4f5f;
+  color: var(--pastel-ink);
 }
 
 .autorizados-desktop-brand__subtitle {
-  font-family: "Poppins", sans-serif;
-  font-weight: 400;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-weight: 300;
   font-size: clamp(0.95rem, 1.65vw, 1.12rem);
   line-height: 1.15;
-  letter-spacing: 0.02em;
-  color: #6b7280;
+  letter-spacing: 0.04em;
+  color: var(--pastel-ink-soft);
 }
 
 /* Una sola pieza: avatar | contenido | inicio (sin huecos entre bloques) */
@@ -85,24 +99,23 @@
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  /* Mismo ancho que el contenido bajo el header (p. ej. .estad-main__inner: 56rem) */
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
-  border-radius: 1.05rem;
-  border: 1px solid rgba(44, 112, 204, 0.14);
-  background: linear-gradient(165deg, #ffffff 0%, #f7fafd 45%, #eef4fb 100%);
-  box-shadow:
-    0 4px 28px rgba(31, 58, 95, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   overflow: hidden;
 }
 
-/* PC: barra compacta (avatar + inicio); el perfil va en desplegable */
+/* PC: barra compacta (marca | perfil + inicio); el perfil va en desplegable */
 .autorizados-desktop-wrap {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 .autorizados-desktop-wrap--open {
@@ -110,68 +123,104 @@
 }
 
 .autorizados-desktop-bar--toolbar {
-  display: grid;
-  grid-template-columns: minmax(clamp(72px, 8vw, 96px), auto) minmax(0, 1fr) minmax(
-      clamp(72px, 8vw, 96px),
-      auto
-    );
+  display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: space-between;
+  gap: clamp(12px, 2vw, 24px);
   overflow: visible;
-  column-gap: clamp(14px, 1.8vw, 22px);
-  padding: clamp(16px, 1.75vw, 22px) clamp(22px, 2.4vw, 32px);
-  min-height: clamp(72px, 9vw, 92px);
-  border-radius: clamp(1.4rem, 3.85vw, 2.275rem);
-  border: 1px solid rgba(27, 79, 95, 0.1);
-  background: linear-gradient(
-    175deg,
-    #ffffff 0%,
-    #f8fafb 38%,
-    #f0f5f7 100%
-  );
-  box-shadow:
-    0 10px 36px rgba(27, 79, 95, 0.09),
-    0 2px 10px rgba(27, 79, 95, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.98);
+  width: 100%;
+  max-width: 100%;
+  padding: clamp(10px, 1.15vw, 14px) clamp(14px, 2.2vw, 28px);
+  min-height: clamp(58px, 6.8vw, 70px);
+  border-radius: 0;
+  border: none;
+  /* Transparent — icons + brand float on the page */
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
-.autorizados-desktop-wrap--female .autorizados-desktop-bar--toolbar {
-  border-color: rgba(138, 112, 214, 0.18);
-  box-shadow:
-    0 10px 36px rgba(90, 70, 140, 0.1),
-    0 2px 10px rgba(90, 70, 140, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.98);
+.autorizados-desktop-bar__actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: clamp(8px, 1.2vw, 12px);
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
-.autorizados-desktop-wrap--male .autorizados-desktop-bar--toolbar {
-  border-color: rgba(27, 79, 95, 0.12);
+/* Sin divisores verticales: barra limpia (marca | perfil + inicio) */
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .autorizados-desktop-bar__side {
+  border: none;
 }
 
-/* Área clicable más amplia e iconos más legibles (barra compacta PC) */
+/* Soft circle utility buttons (perfil / inicio) */
 .AutorizadosCabecera--desktop .autorizados-desktop-bar--toolbar .Autorizados-avatar,
 .AutorizadosCabecera--desktop .autorizados-desktop-bar--toolbar .Autorizados-home {
   flex: 0 0 auto;
-  width: auto;
-  min-width: clamp(56px, 6.5vw, 78px);
-  min-height: clamp(52px, 6.2vw, 70px);
-  padding: clamp(10px, 1.1vw, 14px);
+  width: clamp(44px, 4.8vw, 50px);
+  height: clamp(44px, 4.8vw, 50px);
+  min-width: clamp(44px, 4.8vw, 50px);
+  min-height: clamp(44px, 4.8vw, 50px);
+  padding: 0;
   box-sizing: border-box;
-  border-radius: clamp(14px, 1.4vw, 18px);
+  border-radius: 50%;
   align-self: center;
+  justify-self: center;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 2px 10px rgba(74, 100, 124, 0.07),
+    0 1px 2px rgba(74, 100, 124, 0.04);
+  border: none;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.15s ease;
 }
 
 .AutorizadosCabecera--desktop
   .autorizados-desktop-bar--toolbar
   .Autorizados-avatar
   .autorizados-avatar-face {
-  width: clamp(46px, 5.1vw, 60px);
-  height: clamp(46px, 5.1vw, 60px);
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--pastel-ink);
+}
+
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .Autorizados-avatar
+  .autorizados-avatar-face--male {
+  color: var(--pastel-ink);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .Autorizados-avatar
+  .autorizados-avatar-face--female {
+  color: var(--pastel-lilac-hover);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .AutorizadosCabecera--desktop
   .autorizados-desktop-bar--toolbar
   .Autorizados-home
   .autorizados-home-img {
-  width: clamp(42px, 4.8vw, 54px);
+  width: clamp(22px, 2.6vw, 26px);
+  height: clamp(22px, 2.6vw, 26px);
 }
 
 .autorizados-desktop-backdrop {
@@ -184,9 +233,10 @@
 
 .autorizados-desktop-dropdown {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: auto;
+  right: clamp(14px, 2.2vw, 28px);
   top: calc(100% + 10px);
+  width: min(100% - clamp(28px, 4.4vw, 56px), 26rem);
   z-index: 100017;
   max-height: min(88vh, 680px);
   overflow-x: hidden;
@@ -243,8 +293,9 @@
 }
 
 .autorizados-desktop-profile-card {
-  max-width: 26rem;
-  margin: 0 auto;
+  max-width: none;
+  width: 100%;
+  margin: 0;
   padding: clamp(1.35rem, 2.4vw, 1.85rem) clamp(1.35rem, 2.8vw, 2rem)
     clamp(1.5rem, 2.6vw, 2.1rem);
   box-sizing: border-box;
@@ -503,82 +554,89 @@
   transition: background 0.18s ease;
 }
 
-.AutorizadosCabecera--desktop .autorizados-desktop-bar__side--start {
-  border-right: 1px solid rgba(44, 112, 204, 0.14);
+/* Toolbar soft-circle actions override the legacy side-rail styles above */
+.AutorizadosCabecera--desktop .autorizados-desktop-bar--toolbar .Autorizados-avatar,
+.AutorizadosCabecera--desktop .autorizados-desktop-bar--toolbar .Autorizados-home {
+  flex: 0 0 auto;
+  align-self: center;
+  width: clamp(44px, 4.8vw, 50px);
+  height: clamp(44px, 4.8vw, 50px);
+  min-width: clamp(44px, 4.8vw, 50px);
+  min-height: clamp(44px, 4.8vw, 50px);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 2px 10px rgba(74, 100, 124, 0.07),
+    0 1px 2px rgba(74, 100, 124, 0.04);
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.15s ease;
 }
 
-.AutorizadosCabecera--desktop .autorizados-desktop-bar__side--end {
-  border-left: 1px solid rgba(44, 112, 204, 0.14);
-}
-
-.AutorizadosCabecera--desktop
-  .autorizados-desktop-wrap--female
-  .autorizados-desktop-bar__side--start {
-  border-right-color: rgba(138, 112, 214, 0.22);
-}
-
-.AutorizadosCabecera--desktop
-  .autorizados-desktop-wrap--female
-  .autorizados-desktop-bar__side--end {
-  border-left-color: rgba(138, 112, 214, 0.22);
-}
-
-.AutorizadosCabecera--desktop
-  .autorizados-desktop-wrap--male
-  .autorizados-desktop-bar__side--start {
-  border-right-color: rgba(27, 79, 95, 0.14);
-}
-
-.AutorizadosCabecera--desktop
-  .autorizados-desktop-wrap--male
-  .autorizados-desktop-bar__side--end {
-  border-left-color: rgba(27, 79, 95, 0.14);
+.AutorizadosCabecera--desktop .autorizados-desktop-bar__side {
+  border: none;
 }
 
 .AutorizadosCabecera--desktop .autorizados-desktop-bar .Autorizados-avatar:hover,
 .AutorizadosCabecera--desktop .autorizados-desktop-bar .Autorizados-home:hover {
-  background: rgba(44, 112, 204, 0.07);
+  background: rgba(255, 255, 255, 1);
 }
 
 .AutorizadosCabecera--desktop
   .autorizados-desktop-wrap--female
   .autorizados-desktop-bar--toolbar
-  .Autorizados-avatar:hover {
-  background: rgba(138, 112, 214, 0.1);
-}
-
+  .Autorizados-avatar:hover,
 .AutorizadosCabecera--desktop
   .autorizados-desktop-wrap--female
   .autorizados-desktop-bar--toolbar
   .Autorizados-home:hover {
-  background: rgba(138, 112, 214, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow:
+    0 3px 14px rgba(149, 135, 200, 0.14),
+    0 1px 3px rgba(74, 100, 124, 0.05);
+  transform: translateY(-1px);
 }
 
 .AutorizadosCabecera--desktop
   .autorizados-desktop-wrap--male
   .autorizados-desktop-bar--toolbar
-  .Autorizados-avatar:hover {
-  background: rgba(27, 79, 95, 0.08);
-}
-
+  .Autorizados-avatar:hover,
 .AutorizadosCabecera--desktop
   .autorizados-desktop-wrap--male
   .autorizados-desktop-bar--toolbar
   .Autorizados-home:hover {
-  background: rgba(27, 79, 95, 0.07);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow:
+    0 3px 14px rgba(142, 180, 216, 0.16),
+    0 1px 3px rgba(74, 100, 124, 0.05);
+  transform: translateY(-1px);
 }
 
 .AutorizadosCabecera--desktop .autorizados-desktop-bar .Autorizados-avatar:focus-visible,
 .AutorizadosCabecera--desktop .autorizados-desktop-bar .Autorizados-home:focus-visible {
   outline: 2px solid var(--pastel-blue-btn);
-  outline-offset: -2px;
+  outline-offset: 2px;
   z-index: 1;
   position: relative;
+  border-radius: 50%;
+}
+
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .Autorizados-avatar:focus-visible,
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .Autorizados-home:focus-visible {
+  outline: 2px solid var(--pastel-lilac-btn);
+  outline-offset: 3px;
+  border-radius: 50%;
 }
 
 .AutorizadosCabecera--desktop .autorizados-desktop-bar .Autorizados-avatar:active,
 .AutorizadosCabecera--desktop .autorizados-desktop-bar .Autorizados-home:active {
-  background: rgba(44, 112, 204, 0.11);
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(74, 100, 124, 0.08);
 }
 
 .AutorizadosCabecera--desktop .autorizados-desktop-panel {
@@ -741,21 +799,52 @@
 }
 
 .AutorizadosCabecera--desktop .Autorizados-avatar:hover .autorizados-avatar-face {
-  transform: scale(1.04);
+  transform: none;
 }
 
-/* Icono inicio: home.png (hombre) / homerosa.png (mujer, tono violeta) — homeIconSrc.js */
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .Autorizados-avatar:hover
+  .autorizados-avatar-face {
+  transform: none;
+}
+
+/* Casita SVG — tamaños / hover en header (estilos base en HomeIcon.css) */
 .AutorizadosCabecera--desktop .Autorizados-home .autorizados-home-img {
-  width: clamp(36px, 4.1vw, 48px);
-  height: auto;
+  width: clamp(22px, 2.6vw, 26px);
+  height: clamp(22px, 2.6vw, 26px);
   max-height: 90%;
-  object-fit: contain;
   display: block;
-  transition: transform 0.25s ease;
+}
+
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .home-icon--male {
+  color: var(--pastel-ink);
+}
+
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-bar--toolbar
+  .home-icon--female {
+  color: var(--pastel-lilac-hover);
 }
 
 .AutorizadosCabecera--desktop .Autorizados-home:hover .autorizados-home-img {
   transform: scale(1.04);
+}
+
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-wrap--female
+  .Autorizados-home:hover
+  .home-icon--female {
+  color: var(--pastel-lilac-deep);
+}
+
+.AutorizadosCabecera--desktop
+  .autorizados-desktop-wrap--male
+  .Autorizados-home:hover
+  .home-icon--male {
+  color: var(--pastel-blue-hover);
 }
 
 /* ——— Vista compacta: oculta en escritorio ——— */
@@ -809,61 +898,93 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
+    max-width: 100%;
+    margin-inline: auto;
     gap: clamp(0.4rem, 2vw, 0.65rem);
-    padding: clamp(10px, 2.5vw, 14px) clamp(12px, 3vw, 18px);
+    padding: clamp(10px, 2.2vw, 14px) clamp(12px, 3vw, 18px);
     box-sizing: border-box;
-    background: #ffffff;
-    border: 1px solid rgba(31, 58, 95, 0.1);
-    border-radius: clamp(12px, 2.2vw, 16px);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    border: none;
+    border-radius: 0;
+    font-family: "Poppins", system-ui, sans-serif;
+    /* Transparent — icons + brand float on the page */
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+  }
+
+  .autorizados-compact-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: clamp(6px, 1.8vw, 10px);
+    flex: 0 0 auto;
+    margin-left: auto;
   }
 
   .autorizados-menu-trigger {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: clamp(44px, 11vw, 48px);
-    height: clamp(44px, 11vw, 48px);
+    width: clamp(42px, 10.5vw, 46px);
+    height: clamp(42px, 10.5vw, 46px);
     padding: 0;
-    border: 1px solid rgba(27, 79, 95, 0.22);
-    border-radius: 12px;
-    background: #fff;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow:
+      0 2px 10px rgba(74, 100, 124, 0.07),
+      0 1px 2px rgba(74, 100, 124, 0.04);
     cursor: pointer;
+    flex-shrink: 0;
     transition:
       background 0.2s ease,
-      border-color 0.2s ease,
-      box-shadow 0.2s ease;
+      box-shadow 0.2s ease,
+      transform 0.15s ease;
   }
 
   .autorizados-menu-trigger:hover {
-    background: #f3f8fa;
-    border-color: rgba(27, 79, 95, 0.32);
-    box-shadow: 0 2px 8px rgba(27, 79, 95, 0.07);
+    background: #fff;
+    box-shadow:
+      0 3px 12px rgba(142, 180, 216, 0.16),
+      0 1px 3px rgba(74, 100, 124, 0.05);
+    transform: translateY(-1px);
+  }
+
+  .AutorizadosCabecera--compact--female .autorizados-menu-trigger:hover {
+    box-shadow:
+      0 3px 12px rgba(149, 135, 200, 0.16),
+      0 1px 3px rgba(74, 100, 124, 0.05);
   }
 
   .autorizados-menu-trigger:focus-visible {
-    outline: 2px solid var(--pastel-blue-btn);
-    outline-offset: 2px;
+    outline: 2px solid var(--pastel-lilac-btn);
+    outline-offset: 3px;
   }
 
   .autorizados-menu-trigger__icon {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 5px;
-    width: 22px;
+    gap: 4.5px;
+    width: 18px;
   }
 
   .autorizados-menu-trigger__icon span {
     display: block;
     height: 2px;
     border-radius: 1px;
-    background: #1b4f5f;
+    background: var(--pastel-ink);
     transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
+  .AutorizadosCabecera--compact--female .autorizados-menu-trigger__icon span {
+    background: var(--pastel-lilac-hover);
+  }
+
   .autorizados-menu-trigger__icon--open span:nth-child(1) {
-    transform: translateY(7px) rotate(45deg);
+    transform: translateY(6.5px) rotate(45deg);
   }
 
   .autorizados-menu-trigger__icon--open span:nth-child(2) {
@@ -871,19 +992,19 @@
   }
 
   .autorizados-menu-trigger__icon--open span:nth-child(3) {
-    transform: translateY(-7px) rotate(-45deg);
+    transform: translateY(-6.5px) rotate(-45deg);
   }
 
-  /* Logo + Wakeup / Seguimiento (misma lógica que escritorio, más compacto) */
+  /* Logo + Wakeup / Seguimiento a la izquierda */
   .autorizados-compact-brand.autorizados-desktop-brand {
-    flex: 1;
+    flex: 0 1 auto;
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-width: 0;
-    max-width: 100%;
-    gap: clamp(0.35rem, 2vw, 0.55rem);
+    max-width: calc(100% - 7.5rem);
+    gap: clamp(0.32rem, 1.6vw, 0.48rem);
     padding: 0;
     pointer-events: none;
     box-sizing: border-box;
@@ -891,7 +1012,7 @@
 
   .autorizados-compact-brand .autorizados-desktop-brand__logo {
     display: block;
-    height: clamp(32px, 8vw, 40px);
+    height: clamp(26px, 6.8vw, 34px);
     width: auto;
     flex-shrink: 0;
     object-fit: contain;
@@ -900,57 +1021,89 @@
   .autorizados-compact-brand .autorizados-desktop-brand__text {
     align-items: flex-start;
     min-width: 0;
+    gap: 0.02rem;
   }
 
   .autorizados-compact-brand .autorizados-desktop-brand__title {
-    font-size: clamp(0.9rem, 3.1vw, 1.05rem);
-    line-height: 1.08;
+    font-family: "Poppins", system-ui, sans-serif;
+    font-size: clamp(0.88rem, 2.9vw, 1.02rem);
+    font-weight: 600;
+    line-height: 1.06;
+    letter-spacing: -0.02em;
+    color: var(--pastel-ink);
   }
 
   .autorizados-compact-brand .autorizados-desktop-brand__subtitle {
-    font-size: clamp(0.7rem, 2.5vw, 0.82rem);
-    line-height: 1.12;
+    font-family: "Poppins", system-ui, sans-serif;
+    font-size: clamp(0.64rem, 2.2vw, 0.76rem);
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    color: var(--pastel-ink-soft);
   }
 
   .autorizados-compact-home {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: clamp(44px, 11vw, 48px);
-    height: clamp(44px, 11vw, 48px);
+    width: clamp(42px, 10.5vw, 46px);
+    height: clamp(42px, 10.5vw, 46px);
     padding: 0;
-    border: 1px solid rgba(165, 124, 241, 0.38);
-    border-radius: 12px;
-    background: #fff;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow:
+      0 2px 10px rgba(74, 100, 124, 0.07),
+      0 1px 2px rgba(74, 100, 124, 0.04);
     cursor: pointer;
+    flex-shrink: 0;
     transition:
       background 0.2s ease,
-      border-color 0.2s ease;
-  }
-
-  .AutorizadosCabecera--compact--male .autorizados-compact-home {
-    border-color: rgba(59, 130, 246, 0.38);
+      box-shadow 0.2s ease,
+      transform 0.15s ease;
   }
 
   .autorizados-compact-home:hover {
-    background: #f5f3ff;
+    background: #fff;
+    box-shadow:
+      0 3px 12px rgba(142, 180, 216, 0.16),
+      0 1px 3px rgba(74, 100, 124, 0.05);
+    transform: translateY(-1px);
+  }
+
+  .AutorizadosCabecera--compact--female .autorizados-compact-home:hover {
+    box-shadow:
+      0 3px 12px rgba(149, 135, 200, 0.16),
+      0 1px 3px rgba(74, 100, 124, 0.05);
   }
 
   .AutorizadosCabecera--compact--male .autorizados-compact-home:hover {
-    background: #eff6ff;
+    box-shadow:
+      0 3px 12px rgba(142, 180, 216, 0.16),
+      0 1px 3px rgba(74, 100, 124, 0.05);
   }
 
   .autorizados-compact-home:focus-visible {
-    outline: 2px solid var(--pastel-blue-btn);
-    outline-offset: 2px;
+    outline: 2px solid var(--pastel-lilac-btn);
+    outline-offset: 3px;
   }
 
   .autorizados-compact-home .autorizados-home-img {
-    width: clamp(22px, 5.5vw, 26px);
-    height: auto;
+    width: clamp(18px, 4.6vw, 22px);
+    height: clamp(18px, 4.6vw, 22px);
     display: block;
-    object-fit: contain;
-    transition: transform 0.25s ease;
+  }
+
+  .autorizados-compact-home .home-icon--male {
+    color: var(--pastel-ink);
+  }
+
+  .autorizados-compact-home .home-icon--female {
+    color: var(--pastel-lilac-hover);
+  }
+
+  .autorizados-compact-home:hover .autorizados-home-img {
+    transform: scale(1.04);
   }
 
   /* Backdrop (panel se monta con portal a body; z-index por encima de layouts con overflow) */
@@ -1560,5 +1713,33 @@
   .titulo,
   .numEncuestas {
     font-size: 1rem;
+  }
+}
+
+/* Móvil estrecho: barra más densa sin perder touch targets ≥40px */
+@media (max-width: 380px) {
+  .AutorizadosCabecera--compact {
+    gap: 0.28rem;
+    padding: 9px 10px;
+  }
+
+  .autorizados-menu-trigger,
+  .autorizados-compact-home {
+    width: 40px;
+    height: 40px;
+  }
+
+  .autorizados-compact-brand .autorizados-desktop-brand__logo {
+    height: 24px;
+  }
+
+  .autorizados-compact-brand .autorizados-desktop-brand__title {
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  .autorizados-compact-brand .autorizados-desktop-brand__subtitle {
+    font-size: 0.6rem;
+    font-weight: 300;
   }
 }

@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 
 import { inferGenderFromName } from "../lib/inferGenderFromName";
-import { homeIconSrcForGender } from "../assets/homeIconSrc.js";
 import logoWakeup from "../assets/logo.svg";
+import HomeIcon from "./HomeIcon.jsx";
 import { apiUrl } from "../lib/api/baseUrl";
 import {
   emitPerfilActualizado,
@@ -576,7 +576,7 @@ export default function AutorizadosHeader({
 
   return (
     <>
-      {/* Escritorio: layout en 3 columnas */}
+      {/* Escritorio: marca a la izquierda; perfil + inicio a la derecha */}
       <div
         className="AutorizadosCabecera AutorizadosCabecera--desktop"
         aria-hidden={menuOpen ? "true" : undefined}
@@ -585,32 +585,6 @@ export default function AutorizadosHeader({
           className={`autorizados-desktop-wrap autorizados-desktop-wrap--${nameGender}${desktopPerfilOpen ? " autorizados-desktop-wrap--open" : ""}`}
         >
           <div className="autorizados-desktop-bar autorizados-desktop-bar--toolbar">
-            <div
-              className="Autorizados-avatar autorizados-desktop-bar__side autorizados-desktop-bar__side--start"
-              role="button"
-              tabIndex={0}
-              aria-expanded={desktopPerfilOpen}
-              aria-controls={desktopPanelId}
-              aria-haspopup="dialog"
-              aria-label={
-                desktopPerfilOpen
-                  ? "Cerrar panel de perfil"
-                  : "Abrir panel de perfil"
-              }
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleDesktopPerfil();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  toggleDesktopPerfil();
-                }
-              }}
-            >
-              <AvatarFace usuario={usuario} />
-            </div>
-
             <div
               className={`autorizados-desktop-brand autorizados-desktop-brand--${nameGender} autorizados-desktop-brand--in-toolbar`}
               aria-label="Wakeup Seguimiento"
@@ -630,21 +604,47 @@ export default function AutorizadosHeader({
               </div>
             </div>
 
-            <div
-              className="Autorizados-home autorizados-desktop-bar__side autorizados-desktop-bar__side--end"
-              role="button"
-              tabIndex={0}
-              onClick={irInicio}
-              onKeyDown={(e) => (e.key === "Enter" ? irInicio() : null)}
-              aria-label="Ir al inicio"
-            >
-              <img
-                className="autorizados-home-img"
-                src={homeIconSrcForGender(nameGender)}
-                alt=""
-                decoding="async"
-                loading="lazy"
-              />
+            <div className="autorizados-desktop-bar__actions">
+              <div
+                className="Autorizados-avatar autorizados-desktop-bar__side"
+                role="button"
+                tabIndex={0}
+                aria-expanded={desktopPerfilOpen}
+                aria-controls={desktopPanelId}
+                aria-haspopup="dialog"
+                aria-label={
+                  desktopPerfilOpen
+                    ? "Cerrar panel de perfil"
+                    : "Abrir panel de perfil"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDesktopPerfil();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleDesktopPerfil();
+                  }
+                }}
+              >
+                <AvatarFace usuario={usuario} />
+              </div>
+
+              <div
+                className="Autorizados-home autorizados-desktop-bar__side"
+                role="button"
+                tabIndex={0}
+                onClick={irInicio}
+                onKeyDown={(e) => (e.key === "Enter" ? irInicio() : null)}
+                aria-label="Ir al inicio"
+              >
+                <HomeIcon
+                  className="autorizados-home-img"
+                  gender={nameGender}
+                  size={32}
+                />
+              </div>
             </div>
           </div>
 
@@ -656,26 +656,6 @@ export default function AutorizadosHeader({
       <div
         className={`AutorizadosCabecera AutorizadosCabecera--compact AutorizadosCabecera--compact--${nameGender}`}
       >
-        <button
-          type="button"
-          className="autorizados-menu-trigger"
-          aria-expanded={menuOpen}
-          aria-controls={menuId}
-          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú de sesión"}
-          onClick={() => setMenuOpen((o) => !o)}
-        >
-          <span
-            className={`autorizados-menu-trigger__icon ${
-              menuOpen ? "autorizados-menu-trigger__icon--open" : ""
-            }`}
-            aria-hidden
-          >
-            <span />
-            <span />
-            <span />
-          </span>
-        </button>
-
         <div
           className={`autorizados-compact-brand autorizados-desktop-brand autorizados-desktop-brand--${nameGender}`}
           aria-label="Wakeup Seguimiento"
@@ -695,20 +675,40 @@ export default function AutorizadosHeader({
           </div>
         </div>
 
-        <button
-          type="button"
-          className="autorizados-compact-home"
-          onClick={irInicio}
-          aria-label="Ir al inicio"
-        >
-          <img
-            className="autorizados-home-img"
-            src={homeIconSrcForGender(nameGender)}
-            alt=""
-            decoding="async"
-            loading="lazy"
-          />
-        </button>
+        <div className="autorizados-compact-actions">
+          <button
+            type="button"
+            className="autorizados-menu-trigger"
+            aria-expanded={menuOpen}
+            aria-controls={menuId}
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú de sesión"}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            <span
+              className={`autorizados-menu-trigger__icon ${
+                menuOpen ? "autorizados-menu-trigger__icon--open" : ""
+              }`}
+              aria-hidden
+            >
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="autorizados-compact-home"
+            onClick={irInicio}
+            aria-label="Ir al inicio"
+          >
+            <HomeIcon
+              className="autorizados-home-img"
+              gender={nameGender}
+              size={22}
+            />
+          </button>
+        </div>
       </div>
 
       {menuOpen && typeof document !== "undefined"

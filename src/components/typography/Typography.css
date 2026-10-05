@@ -4,9 +4,9 @@
  */
 :root {
   --font-sans: "Poppins", system-ui, sans-serif;
-  --typo-ink: #0f172a;
-  --typo-ink-soft: #1f2a44;
-  --typo-muted: #64748b;
+  --typo-ink: var(--pastel-ink, #4a647c);
+  --typo-ink-soft: var(--pastel-ink, #4a647c);
+  --typo-muted: var(--pastel-ink-soft, #6b7f93);
   --typo-meta-accent: #c2185b;
 }
 

@@ -5,8 +5,11 @@
   display: grid;
   place-items: center;
   padding: clamp(12px, 3vw, 30px) clamp(10px, 4vw, 40px);
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: clamp(12px, 2vw, 18px);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  border-radius: 0;
   box-sizing: border-box;
 }
 
@@ -38,6 +41,16 @@
   width: clamp(100px, 23vw, 140px);
   height: auto;
   display: block;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+  filter: drop-shadow(0 4px 10px rgba(74, 100, 124, 0.12));
+}
+
+.ff-folder:hover .ff-icon,
+.ff-folder.is-active .ff-icon {
+  transform: translateY(-3px) scale(1.04);
+  filter: drop-shadow(0 8px 14px rgba(74, 100, 124, 0.18));
 }
 
 .ff-title {

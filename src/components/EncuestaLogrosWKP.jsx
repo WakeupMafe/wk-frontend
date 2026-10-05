@@ -352,6 +352,9 @@ export default function EncuestaLogrosWKP() {
           if (nextObjetivos.recoger_objetos === "varias_maneras_sin_dolor") {
             nextObjetivos.recoger_objetos = "";
           }
+          if (nextObjetivos.cargar_paquetes === "cualquier") {
+            nextObjetivos.cargar_paquetes = "";
+          }
           next.objetivos = nextObjetivos;
         }
         return next;
@@ -891,7 +894,8 @@ export default function EncuestaLogrosWKP() {
 
   const encuestasListState = {
     usuario: headerUsuario,
-    sede: headerSede,
+    sede: sedeParam || sedeFormulario,
+    sedeCarpeta: sedeParam || sedeFormulario,
     encuestasRealizadas: encuestasCount,
     cedula: encuestadorCache || location.state?.cedula,
     pin: pinSesion,
@@ -1136,6 +1140,11 @@ export default function EncuestaLogrosWKP() {
                   : meta.opciones.filter(
                       (o) => o.value !== "varias_maneras_sin_dolor",
                     );
+            } else if (problema === "cargar_paquetes") {
+              opciones =
+                form.limitacionMoverse === "poco"
+                  ? meta.opciones
+                  : meta.opciones.filter((o) => o.value !== "cualquier");
             }
 
             const objVal = form.objetivos[problema] || "";

@@ -1,0 +1,94 @@
+@import "../../components/EncuestaLogrosLayout.css";
+@import "../logros2/EncuestaLogros2.css";
+
+/* Variantes propias de Fase 3 (reutiliza bloques logros2-*) */
+
+.logros3-chat {
+  font-size: clamp(0.92rem, 0.88rem + 0.25vw, 1.05rem);
+  line-height: 1.55;
+  color: #1e2a3a;
+  margin: 0;
+  padding: clamp(0.85rem, 3vw, 1.3rem) clamp(0.85rem, 3.5vw, 1.45rem);
+  background: linear-gradient(135deg, #f5faf7 0%, #eef8f2 100%);
+  border-radius: 12px;
+  border-left: 4px solid #7eb89a;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.logros3-chat strong {
+  color: var(--pastel-ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.logros3-pick {
+  margin: 0.75rem 0 0;
+  padding: clamp(0.75rem, 2.5vw, 1.125rem);
+  background: #f7fbff;
+  border: 1px solid #c5d8ec;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.logros3-pick__title {
+  margin: 0 0 0.65rem;
+  font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1rem);
+  font-weight: 600;
+  color: var(--pastel-ink);
+  overflow-wrap: anywhere;
+}
+
+.logros3-pick__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.logros3-pick__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: clamp(0.45rem, 1.5vw, 0.55rem) clamp(0.5rem, 1.8vw, 0.65rem);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: clamp(0.88rem, 0.84rem + 0.15vw, 0.95rem);
+  line-height: 1.4;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.logros3-pick__option:hover {
+  background: #eef4ff;
+}
+
+.logros3-pick__option input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.logros3-pick__option span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

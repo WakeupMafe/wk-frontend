@@ -801,6 +801,52 @@ export async function handleVerificacion(
         return jsonResponse(400, errBody("source logros2 inválido"), origin);
       }
 
+      if (kind === "logros3") {
+        const id = Number(spec.id);
+        if (!Number.isFinite(id) || id <= 0) {
+          return jsonResponse(400, errBody("id inválido"), origin);
+        }
+        const sel = await supabase
+          .from("wakeup_seguimiento3")
+          .select("id, documento")
+          .eq("id", id)
+          .maybeSingle();
+        if (sel.error) {
+          return jsonResponse(
+            400,
+            errBody({ where: "SELECT logros3", error: sel.error.message }),
+            origin,
+          );
+        }
+        if (!sel.data) {
+          return jsonResponse(404, errBody("Registro no encontrado"), origin);
+        }
+        const docRow = onlyDigits(String(sel.data.documento ?? ""));
+        if (docRow !== docExpected) {
+          return jsonResponse(
+            403,
+            errBody("El registro no corresponde al documento indicado."),
+            origin,
+          );
+        }
+        await supabase
+          .from("wakeup_seguimiento3_items")
+          .delete()
+          .eq("seguimiento3_id", id);
+        const del = await supabase
+          .from("wakeup_seguimiento3")
+          .delete()
+          .eq("id", id);
+        if (del.error) {
+          return jsonResponse(
+            400,
+            errBody(explainSupabaseDeleteError(del.error)),
+            origin,
+          );
+        }
+        return jsonResponse(200, { ok: true, eliminado: true }, origin);
+      }
+
       return jsonResponse(400, errBody("kind inválido"), origin);
     }
 
@@ -1013,11 +1059,68 @@ export async function handleVerificacion(
         return { ok: true, rows };
       };
 
-      const [l1Result, l2ModernResult, l2LegacyResult] = await Promise.all([
-        loadL1Rows(),
-        loadL2ModernRows(),
-        loadL2LegacyRows(),
-      ]);
+      const [l1Result, l2ModernResult, l2LegacyResult, l3Result] =
+        await Promise.all([
+          loadL1Rows(),
+          loadL2ModernRows(),
+          loadL2LegacyRows(),
+          (async (): Promise<
+            | { ok: true; rows: Record<string, unknown>[] }
+            | { ok: false; message: string }
+          > => {
+            const l3Select = `
+              id,
+              codigo_seguimiento,
+              created_at,
+              sede,
+              estado,
+              origen,
+              documento,
+              nombres,
+              apellidos,
+              encuestador,
+              encuestador_nombre,
+              seguimiento2_id,
+              limitacion_moverse_label,
+              actividades_afectadas_label,
+              adicional_no_puede_label,
+              ultima_vez_label,
+              que_impide_label,
+              meta_complementaria_previa,
+              payload_origen,
+              payload_respuesta
+            `;
+            const primaryDoc: string | number = docIsNumeric
+              ? cedulaInt
+              : cedulaStr;
+            let primary = await supabase
+              .from("wakeup_seguimiento3")
+              .select(l3Select)
+              .eq("documento", primaryDoc)
+              .is("deleted_at", null)
+              .order("created_at", { ascending: true });
+            if (primary.error && primary.error.code === "42P01") {
+              return { ok: true, rows: [] };
+            }
+            if (primary.error) {
+              primary = await supabase
+                .from("wakeup_seguimiento3")
+                .select(l3Select)
+                .eq("documento", primaryDoc)
+                .order("created_at", { ascending: true });
+              if (primary.error && primary.error.code === "42P01") {
+                return { ok: true, rows: [] };
+              }
+              if (primary.error) {
+                return { ok: false, message: primary.error.message };
+              }
+            }
+            return {
+              ok: true,
+              rows: (primary.data || []) as Record<string, unknown>[],
+            };
+          })(),
+        ]);
 
       if (!l1Result.ok) {
         return jsonResponse(
@@ -1095,12 +1198,27 @@ export async function handleVerificacion(
         );
       }
 
+      if (!l3Result.ok) {
+        return jsonResponse(
+          400,
+          errBody({
+            where: "SUPABASE SELECT REGISTROS LOGROS3",
+            error: l3Result.message,
+          }),
+          origin,
+        );
+      }
+
       let l2Rows = dedupeRowsBy(l2ModernResult.rows, (row) =>
         String(row.id ?? row.codigo_seguimiento ?? row.created_at ?? ""),
       );
 
       let l2LegacyRows = dedupeRowsBy(l2LegacyResult.rows, (row) =>
         String(row.id_int ?? row.created_at ?? row.documento ?? ""),
+      );
+
+      const l3Rows = dedupeRowsBy(l3Result.rows, (row) =>
+        String(row.id ?? row.codigo_seguimiento ?? row.created_at ?? ""),
       );
 
       const merged: Record<string, unknown>[] = [];
@@ -1136,6 +1254,18 @@ export async function handleVerificacion(
           },
         });
       }
+      for (const row of l3Rows) {
+        merged.push({
+          tipo: "logros3",
+          fuente: "wakeup_seguimiento3",
+          created_at: row.created_at,
+          sede: row.sede ?? null,
+          data: {
+            ...row,
+            items: safeArray(row.payload_respuesta),
+          },
+        });
+      }
 
       merged.sort((a, b) => {
         const ta = String(a.created_at ?? "");
@@ -1145,6 +1275,7 @@ export async function handleVerificacion(
 
       let countL1 = 0;
       let countL2 = 0;
+      let countL3 = 0;
       let registros = merged.map((r, idx) => {
         let delete_spec: Record<string, unknown> | null = null;
         if (r.tipo === "logros1") {
@@ -1163,6 +1294,34 @@ export async function handleVerificacion(
             etiqueta: `${idx + 1}. Logros 1 (${countL1})`,
             created_at: r.created_at,
             sede: r.sede,
+            data: r.data,
+            delete_spec,
+          };
+        }
+        if (r.tipo === "logros3") {
+          const dd = r.data as Record<string, unknown>;
+          const id = dd?.id;
+          if (id != null && Number.isFinite(Number(id))) {
+            delete_spec = {
+              kind: "logros3",
+              source: "modern",
+              id: Number(id),
+            };
+          }
+          countL3 += 1;
+          const codigo = String(dd?.codigo_seguimiento ?? "").trim();
+          return {
+            id: `L3-${idx + 1}`,
+            numero: idx + 1,
+            tipo: "logros3",
+            tipo_label: "Logros 3",
+            tipo_consecutivo: countL3,
+            etiqueta: codigo
+              ? `${idx + 1}. Logros 3 (${codigo})`
+              : `${idx + 1}. Logros 3 (${countL3})`,
+            created_at: r.created_at,
+            sede: r.sede,
+            fuente: r.fuente ?? null,
             data: r.data,
             delete_spec,
           };
@@ -1217,6 +1376,7 @@ export async function handleVerificacion(
           registros = [];
           countL1 = 0;
           countL2 = 0;
+          countL3 = 0;
         } else {
           registros = registros.filter((r) => {
             const enc = onlyDigits(
@@ -1226,6 +1386,7 @@ export async function handleVerificacion(
           });
           countL1 = registros.filter((r) => r.tipo === "logros1").length;
           countL2 = registros.filter((r) => r.tipo === "logros2").length;
+          countL3 = registros.filter((r) => r.tipo === "logros3").length;
         }
       }
 
@@ -1238,6 +1399,7 @@ export async function handleVerificacion(
           conteo: {
             logros1: countL1,
             logros2: countL2,
+            logros3: countL3,
           },
           resumen: registros.map((r) => r.etiqueta),
           registros,

@@ -1,46 +1,62 @@
-/* Shell compartido: Encuesta Logros 1 y Logros 2 (seguimiento) */
+/* Shell compartido: Encuesta Logros 1, 2 y 3 */
 
 .page-encuesta-logros.page-encuestas {
   padding: 0;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 .page-encuesta-logros {
   position: relative;
   z-index: 9999;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   margin: 0 auto;
   box-sizing: border-box;
+  overflow-x: clip;
 }
 
 .page-encuesta-logros .welcome-bg {
   z-index: 0 !important;
 }
 
+.page-encuesta-logros .content-autorizados {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 /* Sin fondo gris: el área del formulario es transparente; solo la tarjeta es blanca */
 .encuesta-logros-page__main {
   position: relative;
   z-index: 1;
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 0;
   background: transparent;
-  padding: clamp(17px, 4vw, 30px);
+  padding: clamp(0.75rem, 3.5vw, 1.875rem);
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: auto;
 }
 
-/* Ancho amplio tipo escritorio (foto de referencia) */
+/* Ancho fluido: % del padre (no vw) para no sumar padding del ancestro */
 .encuesta-logros-wrap {
   width: 100%;
-  max-width: min(1080px, 96vw);
+  max-width: min(100%, 1080px);
+  min-width: 0;
   margin-inline: auto;
   display: flex;
   flex-direction: column;
@@ -51,105 +67,160 @@
 .encuesta-logros-backrow {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: clamp(0.4rem, 1.5vw, 0.65rem);
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.encuesta-logros-backrow .patient-search-help {
+  margin-left: auto;
+  max-width: 100%;
 }
 
 .encuesta-logros-card {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto;
   background: #fff;
-  border-radius: 16px;
-  padding: clamp(17px, 4vw, 30px);
+  border-radius: clamp(12px, 2.5vw, 16px);
+  padding: clamp(0.85rem, 3.5vw, 1.875rem);
   box-shadow: 0 8px 28px rgba(31, 58, 95, 0.1);
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(0.75rem, 2vw, 1.25rem);
+  box-sizing: border-box;
+  overflow-x: clip;
+  overflow-wrap: anywhere;
+}
+
+.encuesta-logros-card form {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: inherit;
   box-sizing: border-box;
 }
 
 .encuesta-logros-title {
-  font-size: clamp(1.25rem, 1.1rem + 0.8vw, 1.55rem);
+  font-size: clamp(1.15rem, 1rem + 1.2vw, 1.55rem);
   font-weight: 600;
   color: var(--pastel-ink);
   margin: 0;
   text-align: center;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .encuesta-logros-sub {
-  margin: 0;
+  margin: 0 auto;
   opacity: 0.88;
-  font-size: clamp(0.92rem, 0.88rem + 0.25vw, 1rem);
+  font-size: clamp(0.88rem, 0.84rem + 0.35vw, 1rem);
   line-height: 1.45;
   text-align: center;
-  max-width: 52ch;
-  margin-inline: auto;
+  max-width: min(100%, 52ch);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .encuesta-logros-seccion {
-  font-size: clamp(1.15rem, 1rem + 0.5vw, 1.45rem);
+  font-size: clamp(1.05rem, 0.95rem + 0.6vw, 1.45rem);
   font-weight: 600;
   margin: clamp(0.5rem, 2vw, 1rem) 0 0.35rem;
   color: var(--pastel-ink);
   text-align: start;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .encuesta-logros-textos {
   letter-spacing: 0.03rem;
   text-align: start;
   line-height: 1.45;
-  font-size: clamp(0.92rem, 0.88rem + 0.15vw, 1rem);
+  font-size: clamp(0.9rem, 0.86rem + 0.2vw, 1rem);
   color: #2c3e50;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
-/* Botones alineados con ButtonComponente */
+/* Campos: anular .field { width: 90% } y selects anchos por opción larga */
+.page-encuesta-logros .field {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-bottom: clamp(0.75rem, 2vw, 1.125rem);
+}
+
+.page-encuesta-logros .field__label {
+  font-size: clamp(0.95rem, 0.9rem + 0.35vw, 1.15rem);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.page-encuesta-logros .field__input,
+.page-encuesta-logros select.field__input,
+.page-encuesta-logros input.field__input,
+.page-encuesta-logros textarea.field__input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: clamp(2.5rem, 6vw, 2.75rem);
+  box-sizing: border-box;
+}
+
+/* Botones: flex wrap fluido (sin media query) */
 .encuesta-logros-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(8px, 2vw, 16px);
+  gap: clamp(0.5rem, 2vw, 1rem);
   justify-content: center;
   align-items: stretch;
   width: 100%;
-  padding-top: clamp(4px, 1.5vw, 12px);
+  max-width: 100%;
+  min-width: 0;
+  padding-top: clamp(0.25rem, 1.5vw, 0.75rem);
+  box-sizing: border-box;
 }
 
 .encuesta-logros-actions .btn-componente {
-  flex: 1 1 min(100%, 220px);
+  flex: 1 1 min(100%, 14rem);
   width: auto;
-  min-width: min(100%, 160px);
+  max-width: 100%;
+  min-width: 0;
+  min-height: clamp(2.5rem, 6vw, 2.75rem);
+  box-sizing: border-box;
 }
 
 .encuesta-logros-actions .nav-back-btn--with-label {
-  flex: 1 1 min(100%, 220px);
+  flex: 1 1 min(100%, 14rem);
+  max-width: 100%;
+  min-width: 0;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .encuesta-logros-actions--single .btn-componente {
   flex: 1 1 auto;
-  max-width: min(100%, 400px);
-}
-
-@media (max-width: 480px) {
-  .encuesta-logros-actions {
-    flex-direction: column;
-  }
-
-  .encuesta-logros-actions .btn-componente {
-    flex: 1 1 auto;
-    width: 100%;
-    max-width: none;
-  }
-
-  .encuesta-logros-actions .nav-back-btn--with-label {
-    width: 100%;
-    max-width: none;
-    justify-content: center;
-  }
+  width: 100%;
+  max-width: min(100%, 25rem);
 }
 
 /* Aviso: encuestas previas (Logros 1 / Logros 2) para el documento */
 .registros-existentes-notice {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
   margin: 0.75rem 0 0.25rem;
   padding: clamp(0.75rem, 2.5vw, 1rem) clamp(0.85rem, 3vw, 1.1rem);
@@ -158,7 +229,11 @@
   border-left: 4px solid var(--pastel-blue-btn);
   background: linear-gradient(135deg, #f7fbff 0%, #eef4ff 100%);
   box-sizing: border-box;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .registros-existentes-notice__title {
@@ -168,6 +243,7 @@
   font-weight: 600;
   color: var(--pastel-ink);
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .registros-existentes-notice__list {
@@ -181,9 +257,13 @@
   font-size: clamp(0.875rem, 0.84rem + 0.15vw, 0.95rem);
   color: #2a3348;
   line-height: 1.45;
+  min-width: 0;
 }
 
 .registros-existentes-notice__list li {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 

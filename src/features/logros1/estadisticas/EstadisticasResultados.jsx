@@ -514,6 +514,7 @@ async function downloadLogros2Pdf(registro) {
 function Logros2Viewer({ registro }) {
   const items = useMemo(() => itemsDesdeRegistro(registro), [registro]);
   const d = registro?.data || {};
+  const esL3 = registro?.tipo === "logros3";
   const paciente = [d.nombres, d.apellidos].filter(Boolean).join(" ").trim() || "—";
   const profesionalCedula = String(d.encuestador ?? "").trim();
   const profesionalNombre = String(d.encuestador_nombre ?? "").trim();
@@ -531,7 +532,9 @@ function Logros2Viewer({ registro }) {
       <div className="estad-res__logros2-head">
         <div>
           <p className="estad-res__logros2-kicker">Resumen del seguimiento</p>
-          <h4 className="estad-res__logros2-title">Encuesta Logros 2</h4>
+          <h4 className="estad-res__logros2-title">
+            {esL3 ? "Encuesta Logros 3" : "Encuesta Logros 2"}
+          </h4>
         </div>
         <span className="estad-res__pill">{items.length} ítem{items.length === 1 ? "" : "s"}</span>
       </div>
@@ -1249,7 +1252,7 @@ export default function EstadisticasResultados() {
       ) : (
         <Muted className="estad-filtros__empty">
           Ingresa un documento y pulsa Buscar para listar los registros del
-          paciente (Logros 1 y Logros 2), visualizar cada uno y decidir cuál
+          paciente (Logros 1, Logros 2 y Logros 3), visualizar cada uno y decidir cuál
           descargar.
         </Muted>
       )}
@@ -1334,7 +1337,11 @@ export default function EstadisticasResultados() {
                             <td>
                               <span className="estad-res__tipo-chip">
                                 {fila.tipo_label ??
-                                  (fila.tipo === "logros2" ? "Logros 2" : "Logros 1")}
+                                  (fila.tipo === "logros3"
+                                    ? "Logros 3"
+                                    : fila.tipo === "logros2"
+                                      ? "Logros 2"
+                                      : "Logros 1")}
                               </span>
                             </td>
                             <td>{fila.documento || "—"}</td>

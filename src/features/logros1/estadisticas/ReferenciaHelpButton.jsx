@@ -20,6 +20,11 @@ export const REFERENCIA_HELP_HTML = `
       <li>Formato típico: <code>documento-L2-##</code> (código de seguimiento).</li>
       <li>Si la referencia contiene <strong>L2</strong>, corresponde a Logros 2.</li>
     </ul>
+    <p style="margin:0 0 0.45rem"><strong>Logros 3</strong></p>
+    <ul style="margin:0 0 0.75rem;padding-left:1.15rem">
+      <li>Formato típico: <code>documento-L3-##</code> (ejemplo: <code>1234567890-L3-01</code>).</li>
+      <li>Si la referencia contiene <strong>L3</strong>, corresponde a Logros 3 (Fase 3).</li>
+    </ul>
     <p style="margin:0">
       El número al final es el <strong>consecutivo</strong> de registro para ese
       paciente y tipo de encuesta (1, 2, 3…).

@@ -34,11 +34,13 @@ export function lineaRegistroExistente(r) {
   const sede = r.sede ? ` · ${String(r.sede).trim()}` : "";
   const tipoLabel =
     String(r.tipo_label || "").trim() ||
-    (r.tipo === "logros2"
-      ? "Logros 2"
-      : r.tipo === "logros1"
-        ? "Logros 1"
-        : "Encuesta");
+    (r.tipo === "logros3"
+      ? "Logros 3"
+      : r.tipo === "logros2"
+        ? "Logros 2"
+        : r.tipo === "logros1"
+          ? "Logros 1"
+          : "Encuesta");
   const numero =
     r.numero != null && Number.isFinite(Number(r.numero))
       ? Number(r.numero)
@@ -123,7 +125,7 @@ export async function fetchRegistrosPorDocumento(documento) {
       documento: "",
       registros: [],
       resumen: [],
-      conteo: { logros1: 0, logros2: 0 },
+      conteo: { logros1: 0, logros2: 0, logros3: 0 },
       total: 0,
       detail: "Documento sin dígitos válidos",
     };
@@ -145,7 +147,7 @@ export async function fetchRegistrosPorDocumento(documento) {
         documento: docDigits,
         registros: [],
         resumen: [],
-        conteo: { logros1: 0, logros2: 0 },
+        conteo: { logros1: 0, logros2: 0, logros3: 0 },
         total: 0,
         detail,
       };
@@ -158,6 +160,7 @@ export async function fetchRegistrosPorDocumento(documento) {
     const conteo = {
       logros1: Number(json?.conteo?.logros1) || 0,
       logros2: Number(json?.conteo?.logros2) || 0,
+      logros3: Number(json?.conteo?.logros3) || 0,
     };
 
     return {
@@ -176,7 +179,7 @@ export async function fetchRegistrosPorDocumento(documento) {
       documento: docDigits,
       registros: [],
       resumen: [],
-      conteo: { logros1: 0, logros2: 0 },
+      conteo: { logros1: 0, logros2: 0, logros3: 0 },
       total: 0,
       detail: "No fue posible conectar con el servidor.",
     };

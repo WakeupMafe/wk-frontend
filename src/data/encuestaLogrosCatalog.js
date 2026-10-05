@@ -466,9 +466,21 @@ export const OBJETIVOS = {
   cargar_paquetes: {
     objetivoGeneral: "Objetivo General: Cargar paquetes de diferentes tamaños",
     opciones: [
-      { value: "pequenos", label: "Cargar paquetes pequeños" },
-      { value: "medianos", label: "Cargar paquetes medianos" },
-      { value: "cualquier", label: "Cargar paquetes de cualquier tamaño" },
+      {
+        value: "pequenos",
+        label:
+          "Que pueda cargar objetos pequeños (ej. una bolsa liviana, un bolso) sin dificultad",
+      },
+      {
+        value: "medianos",
+        label:
+          "Que pueda cargar objetos medianos (ej. una bolsa de mercado llena, una caja mediana) sin dificultad",
+      },
+      {
+        value: "cualquier",
+        label:
+          "Que pueda cargar objetos de cualquier tamaño o peso, sin restricción",
+      },
     ],
   },
 

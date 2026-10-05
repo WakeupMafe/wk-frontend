@@ -14,6 +14,7 @@ const EncuestasDisponibles = lazy(() => import("./components/EncuestasDisponible
 const EncuestaLogrosWKP = lazy(() => import("./components/EncuestaLogrosWKP"));
 const Estadisticas = lazy(() => import("./features/logros1/Estadisticas"));
 const EncuestaLogros2 = lazy(() => import("./features/logros2/EncuestaLogros2"));
+const EncuestaLogros3 = lazy(() => import("./features/logros3/EncuestaLogros3"));
 
 function RouteFallback() {
   return (
@@ -130,6 +131,14 @@ export default function App() {
           element={
             <SafeRoute>
               <EncuestaLogros2 />
+            </SafeRoute>
+          }
+        />
+        <Route
+          path="/sede/:sede/encuesta-seguimiento-fase3"
+          element={
+            <SafeRoute>
+              <EncuestaLogros3 />
             </SafeRoute>
           }
         />

@@ -125,6 +125,7 @@ export default function AutorizadosInicio() {
       state: {
         usuario,
         sede: sedeSeleccionada,
+        sedeCarpeta: sedeSeleccionada,
         cedula,
         encuestasRealizadas,
       },

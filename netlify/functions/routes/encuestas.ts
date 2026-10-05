@@ -446,7 +446,7 @@ async function listarMisEncuestas(
   const l2Cols =
     "id,codigo_seguimiento,created_at,documento,nombres,apellidos,sede,encuestador,encuestador_nombre";
 
-  const [l1StrRes, l1IntRes, l2Rows, l2LegacyRes] = await Promise.all([
+  const [l1StrRes, l1IntRes, l2Rows, l2LegacyRes, l3Res] = await Promise.all([
     l1StrPromise,
     l1IntPromise,
     Number.isFinite(encInt)
@@ -459,6 +459,31 @@ async function listarMisEncuestas(
           .eq("encuestador", encInt)
           .order("created_at", { ascending: false })
           .limit(limit)
+      : Promise.resolve({ data: [] as Row[], error: null }),
+    Number.isFinite(encInt)
+      ? (async () => {
+          const withDel = await supabase
+            .from("wakeup_seguimiento3")
+            .select(l2Cols)
+            .eq("encuestador", encInt)
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false })
+            .limit(limit);
+          if (!withDel.error) return withDel;
+          if (withDel.error.code === "42P01") {
+            return { data: [] as Row[], error: null };
+          }
+          const retry = await supabase
+            .from("wakeup_seguimiento3")
+            .select(l2Cols)
+            .eq("encuestador", encInt)
+            .order("created_at", { ascending: false })
+            .limit(limit);
+          if (retry.error?.code === "42P01") {
+            return { data: [] as Row[], error: null };
+          }
+          return retry;
+        })()
       : Promise.resolve({ data: [] as Row[], error: null }),
   ]);
 
@@ -483,6 +508,13 @@ async function listarMisEncuestas(
       origin,
     );
   }
+  if (l3Res.error && l3Res.error.code !== "42P01") {
+    return jsonResponse(
+      400,
+      errBody({ where: "mis-encuestas L3", error: l3Res.error.message }),
+      origin,
+    );
+  }
 
   let l1Rows = dedupeRowsByKey(
     [...((l1StrRes.data || []) as Row[]), ...((l1IntRes.data || []) as Row[])],
@@ -491,7 +523,7 @@ async function listarMisEncuestas(
 
   type MisRow = {
     row_id: string;
-    tipo: "logros1" | "logros2";
+    tipo: "logros1" | "logros2" | "logros3";
     tipo_label: string;
     documento: string;
     nombres: string;
@@ -584,6 +616,34 @@ async function listarMisEncuestas(
       delete_spec:
         idInt != null && Number.isFinite(idInt)
           ? { kind: "logros2", source: "legacy", id_int: idInt }
+          : null,
+    });
+  }
+
+  for (const row of (l3Res.data || []) as Row[]) {
+    const nombres = String(row.nombres ?? "").trim();
+    const apellidos = String(row.apellidos ?? "").trim();
+    const paciente = [nombres, apellidos].filter(Boolean).join(" ").trim();
+    const id = row.id != null ? Number(row.id) : null;
+    const codigo = String(row.codigo_seguimiento ?? "").trim();
+    rows.push({
+      row_id: `L3-${id ?? row.created_at ?? rows.length}`,
+      tipo: "logros3",
+      tipo_label: "Logros 3",
+      documento: String(row.documento ?? "").trim(),
+      nombres,
+      apellidos,
+      paciente: paciente || "—",
+      created_at: row.created_at ?? null,
+      sede: row.sede != null ? String(row.sede) : null,
+      etiqueta: codigo || "Logros 3",
+      referencia: codigo || "Logros 3",
+      fuente: "wakeup_seguimiento3",
+      id_int: null,
+      id: id != null && Number.isFinite(id) ? id : null,
+      delete_spec:
+        id != null && Number.isFinite(id)
+          ? { kind: "logros3", source: "modern", id }
           : null,
     });
   }
@@ -1284,6 +1344,742 @@ async function crearLogros2(
   );
 }
 
+/** Genera documento-L3-## (ej. 1234567890-L3-01). */
+async function siguienteCodigoLogros3(
+  supabase: ReturnType<typeof getSupabase>,
+  documento: number,
+): Promise<string> {
+  const res = await supabase
+    .from("wakeup_seguimiento3")
+    .select("codigo_seguimiento")
+    .eq("documento", documento)
+    .limit(200);
+
+  let maxN = 0;
+  for (const row of (res.data || []) as Row[]) {
+    const cod = String(row.codigo_seguimiento ?? "");
+    const m = /L3-(\d+)$/i.exec(cod);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (Number.isFinite(n) && n > maxN) maxN = n;
+    }
+  }
+  return `${documento}-L3-${String(maxN + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Ids de Logros 2 que ya tienen una Logros 3 activa (deleted_at IS NULL).
+ * Regla de negocio: como máximo una L3 por cada L2.
+ */
+async function idsLogros2ConLogros3Activa(
+  supabase: ReturnType<typeof getSupabase>,
+  l2Ids: number[],
+): Promise<Set<number>> {
+  const taken = new Set<number>();
+  const ids = l2Ids.filter((id) => Number.isFinite(id) && id > 0);
+  if (!ids.length) return taken;
+
+  let res = await supabase
+    .from("wakeup_seguimiento3")
+    .select("seguimiento2_id")
+    .in("seguimiento2_id", ids)
+    .is("deleted_at", null);
+
+  if (res.error) {
+    res = await supabase
+      .from("wakeup_seguimiento3")
+      .select("seguimiento2_id")
+      .in("seguimiento2_id", ids);
+  }
+
+  if (res.error) {
+    console.warn(
+      "[idsLogros2ConLogros3Activa]",
+      res.error.message,
+    );
+    return taken;
+  }
+
+  for (const row of (res.data || []) as { seguimiento2_id?: unknown }[]) {
+    const id = Number(row.seguimiento2_id);
+    if (Number.isFinite(id) && id > 0) taken.add(id);
+  }
+  return taken;
+}
+
+/** Lista Logros 2 (modernas) de un documento para iniciar Logros 3. */
+async function listarLogros2PorDocumento(
+  queryParams: Record<string, string | undefined> | null,
+  origin: string | null,
+): Promise<HandlerResponse> {
+  const docStr = queryParams?.documento?.trim();
+  if (!docStr) {
+    return jsonResponse(400, errBody("Falta el parámetro documento."), origin);
+  }
+  const tipoDoc = String(queryParams?.tipo_documento ?? "cedula").trim();
+  let docPaciente: string;
+  try {
+    docPaciente = limpiarDocumentoPaciente(docStr, tipoDoc);
+  } catch {
+    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
+  }
+  const docNum = parseInt(docPaciente, 10);
+  if (!Number.isFinite(docNum) || docNum <= 0) {
+    return jsonResponse(
+      400,
+      errBody("Para listar Logros 2 use documento numérico (cédula)."),
+      origin,
+    );
+  }
+
+  const supabase = getSupabase();
+  const cols = `
+    id,
+    codigo_seguimiento,
+    created_at,
+    documento,
+    nombres,
+    apellidos,
+    tipo_documento,
+    sede,
+    encuestador,
+    encuestador_nombre,
+    limitacion_moverse_label,
+    actividades_afectadas_label,
+    adicional_no_puede_label,
+    ultima_vez_label,
+    que_impide_label,
+    meta_complementaria_previa,
+    payload_origen,
+    payload_respuesta,
+    fecha_evaluacion_previa,
+    estado
+  `;
+
+  let res = await supabase
+    .from("wakeup_seguimiento2")
+    .select(cols)
+    .eq("documento", docNum)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true });
+
+  if (res.error) {
+    res = await supabase
+      .from("wakeup_seguimiento2")
+      .select(cols)
+      .eq("documento", docNum)
+      .order("created_at", { ascending: true });
+  }
+
+  if (res.error) {
+    return jsonResponse(
+      400,
+      errBody({ where: "logros2-por-documento", error: res.error.message }),
+      origin,
+    );
+  }
+
+  const rows = (res.data || []) as Row[];
+  const l2Ids = rows
+    .map((r) => Number(r.id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  const conL3 = await idsLogros2ConLogros3Activa(supabase, l2Ids);
+  const elegibles = rows.filter((r) => !conL3.has(Number(r.id)));
+
+  const enriched: Row[] = [];
+
+  for (const row of elegibles) {
+    let items = Array.isArray(row.payload_respuesta)
+      ? (row.payload_respuesta as unknown[])
+      : [];
+    if (!items.length && row.id != null) {
+      const itemsRes = await supabase
+        .from("wakeup_seguimiento2_items")
+        .select(
+          "orden,sintoma_codigo,sintoma_label,objetivo_previo_codigo,objetivo_previo_label,evolucion,objetivo_seguimiento,autocompletado_desde_objetivo_previo,es_meta_complementaria,es_otro_sintoma",
+        )
+        .eq("seguimiento2_id", row.id)
+        .order("orden", { ascending: true });
+      if (!itemsRes.error && Array.isArray(itemsRes.data)) {
+        items = itemsRes.data.map((it) => ({
+          slot: it.orden,
+          sintoma: it.sintoma_codigo,
+          sintoma_label: it.sintoma_label,
+          objetivo_previo_codigo: it.objetivo_previo_codigo,
+          objetivo_previo_label: it.objetivo_previo_label,
+          nivel_mejora: it.evolucion,
+          nuevo_objetivo: it.objetivo_seguimiento,
+          objetivo_seguimiento: it.objetivo_seguimiento,
+          autocompletado_desde_objetivo_previo:
+            it.autocompletado_desde_objetivo_previo,
+          es_meta_complementaria: it.es_meta_complementaria,
+          es_otro_sintoma: it.es_otro_sintoma,
+        }));
+      }
+    }
+    enriched.push({ ...row, items, tiene_logros3: false });
+  }
+
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      documento: docNum,
+      cantidad: enriched.length,
+      cantidad_total_logros2: rows.length,
+      cantidad_con_logros3: conL3.size,
+      todas_tienen_logros3:
+        rows.length > 0 && elegibles.length === 0,
+      resultados: enriched,
+    },
+    origin,
+    { "Cache-Control": "no-store" },
+  );
+}
+
+async function logros3PrecheckDocumento(
+  queryParams: Record<string, string | undefined> | null,
+  origin: string | null,
+): Promise<HandlerResponse> {
+  const docStr = queryParams?.documento?.trim();
+  if (!docStr) {
+    return jsonResponse(400, errBody("Falta el parámetro documento."), origin);
+  }
+  const tipoDoc = String(queryParams?.tipo_documento ?? "cedula").trim();
+  let docPaciente: string;
+  try {
+    docPaciente = limpiarDocumentoPaciente(docStr, tipoDoc);
+  } catch {
+    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
+  }
+  const docNum = parseInt(docPaciente, 10);
+  if (!Number.isFinite(docNum) || docNum <= 0) {
+    return jsonResponse(
+      400,
+      errBody(
+        "Para el precheck de seguimiento L3 use documento numérico (cédula).",
+      ),
+      origin,
+    );
+  }
+
+  const supabase = getSupabase();
+
+  let count: number | null = null;
+  const countFirst = await supabase
+    .from("wakeup_seguimiento3")
+    .select("*", { count: "exact", head: true })
+    .eq("documento", docNum)
+    .is("deleted_at", null);
+
+  if (countFirst.error) {
+    const retry = await supabase
+      .from("wakeup_seguimiento3")
+      .select("*", { count: "exact", head: true })
+      .eq("documento", docNum);
+    if (retry.error) {
+      return jsonResponse(
+        400,
+        errBody({ where: "logros3-precheck", error: retry.error.message }),
+        origin,
+      );
+    }
+    count = retry.count ?? 0;
+  } else {
+    count = countFirst.count ?? 0;
+  }
+
+  let lastRes = await supabase
+    .from("wakeup_seguimiento3")
+    .select("id, codigo_seguimiento")
+    .eq("documento", docNum)
+    .is("deleted_at", null)
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastRes.error) {
+    lastRes = await supabase
+      .from("wakeup_seguimiento3")
+      .select("id, codigo_seguimiento")
+      .eq("documento", docNum)
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+  }
+
+  const last = lastRes.data as
+    | { id: unknown; codigo_seguimiento: unknown }
+    | null
+    | undefined;
+  const ultimoId =
+    last?.id != null && String(last.id).trim() !== ""
+      ? Number(last.id)
+      : null;
+  const ultimoCodigo =
+    last?.codigo_seguimiento != null
+      ? String(last.codigo_seguimiento)
+      : null;
+
+  let tieneLogros3ParaEsteL2 = false;
+  let codigoLogros3ParaEsteL2: string | null = null;
+  let seguimiento2IdCheck: number | null = null;
+  const l2Param = String(queryParams?.seguimiento2_id ?? "").trim();
+  if (l2Param) {
+    const l2Id = Number(l2Param);
+    if (Number.isFinite(l2Id) && l2Id > 0) {
+      seguimiento2IdCheck = l2Id;
+      let existente = await supabase
+        .from("wakeup_seguimiento3")
+        .select("id, codigo_seguimiento")
+        .eq("seguimiento2_id", l2Id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (existente.error) {
+        existente = await supabase
+          .from("wakeup_seguimiento3")
+          .select("id, codigo_seguimiento")
+          .eq("seguimiento2_id", l2Id)
+          .maybeSingle();
+      }
+      if (!existente.error && existente.data) {
+        tieneLogros3ParaEsteL2 = true;
+        const cod = (existente.data as { codigo_seguimiento?: unknown })
+          .codigo_seguimiento;
+        codigoLogros3ParaEsteL2 =
+          cod != null && String(cod).trim() !== "" ? String(cod) : null;
+      }
+    }
+  }
+
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      documento: docNum,
+      cantidad: count ?? 0,
+      tiene_seguimientos_previos: (count ?? 0) >= 1,
+      ultimo_seguimiento3_id:
+        ultimoId != null && Number.isFinite(ultimoId) ? ultimoId : null,
+      ultimo_codigo_seguimiento: ultimoCodigo,
+      seguimiento2_id: seguimiento2IdCheck,
+      tiene_logros3_para_este_l2: tieneLogros3ParaEsteL2,
+      codigo_logros3_para_este_l2: codigoLogros3ParaEsteL2,
+    },
+    origin,
+    { "Cache-Control": "no-store" },
+  );
+}
+
+async function crearLogros3(
+  data: Record<string, unknown>,
+  origin: string | null,
+): Promise<HandlerResponse> {
+  const docPaciente = limpiarDocumentoPaciente(
+    String(data.documento ?? ""),
+    "cedula",
+  );
+  const docEncuestador = limpiarDocumentoEncuestador(
+    String(data.encuestador ?? ""),
+  );
+
+  const sedeClean = String(data.sede ?? "").trim();
+  if (!sedeClean) {
+    return jsonResponse(400, errBody("La sede es obligatoria."), origin);
+  }
+
+  const items = (data.items as Record<string, unknown>[]) || [];
+  if (!items.length) {
+    return jsonResponse(
+      400,
+      errBody("Debe enviar al menos un ítem de seguimiento."),
+      origin,
+    );
+  }
+
+  const NIVELES = new Set(["mucho", "poco", "nada", "desmejoria"]);
+
+  for (const it of items) {
+    const slot = it.slot;
+    const nivel = String(it.nivel_mejora ?? "");
+    if (!NIVELES.has(nivel)) {
+      return jsonResponse(
+        400,
+        errBody(
+          `Nivel de mejora inválido en síntoma ${slot}: use mucho, poco, nada o desmejoria.`,
+        ),
+        origin,
+      );
+    }
+    if (!LOGROS2_NIVEL_A_EVOLUCION[nivel]) {
+      return jsonResponse(
+        400,
+        errBody(`Nivel de mejora sin mapeo a enum: ${nivel}`),
+        origin,
+      );
+    }
+    if (!String(it.nuevo_objetivo ?? "").trim()) {
+      return jsonResponse(
+        400,
+        errBody(`Indique el nuevo objetivo para el síntoma ${slot}.`),
+        origin,
+      );
+    }
+  }
+
+  const fr = (data.logros2_resumen as Record<string, unknown>) || {};
+  const l2Ref = (data.logros2_referencia as Record<string, unknown>) || {};
+  const l2IdRaw = l2Ref.id ?? data.seguimiento2_id;
+  const l2Id = Number(l2IdRaw);
+  if (!Number.isFinite(l2Id) || l2Id <= 0) {
+    return jsonResponse(
+      400,
+      errBody(
+        "Indique la evaluación Logros 2 de referencia: falta logros2_referencia.id.",
+      ),
+      origin,
+    );
+  }
+
+  const docNum = parseInt(docPaciente, 10);
+  if (!Number.isFinite(docNum) || docNum <= 0) {
+    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
+  }
+
+  const encNum = parseInt(docEncuestador, 10);
+  if (!Number.isFinite(encNum)) {
+    return jsonResponse(
+      400,
+      errBody("Documento del encuestador inválido."),
+      origin,
+    );
+  }
+
+  const supabase = getSupabase();
+
+  let checkL2 = await supabase
+    .from("wakeup_seguimiento2")
+    .select(
+      "id,documento,nombres,apellidos,tipo_documento,codigo_seguimiento,created_at,limitacion_moverse_label,actividades_afectadas_label,adicional_no_puede_label,ultima_vez_label,que_impide_label,meta_complementaria_previa,payload_respuesta",
+    )
+    .eq("id", l2Id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (checkL2.error) {
+    checkL2 = await supabase
+      .from("wakeup_seguimiento2")
+      .select(
+        "id,documento,nombres,apellidos,tipo_documento,codigo_seguimiento,created_at,limitacion_moverse_label,actividades_afectadas_label,adicional_no_puede_label,ultima_vez_label,que_impide_label,meta_complementaria_previa,payload_respuesta",
+      )
+      .eq("id", l2Id)
+      .maybeSingle();
+  }
+
+  if (checkL2.error) {
+    return jsonResponse(
+      400,
+      errBody({
+        where: "SUPABASE SELECT LOGROS2 por id",
+        error: checkL2.error.message,
+      }),
+      origin,
+    );
+  }
+  if (!checkL2.data) {
+    return jsonResponse(
+      404,
+      errBody(
+        "No hay ninguna evaluación Logros 2 con el id indicado. Vuelva a cargar la evaluación previa.",
+      ),
+      origin,
+    );
+  }
+
+  const rowL2 = checkL2.data as Row;
+  const docL2 = Number(rowL2.documento);
+  if (docL2 !== docNum) {
+    return jsonResponse(
+      400,
+      errBody(
+        "El documento del paciente no coincide con la evaluación Logros 2 seleccionada.",
+      ),
+      origin,
+    );
+  }
+
+  // Regla: solo una Logros 3 activa por cada Logros 2.
+  let existenteL3 = await supabase
+    .from("wakeup_seguimiento3")
+    .select("id, codigo_seguimiento")
+    .eq("seguimiento2_id", l2Id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (existenteL3.error) {
+    existenteL3 = await supabase
+      .from("wakeup_seguimiento3")
+      .select("id, codigo_seguimiento")
+      .eq("seguimiento2_id", l2Id)
+      .maybeSingle();
+  }
+  if (existenteL3.error) {
+    return jsonResponse(
+      400,
+      errBody({
+        where: "SUPABASE SELECT LOGROS3 por seguimiento2_id",
+        error: existenteL3.error.message,
+      }),
+      origin,
+    );
+  }
+  if (existenteL3.data) {
+    const codExistente = String(
+      (existenteL3.data as { codigo_seguimiento?: unknown }).codigo_seguimiento ??
+        "",
+    ).trim();
+    const codL2 = String(rowL2.codigo_seguimiento ?? "").trim();
+    return jsonResponse(
+      409,
+      errBody(
+        codExistente
+          ? `Ya existe una Encuesta de Logros 3 (${codExistente}) para esta evaluación Logros 2${codL2 ? ` (${codL2})` : ""}. Solo se permite una Logros 3 por cada Logros 2.`
+          : `Ya existe una Encuesta de Logros 3 para esta evaluación Logros 2. Solo se permite una Logros 3 por cada Logros 2.`,
+      ),
+      origin,
+    );
+  }
+
+  const encuestadorNombre =
+    String(data.encuestador_nombre ?? "").trim() || null;
+
+  const padreRaw = data.seguimiento3_padre_id;
+  let seguimiento3PadreId: number | null = null;
+  if (padreRaw != null && String(padreRaw).trim() !== "") {
+    const p = Number(padreRaw);
+    if (!Number.isFinite(p) || p <= 0) {
+      return jsonResponse(
+        400,
+        errBody("seguimiento3_padre_id inválido."),
+        origin,
+      );
+    }
+    let padreRow = await supabase
+      .from("wakeup_seguimiento3")
+      .select("id, documento")
+      .eq("id", p)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (padreRow.error) {
+      padreRow = await supabase
+        .from("wakeup_seguimiento3")
+        .select("id, documento")
+        .eq("id", p)
+        .maybeSingle();
+    }
+    if (padreRow.error) {
+      return jsonResponse(
+        400,
+        errBody({
+          where: "validar seguimiento3_padre_id",
+          error: padreRow.error.message,
+        }),
+        origin,
+      );
+    }
+    if (!padreRow.data) {
+      return jsonResponse(
+        400,
+        errBody("El seguimiento Logros 3 padre indicado no existe o fue anulado."),
+        origin,
+      );
+    }
+    const docPadre = Number((padreRow.data as { documento: unknown }).documento);
+    if (docPadre !== docNum) {
+      return jsonResponse(
+        400,
+        errBody(
+          "El seguimiento padre no corresponde al mismo documento del paciente.",
+        ),
+        origin,
+      );
+    }
+    seguimiento3PadreId = p;
+  }
+
+  let codigoSeguimiento: string | null = null;
+  try {
+    codigoSeguimiento = await siguienteCodigoLogros3(supabase, docNum);
+  } catch {
+    codigoSeguimiento = null;
+  }
+
+  const parentRow: Record<string, unknown> = {
+    tipo_documento: String(
+      fr.tipo_documento ?? rowL2.tipo_documento ?? "cedula",
+    ),
+    documento: docNum,
+    nombres: (fr.nombres ?? rowL2.nombres) as string | null,
+    apellidos: (fr.apellidos ?? rowL2.apellidos) as string | null,
+    seguimiento2_id: l2Id,
+    seguimiento3_padre_id: seguimiento3PadreId,
+    sede: sedeClean,
+    encuestador: encNum,
+    encuestador_nombre: encuestadorNombre,
+    origen: "logros_fase_2",
+    estado: "finalizado",
+    fecha_evaluacion_previa:
+      (fr.fecha_evaluacion_previa as string | null) ??
+      (rowL2.created_at as string | null) ??
+      null,
+    limitacion_moverse_label:
+      (fr.limitacion_moverse_label as string | null) ??
+      (rowL2.limitacion_moverse_label as string | null) ??
+      null,
+    actividades_afectadas_label:
+      (fr.actividades_afectadas_label as string | null) ??
+      (rowL2.actividades_afectadas_label as string | null) ??
+      null,
+    adicional_no_puede_label:
+      (fr.adicional_no_puede_label as string | null) ??
+      (rowL2.adicional_no_puede_label as string | null) ??
+      null,
+    ultima_vez_label:
+      (fr.ultima_vez_label as string | null) ??
+      (rowL2.ultima_vez_label as string | null) ??
+      null,
+    que_impide_label:
+      (fr.que_impide_label as string | null) ??
+      (rowL2.que_impide_label as string | null) ??
+      null,
+    meta_complementaria_previa:
+      (fr.meta_complementaria_previa as string | null) ??
+      (rowL2.meta_complementaria_previa as string | null) ??
+      null,
+    payload_origen: {
+      logros2_referencia: {
+        id: l2Id,
+        codigo_seguimiento:
+          String(fr.codigo_seguimiento ?? rowL2.codigo_seguimiento ?? "").trim() ||
+          null,
+        documento: docNum,
+        created_at: rowL2.created_at ?? null,
+      },
+      sede: sedeClean,
+    },
+    payload_respuesta: items,
+  };
+
+  if (codigoSeguimiento) {
+    parentRow.codigo_seguimiento = codigoSeguimiento;
+  }
+
+  const resParent = await supabase
+    .from("wakeup_seguimiento3")
+    .insert(parentRow)
+    .select("id, codigo_seguimiento")
+    .single();
+
+  if (resParent.error || resParent.data == null) {
+    if (resParent.error && esErrorDuplicadoSupabase(resParent.error)) {
+      return jsonResponse(
+        409,
+        errBody(
+          "Ya existe una Encuesta de Logros 3 vinculada a esta evaluación Logros 2. Solo se permite una por cada Logros 2.",
+        ),
+        origin,
+      );
+    }
+    return jsonResponse(
+      400,
+      errBody({
+        where: "SUPABASE INSERT wakeup_seguimiento3",
+        error: resParent.error?.message ?? "sin fila",
+        hint:
+          "Si la tabla no existe, aplique backend/sql/wakeup_seguimiento3.sql en Supabase. Para unicidad L2↔L3 aplique alter_wakeup_seguimiento3_unique_l2.sql.",
+        row: parentRow,
+      }),
+      origin,
+    );
+  }
+
+  const seguimiento3Id = Number((resParent.data as { id: unknown }).id);
+  if (!Number.isFinite(seguimiento3Id)) {
+    return jsonResponse(
+      400,
+      errBody("No se obtuvo id del registro Logros 3."),
+      origin,
+    );
+  }
+
+  const itemRows = items.map((it) => {
+    const nivel = String(it.nivel_mejora ?? "");
+    const evolucion = LOGROS2_NIVEL_A_EVOLUCION[nivel]!;
+    const sintomaLabel =
+      String(it.sintoma_label ?? it.sintoma ?? "—").trim() || "—";
+    return {
+      seguimiento3_id: seguimiento3Id,
+      orden: Number(it.slot),
+      sintoma_codigo:
+        it.sintoma != null && String(it.sintoma).trim() !== ""
+          ? String(it.sintoma)
+          : null,
+      sintoma_label: sintomaLabel,
+      objetivo_previo_codigo:
+        it.objetivo_previo_codigo != null &&
+        String(it.objetivo_previo_codigo).trim() !== ""
+          ? String(it.objetivo_previo_codigo)
+          : null,
+      objetivo_previo_label:
+        String(it.objetivo_previo_label ?? "").trim() || "—",
+      evolucion,
+      objetivo_seguimiento: String(it.nuevo_objetivo ?? "").trim(),
+      autocompletado_desde_objetivo_previo:
+        !!it.autocompletado_desde_objetivo_previo,
+      es_meta_complementaria: !!it.es_meta_complementaria,
+      es_otro_sintoma: !!it.es_otro_sintoma,
+    };
+  });
+
+  const resItems = await supabase
+    .from("wakeup_seguimiento3_items")
+    .insert(itemRows)
+    .select();
+
+  if (resItems.error) {
+    await supabase.from("wakeup_seguimiento3").delete().eq("id", seguimiento3Id);
+    return jsonResponse(
+      400,
+      errBody({
+        where: "SUPABASE INSERT wakeup_seguimiento3_items",
+        error: resItems.error.message,
+        seguimiento3_id: seguimiento3Id,
+      }),
+      origin,
+    );
+  }
+
+  const contador = await incrementarEncuestasRealizadas(supabase, encNum, 1);
+
+  return jsonResponse(
+    200,
+    {
+      ok: true,
+      data: {
+        seguimiento3: resParent.data,
+        items: resItems.data,
+      },
+      encuestador_contador: contador.ok
+        ? {
+            ok: true,
+            encuestas_realizadas: contador.despues,
+            antes: contador.antes,
+          }
+        : { ok: false, error: contador.error },
+    },
+    origin,
+  );
+}
+
 export async function handleEncuestas(
   pathname: string,
   method: string,
@@ -1313,6 +2109,194 @@ export async function handleEncuestas(
 
     if (path === "/encuestas/logros2-precheck" && method === "GET") {
       return await logros2PrecheckDocumento(query, origin);
+    }
+
+    if (path === "/encuestas/logros3" && method === "POST") {
+      return await crearLogros3(
+        (body as Record<string, unknown>) || {},
+        origin,
+      );
+    }
+
+    if (path === "/encuestas/logros3-precheck" && method === "GET") {
+      return await logros3PrecheckDocumento(query, origin);
+    }
+
+    if (path === "/encuestas/logros2-por-documento" && method === "GET") {
+      return await listarLogros2PorDocumento(query, origin);
+    }
+
+    /**
+     * Logros 3 — buscar pacientes con evaluación Logros 2.
+     * Misma regla de mínimo: ≥4 letras o ≥5 dígitos.
+     */
+    if (path === "/encuestas/buscar-logros2" && method === "GET") {
+      const LOG = "[API buscar-logros2]";
+      const qIn = query?.q ?? "";
+      const qRaw = safeIlikeFragment(query?.q);
+      const qTrim = (qRaw || "").trim();
+
+      console.log(`${LOG} q_in=`, JSON.stringify(qIn));
+      console.log(`${LOG} q_clean=`, JSON.stringify(qRaw));
+      if (!qTrim) {
+        return jsonResponse(400, errBody("Indique texto de búsqueda."), origin);
+      }
+
+      const soloLetras = qTrim.replace(/[^\p{L}]/gu, "");
+      const soloDigitosInput = /^\d+$/.test(qTrim);
+      const qDigits = qTrim.replace(/\D/g, "");
+      const puedeDoc = soloDigitosInput && qDigits.length >= 5;
+      const puedeNombre = soloLetras.length >= 4;
+
+      if (!puedeNombre && !puedeDoc) {
+        return jsonResponse(
+          400,
+          errBody(
+            "Use al menos 4 letras (nombre o apellido) o solo dígitos (≥5) para cédula.",
+          ),
+          origin,
+        );
+      }
+
+      const filtrarSede = query?.filtrar_sede === "1";
+      const sedeClean = query?.sede?.trim() || undefined;
+      const maxResults = Math.min(
+        40,
+        Math.max(5, parseInt(query?.limit ?? "25", 10) || 25),
+      );
+
+      const cols =
+        "id,codigo_seguimiento,documento,nombres,apellidos,tipo_documento,sede,created_at";
+      const supabase = getSupabase();
+
+      function l2Base() {
+        let b = supabase.from("wakeup_seguimiento2").select(cols);
+        if (filtrarSede && sedeClean) b = b.eq("sede", sedeClean);
+        return b;
+      }
+
+      function filaCumpleTokens(
+        nombres: unknown,
+        apellidos: unknown,
+        tokens: string[],
+      ): boolean {
+        const nom = normalizeForPatientSearch(
+          `${String(nombres ?? "").trim()} ${String(apellidos ?? "").trim()}`,
+        );
+        if (!nom) return false;
+        for (const tok of tokens) {
+          const t = normalizeForPatientSearch(tok);
+          if (t.length < 2) continue;
+          if (!nom.includes(t)) return false;
+        }
+        return true;
+      }
+
+      let modo: "documento_eq" | "texto_tokens" = "texto_tokens";
+      let rowsRaw: Row[] = [];
+      let filterDesc = "";
+
+      if (puedeDoc) {
+        modo = "documento_eq";
+        const n = Number(qDigits);
+        const docEq: number | string =
+          Number.isSafeInteger(n) && String(n) === qDigits ? n : qDigits;
+        filterDesc = `documento.eq(${JSON.stringify(docEq)})`;
+        console.log(`${LOG} modo=documento_eq filtro=${filterDesc}`);
+        let res = await l2Base()
+          .eq("documento", docEq)
+          .is("deleted_at", null)
+          .limit(40);
+        if (res.error) {
+          res = await l2Base().eq("documento", docEq).limit(40);
+        }
+        if (res.error) {
+          console.log(`${LOG} error supabase=`, res.error.message);
+          return jsonResponse(
+            400,
+            errBody({ where: "buscar-logros2", error: res.error.message }),
+            origin,
+          );
+        }
+        rowsRaw = (res.data || []) as Row[];
+      } else {
+        modo = "texto_tokens";
+        const tokens = qTrim
+          .split(/\s+/)
+          .map((t) => t.replace(/%/g, "").replace(/_/g, ""))
+          .filter((t) => t.length >= 2);
+        const orParts: string[] = [];
+        for (const t of tokens) {
+          orParts.push(`nombres.ilike.%${t}%`, `apellidos.ilike.%${t}%`);
+        }
+        filterDesc = `or(${orParts.join(",")}).limit(200)`;
+        console.log(`${LOG} modo=texto_tokens tokens=`, JSON.stringify(tokens));
+        let res = await l2Base()
+          .or(orParts.join(","))
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        if (res.error) {
+          res = await l2Base()
+            .or(orParts.join(","))
+            .order("created_at", { ascending: false })
+            .limit(200);
+        }
+        if (res.error) {
+          console.log(`${LOG} error supabase=`, res.error.message);
+          return jsonResponse(
+            400,
+            errBody({ where: "buscar-logros2", error: res.error.message }),
+            origin,
+          );
+        }
+        rowsRaw = (res.data || []) as Row[];
+        rowsRaw = rowsRaw.filter((r) =>
+          filaCumpleTokens(r.nombres, r.apellidos, tokens),
+        );
+      }
+
+      rowsRaw.sort((a, b) => {
+        const ta = String(a.created_at ?? "");
+        const tb = String(b.created_at ?? "");
+        return tb.localeCompare(ta);
+      });
+
+      const l2IdsBusqueda = rowsRaw
+        .map((r) => Number(r.id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+      const conL3Busqueda = await idsLogros2ConLogros3Activa(
+        supabase,
+        l2IdsBusqueda,
+      );
+      const elegiblesBusqueda = rowsRaw.filter(
+        (r) => !conL3Busqueda.has(Number(r.id)),
+      );
+
+      const out = elegiblesBusqueda.slice(0, maxResults).map((r) => ({
+        id: r.id,
+        codigo_seguimiento: r.codigo_seguimiento ?? null,
+        documento: r.documento,
+        nombres: r.nombres,
+        apellidos: r.apellidos,
+        tipo_documento: r.tipo_documento,
+        sede: r.sede,
+        created_at: r.created_at,
+      }));
+
+      return jsonResponse(
+        200,
+        {
+          ok: true,
+          resultados: out,
+          total_escaneadas: rowsRaw.length,
+          total_con_logros3: conL3Busqueda.size,
+          total_disponibles: elegiblesBusqueda.length,
+          _debug: { modo, filtro: filterDesc },
+        },
+        origin,
+        { "Cache-Control": "no-store" },
+      );
     }
 
     /**

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import DirectoryBrowser from "./DirectoryBrowser";
 import "./EncuestasDisponibles.css";
 import WelcomeLayout from "../layouts/WelcomeLayout";
@@ -11,9 +11,51 @@ import {
 
 import fondo2 from "../assets/fondo2.svg";
 
+/** Misma lista para todas las carpetas de sede (Poblado, Laureles, Barranquilla, …). */
+function buildEncuestaItems(iconosEncuestas) {
+  return [
+    {
+      id: "encuesta-logros",
+      label: "Encuesta De Logros",
+      kind: "file",
+      accent: "green",
+      route: "encuesta-logros",
+      iconSrc: iconosEncuestas?.logros,
+    },
+    {
+      id: "encuesta-seguimiento",
+      label: "Evaluación de Resultados Clínicos – Fase 2",
+      kind: "file",
+      accent: "blue",
+      route: "encuesta-seguimiento",
+      iconSrc: iconosEncuestas?.seguimiento,
+    },
+    {
+      id: "encuesta-seguimiento-fase3",
+      label: "Evaluación de Resultados Clínicos – Fase 3",
+      kind: "file",
+      accent: "blue",
+      route: "encuesta-seguimiento-fase3",
+      iconSrc: iconosEncuestas?.seguimiento,
+    },
+  ];
+}
+
 export default function EncuestasDisponibles() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { sede: sedeParam } = useParams();
+
+  /** Carpeta de sede abierta en la URL — no la sede del perfil del usuario. */
+  const sedeCarpeta = useMemo(() => {
+    const fromUrl = sedeParam ? decodeURIComponent(sedeParam) : "";
+    if (fromUrl) return fromUrl;
+    return (
+      location.state?.sedeCarpeta ||
+      location.state?.sede ||
+      "Sin sede"
+    );
+  }, [sedeParam, location.state?.sedeCarpeta, location.state?.sede]);
 
   /** PNG grandes en chunk aparte: no bloquean el JS inicial de la ruta */
   const [iconosEncuestas, setIconosEncuestas] = useState(null);
@@ -38,6 +80,19 @@ export default function EncuestasDisponibles() {
     };
   }, []);
 
+  /** Persist folder context so Logros 1/2/3 can resolve sede after refresh. */
+  useEffect(() => {
+    if (!sedeCarpeta || sedeCarpeta === "Sin sede") return;
+    try {
+      sessionStorage.setItem(
+        "wk_contexto_directorio",
+        JSON.stringify({ sede: sedeCarpeta }),
+      );
+    } catch {
+      // ignore
+    }
+  }, [sedeCarpeta]);
+
   const pin =
     location.state?.pin ?? sessionStorage.getItem("wk_pin") ?? undefined;
 
@@ -45,8 +100,9 @@ export default function EncuestasDisponibles() {
   const [usuario, setUsuario] = useState(
     () => location.state?.usuario || cacheSnap.usuario || "Usuario",
   );
-  const [sede, setSede] = useState(
-    () => location.state?.sede || cacheSnap.sede || "Sin sede",
+  /** Sede del perfil (header); distinta de la carpeta abierta. */
+  const [headerSede, setHeaderSede] = useState(
+    () => cacheSnap.sede || location.state?.sede || sedeCarpeta || "Sin sede",
   );
   const [correoHeader, setCorreoHeader] = useState(
     () => String(cacheSnap.correo ?? "").trim(),
@@ -60,7 +116,7 @@ export default function EncuestasDisponibles() {
     const onPerfil = () => {
       const c = readAutorizadoCache();
       if (c.usuario) setUsuario(c.usuario);
-      if (c.sede) setSede(c.sede);
+      if (c.sede) setHeaderSede(c.sede);
       if (c.correo != null) setCorreoHeader(String(c.correo).trim());
       if (typeof c.encuestasRealizadas === "number") {
         setEncuestasRealizadas(c.encuestasRealizadas);
@@ -71,35 +127,22 @@ export default function EncuestasDisponibles() {
   }, []);
 
   const items = useMemo(
-    () => [
-      {
-        id: "encuesta-logros",
-        label: "Encuesta De Logros",
-        kind: "file",
-        accent: "green",
-        route: "encuesta-logros",
-        iconSrc: iconosEncuestas?.logros,
-      },
-      {
-        id: "encuesta-seguimiento",
-        label: "Evaluación de Resultados Clínicos – Fase 2",
-        kind: "file",
-        accent: "blue",
-        route: "encuesta-seguimiento",
-        iconSrc: iconosEncuestas?.seguimiento,
-      },
-    ],
+    () => buildEncuestaItems(iconosEncuestas),
     [iconosEncuestas],
   );
 
+  const listNavState = {
+    usuario,
+    sede: sedeCarpeta,
+    sedeCarpeta,
+    encuestasRealizadas,
+    cedula,
+    ...(pin ? { pin } : {}),
+  };
+
   const onItemClick = (item) => {
-    navigate(`/sede/${encodeURIComponent(sede)}/${item.route}`, {
-      state: {
-        usuario,
-        sede,
-        encuestasRealizadas,
-        cedula, // ✅ seguimos trabajando por cedula, no por pin
-      },
+    navigate(`/sede/${encodeURIComponent(sedeCarpeta)}/${item.route}`, {
+      state: listNavState,
     });
   };
 
@@ -111,7 +154,7 @@ export default function EncuestasDisponibles() {
         <div className="content-autorizados">
           <AutorizadosHeader
             usuario={usuario}
-            sede={sede}
+            sede={headerSede}
             correo={correoHeader}
             sessionPin={pin}
             showEncuestasCount={true}
@@ -121,7 +164,7 @@ export default function EncuestasDisponibles() {
 
         <div className="contenedorOpcionesEncuestas">
           <DirectoryBrowser
-            breadcrumb={["Inicio", sede, "Encuestas"]}
+            breadcrumb={["Inicio", sedeCarpeta, "Encuestas"]}
             items={items}
             onItemClick={onItemClick}
             onCrumbClick={(idx) => {
@@ -132,14 +175,8 @@ export default function EncuestasDisponibles() {
                 return;
               }
               if (idx === 1) {
-                navigate(`/sede/${encodeURIComponent(sede)}/encuestas`, {
-                  state: {
-                    usuario,
-                    sede,
-                    encuestasRealizadas,
-                    cedula,
-                    ...(pin ? { pin } : {}),
-                  },
+                navigate(`/sede/${encodeURIComponent(sedeCarpeta)}/encuestas`, {
+                  state: listNavState,
                 });
               }
             }}

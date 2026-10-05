@@ -133,6 +133,13 @@ export function validateEncuestaLogros(form, objetivosAResponder) {
     ) {
       nextErrors[`obj_${problema}`] =
         "Esa opción solo aplica si la limitación para moverse es «Poco».";
+    } else if (
+      problema === "cargar_paquetes" &&
+      obj === "cualquier" &&
+      form.limitacionMoverse !== "poco"
+    ) {
+      nextErrors[`obj_${problema}`] =
+        "Esa opción solo aplica si la limitación para moverse es «Poco».";
     } else if (objetivoRequiereMinutos(problema, obj)) {
       if (!String(form.objetivosMinutos?.[problema] || "").trim()) {
         nextErrors[`obj_min_${problema}`] = "Seleccione los minutos.";

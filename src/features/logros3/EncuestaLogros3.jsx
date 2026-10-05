@@ -8,7 +8,7 @@ import WelcomeLayout from "../../layouts/WelcomeLayout";
 import "../../components/SweetAlert.css";
 import "../../components/TextInput.css";
 import "../../components/EncuestasDisponibles.css";
-import "./EncuestaLogros2.css";
+import "./EncuestaLogros3.css";
 
 import fondo2 from "../../assets/fondo2.svg";
 
@@ -27,34 +27,31 @@ import {
   fetchRegistrosPorDocumento,
 } from "../../lib/encuestas/registrosExistentes";
 
-/** Ayuda búsqueda paciente — Fase 2 (requiere Logros Fase 1). */
+/** Ayuda búsqueda paciente — Fase 3 (requiere Logros 2). */
 const BUSQUEDA_PACIENTE_HELP_HTML = `
   <div style="text-align:left;line-height:1.45;font-size:0.95rem">
     <p style="margin:0 0 0.75rem">
       Escriba al menos <strong>4 letras</strong> del nombre o apellido, o al menos
       <strong>5 dígitos</strong> de la cédula, para buscar en la base de datos.
-      Luego elija una fila o use <strong>Cargar evaluación previa</strong> con la
+      Luego elija una fila o use <strong>Cargar evaluación Logros 2</strong> con la
       cédula completa (6–11 dígitos).
     </p>
     <p style="margin:0">
-      El paciente debe tener una evaluación <strong>Logros Fase 1</strong> previa.
+      El paciente debe tener una evaluación <strong>Logros 2</strong> (Fase 2) previa
+      que aún no tenga una <strong>Logros 3</strong> vinculada (solo una L3 por cada L2).
     </p>
   </div>
 `.trim();
 
-import { NIVEL_MEJORA, getOpcionesNuevoObjetivo } from "./logros2Catalog";
+import { NIVEL_MEJORA, getOpcionesNuevoObjetivo } from "../logros2/logros2Catalog";
 import {
   formatFechaEvaluacion,
-  labelLimitacionNarrativa,
-  labelsActividades,
   mapSymptomLabel,
-  buildSlotsFromFase1,
-  normalizeFase1Row,
-  labelsQueImpide,
-  mapLastTimeLabel,
-} from "./logros2Formatters";
+  buildSlotsFromLogros2,
+  normalizeLogros2Row,
+  etiquetaLogros2Opcion,
+} from "./logros3Formatters";
 
-import { formatPatologiaLabel } from "../../data/encuestaLogrosCatalog";
 import { apiUrl } from "../../lib/api/baseUrl";
 import {
   WK_PERFIL_ACTUALIZADO,
@@ -94,7 +91,7 @@ function TextField({
   );
 }
 
-export default function EncuestaLogros2() {
+export default function EncuestaLogros3() {
   const location = useLocation();
   const { sede: sedeParam } = useParams();
 
@@ -173,7 +170,6 @@ export default function EncuestaLogros2() {
   };
 
   const [docBusqueda, setDocBusqueda] = useState("");
-  /** Texto libre en el campo de búsqueda (nombre, apellido o cédula). */
   const [busquedaTexto, setBusquedaTexto] = useState("");
   const [sugerencias, setSugerencias] = useState([]);
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
@@ -181,9 +177,11 @@ export default function EncuestaLogros2() {
   const busquedaWrapRef = useRef(null);
   const skipBusquedaRef = useRef(false);
 
-  const [fase1, setFase1] = useState(null);
-  /** Referencia estable a Fase 1: documento + created_at (no depende de id_int). */
-  const [fase1Referencia, setFase1Referencia] = useState(null);
+  /** @type {Record<string, unknown>|null} */
+  const [logros2, setLogros2] = useState(null);
+  /** @type {Record<string, unknown>[]} */
+  const [candidatosL2, setCandidatosL2] = useState([]);
+  const [candidatoSeleccionadoId, setCandidatoSeleccionadoId] = useState("");
   const [cargando, setCargando] = useState(false);
   const [errors, setErrors] = useState({});
   const [registrosExistentes, setRegistrosExistentes] = useState([]);
@@ -194,11 +192,10 @@ export default function EncuestaLogros2() {
   const [respuestas, setRespuestas] = useState({});
 
   const slots = useMemo(
-    () => (fase1 ? buildSlotsFromFase1(fase1) : []),
-    [fase1],
+    () => (logros2 ? buildSlotsFromLogros2(logros2) : []),
+    [logros2],
   );
 
-  /** Alineado con API buscar-logros1: ≥4 letras o ≥5 dígitos (sin barrer tablas enteras). */
   const busquedaCumpleMinimo = useMemo(() => {
     const q = busquedaTexto.trim();
     const digitos = q.replace(/\D/g, "").length;
@@ -206,11 +203,16 @@ export default function EncuestaLogros2() {
     return letras >= 4 || digitos >= 5;
   }, [busquedaTexto]);
 
-  const fechaEval = fase1 ? formatFechaEvaluacion(fase1.created_at) : "";
-  const limLabel = fase1
-    ? labelLimitacionNarrativa(fase1.limitacion_moverse)
+  const fechaEval = logros2 ? formatFechaEvaluacion(logros2.created_at) : "";
+  const limLabel = logros2
+    ? String(logros2.limitacion_moverse_label || "").trim() || "—"
     : "";
-  const actLabel = fase1 ? labelsActividades(fase1.actividades_afectadas) : "";
+  const actLabel = logros2
+    ? String(logros2.actividades_afectadas_label || "").trim() || "—"
+    : "";
+  const codigoL2 = logros2
+    ? String(logros2.codigo_seguimiento || "").trim()
+    : "";
 
   const documentoDesdeCampos = () => {
     const d = docBusqueda.replace(/\D/g, "").trim();
@@ -222,10 +224,53 @@ export default function EncuestaLogros2() {
     const nom = `${r.nombres || ""} ${r.apellidos || ""}`.trim() || "Sin nombre";
     const doc = String(r.documento ?? "");
     const sedeR = String(r.sede ?? "").trim();
-    return `${nom} · Doc. ${doc}${sedeR ? ` · ${sedeR}` : ""}`;
+    const codigo = String(r.codigo_seguimiento ?? "").trim();
+    const base = `${nom} · Doc. ${doc}${sedeR ? ` · ${sedeR}` : ""}`;
+    return codigo ? `${base} · ${codigo}` : base;
   };
 
-  const cargarFase1PorDocumento = async (docRaw, createdAtOpcional) => {
+  const aplicarLogros2Seleccionado = (row) => {
+    const normalized = normalizeLogros2Row(row);
+    setLogros2(normalized);
+    const built = buildSlotsFromLogros2(normalized);
+    const init = {};
+    for (const s of built) {
+      init[String(s.slot)] = { nivel: "", nuevo: "" };
+    }
+    setRespuestas(init);
+    setCandidatosL2([]);
+    setCandidatoSeleccionadoId("");
+  };
+
+  const cargarHistorialDocumento = async (doc) => {
+    setRegistrosExistentesLoading(true);
+    try {
+      const regPack = await fetchRegistrosPorDocumento(doc);
+      const regs = Array.isArray(regPack?.registros) ? regPack.registros : [];
+      setRegistrosExistentes(regs);
+      if (regPack?.ok && regs.length > 0) {
+        const footnote =
+          (regPack.conteo?.logros3 || 0) > 0
+            ? "Ya hay seguimientos Logros 3 para este documento. Solo puede crear otra Logros 3 a partir de una Logros 2 que aún no tenga una vinculada."
+            : "Se muestra el historial del documento. Puede continuar con el seguimiento Logros 3.";
+        await alertInfo({
+          title: "Encuestas registradas para este documento",
+          html: buildRegistrosExistentesHtml(regs, { footnote }),
+        });
+      }
+    } catch {
+      setRegistrosExistentes([]);
+    } finally {
+      setRegistrosExistentesLoading(false);
+    }
+  };
+
+  /**
+   * Lista Logros 2 del documento; aplica 0 / 1 / N.
+   * @param {string} docRaw
+   * @param {number|string|null} [preferId]
+   */
+  const cargarLogros2PorDocumento = async (docRaw, preferId = null) => {
     const doc = String(docRaw || "")
       .replace(/\D/g, "")
       .trim();
@@ -239,86 +284,109 @@ export default function EncuestaLogros2() {
 
     setCargando(true);
     setErrors({});
+    setLogros2(null);
+    setCandidatosL2([]);
+    setCandidatoSeleccionadoId("");
+    setRespuestas({});
+
     try {
-      let path = apiUrl(`/verificacion/logros-fase1/${encodeURIComponent(doc)}`);
-      if (createdAtOpcional != null && String(createdAtOpcional).trim() !== "") {
-        const q = new URLSearchParams({
-          created_at: String(createdAtOpcional).trim(),
-        });
-        path += `${path.includes("?") ? "&" : "?"}${q.toString()}`;
-      }
-      const res = await fetch(path);
+      const url = `${apiUrl("/encuestas/logros2-por-documento")}?documento=${encodeURIComponent(doc)}`;
+      console.log("[L3 LOAD] url=", url);
+      const res = await fetch(url);
       const json = await res.json().catch(() => ({}));
+      console.log("[L3 LOAD] status=", res.status, "json=", json);
 
       if (!res.ok) {
-        setFase1(null);
-        setFase1Referencia(null);
         setRegistrosExistentes([]);
         await alertWarning({
-          title: "Sin evaluación previa",
+          title: "Sin evaluación Logros 2",
           text:
             json?.detail ||
-            "No existe registro de la evaluación por logros (Fase 1) para este documento. Debe completarse primero dicha evaluación.",
+            "No existe registro de la evaluación Logros 2 (Fase 2) para este documento. Debe completarse primero dicha evaluación.",
         });
         return false;
       }
 
-      const row = json?.data;
-      if (!row) {
-        setFase1(null);
-        setFase1Referencia(null);
+      const lista = Array.isArray(json?.resultados) ? json.resultados : [];
+      if (!lista.length) {
         setRegistrosExistentes([]);
+        if (
+          json?.todas_tienen_logros3 ||
+          Number(json?.cantidad_con_logros3 || 0) > 0
+        ) {
+          const nL2 = Number(json?.cantidad_total_logros2 || 0);
+          const nL3 = Number(json?.cantidad_con_logros3 || 0);
+          await alertWarning({
+            title: "Logros 3 ya registrada",
+            text:
+              nL2 <= 1
+                ? "Este documento ya tiene una Encuesta de Logros 3 vinculada a su evaluación Logros 2. Solo se permite una Logros 3 por cada Logros 2."
+                : `Este documento tiene ${nL2} evaluaciones Logros 2 y ya existe Logros 3 para ${nL3 === nL2 ? "todas" : nL3} de ellas. No queda ninguna Logros 2 disponible para crear una nueva Logros 3.`,
+          });
+        } else {
+          await alertWarning({
+            title: "Sin evaluación Logros 2",
+            text: "Este documento no tiene encuestas de Logros 2. Complete primero la Evaluación de Resultados Clínicos – Fase 2.",
+          });
+        }
         return false;
       }
 
       setDocBusqueda(doc);
-      const normalized = normalizeFase1Row(row);
-      setFase1(normalized);
-      setFase1Referencia({
-        documento: row.documento,
-        created_at: row.created_at,
-        nombres: row.nombres ?? null,
-        apellidos: row.apellidos ?? null,
-        tipo_documento: row.tipo_documento || "cedula",
-        sede: row.sede ?? null,
-      });
-      const built = buildSlotsFromFase1(normalized);
-      const init = {};
-      for (const s of built) {
-        init[String(s.slot)] = { nivel: "", nuevo: "" };
+
+      const preferNum =
+        preferId != null && String(preferId).trim() !== ""
+          ? Number(preferId)
+          : null;
+
+      if (lista.length === 1) {
+        aplicarLogros2Seleccionado(lista[0]);
+        setMostrarSugerencias(false);
+        await cargarHistorialDocumento(doc);
+        return true;
       }
-      setRespuestas(init);
+
+      if (
+        preferNum != null &&
+        Number.isFinite(preferNum) &&
+        lista.some((r) => Number(r.id) === preferNum)
+      ) {
+        const chosen = lista.find((r) => Number(r.id) === preferNum);
+        aplicarLogros2Seleccionado(chosen);
+        setMostrarSugerencias(false);
+        await cargarHistorialDocumento(doc);
+        return true;
+      }
+
+      if (
+        preferNum != null &&
+        Number.isFinite(preferNum) &&
+        !lista.some((r) => Number(r.id) === preferNum)
+      ) {
+        await alertWarning({
+          title: "Logros 3 ya registrada",
+          text: "La evaluación Logros 2 seleccionada ya tiene una Encuesta de Logros 3. Elija otra Logros 2 disponible, si existe.",
+        });
+      }
+
+      // Varias Logros 2 elegibles → elegir
+      setCandidatosL2(lista);
+      setCandidatoSeleccionadoId(String(lista[0]?.id ?? ""));
       setMostrarSugerencias(false);
-
-      setRegistrosExistentesLoading(true);
-      try {
-        const regPack = await fetchRegistrosPorDocumento(doc);
-        const regs = Array.isArray(regPack?.registros) ? regPack.registros : [];
-        setRegistrosExistentes(regs);
-        if (regPack?.ok && regs.length > 0) {
-          const footnote =
-            (regPack.conteo?.logros2 || 0) > 0
-              ? "Ya hay seguimientos Logros 2 para este documento. Puede continuar con uno nuevo; al enviar se pedirá confirmación si aplica."
-              : "Se muestra el historial del documento (Logros 1 y/o Logros 2). Puede continuar con el seguimiento.";
-          await alertInfo({
-            title: "Encuestas registradas para este documento",
-            html: buildRegistrosExistentesHtml(regs, { footnote }),
-          });
-        }
-      } catch {
-        setRegistrosExistentes([]);
-      } finally {
-        setRegistrosExistentesLoading(false);
-      }
-
+      await alertInfo({
+        title: "Varias evaluaciones Logros 2",
+        text: `Hay ${lista.length} encuesta(s) de Logros 2 disponibles (sin Logros 3 aún) para este documento. Elija a partir de cuál desea realizar la Encuesta de Logros 3.`,
+      });
+      await cargarHistorialDocumento(doc);
       return true;
-    } catch {
-      setFase1(null);
-      setFase1Referencia(null);
+    } catch (e) {
+      console.log("[L3 LOAD] error=", e?.message);
+      setLogros2(null);
+      setCandidatosL2([]);
       setRegistrosExistentes([]);
       await alertError({
         title: "Error",
-        text: "No fue posible recuperar la evaluación previa. Intente nuevamente.",
+        text: "No fue posible recuperar las evaluaciones Logros 2. Intente nuevamente.",
       });
       return false;
     } finally {
@@ -326,9 +394,22 @@ export default function EncuestaLogros2() {
     }
   };
 
+  const confirmarCandidatoL2 = () => {
+    const id = Number(candidatoSeleccionadoId);
+    const chosen = candidatosL2.find((r) => Number(r.id) === id);
+    if (!chosen) {
+      void alertWarning({
+        title: "Selección requerida",
+        text: "Seleccione una encuesta de Logros 2 para continuar.",
+      });
+      return;
+    }
+    aplicarLogros2Seleccionado(chosen);
+  };
+
   const buscarEncuestaBase = async () => {
     const doc = documentoDesdeCampos();
-    await cargarFase1PorDocumento(doc);
+    await cargarLogros2PorDocumento(doc);
   };
 
   const seleccionarPaciente = (r) => {
@@ -338,7 +419,7 @@ export default function EncuestaLogros2() {
     setDocBusqueda(doc);
     setMostrarSugerencias(false);
     setSugerencias([]);
-    void cargarFase1PorDocumento(doc, r.created_at);
+    void cargarLogros2PorDocumento(doc, r.id ?? null);
   };
 
   useEffect(() => {
@@ -351,11 +432,8 @@ export default function EncuestaLogros2() {
     const q = busquedaTexto.trim();
     const letras = q.replace(/[^\p{L}]/gu, "").length;
     const digitos = q.replace(/\D/g, "").length;
-    console.log("[L2 BUSQUEDA] texto(raw)=", JSON.stringify(busquedaTexto));
-    console.log("[L2 BUSQUEDA] texto(trim)=", JSON.stringify(q));
-    console.log("[L2 BUSQUEDA] letras=", letras);
-    console.log("[L2 BUSQUEDA] digitos=", digitos);
-    console.log("[L2 BUSQUEDA] cumpleMinimo=", busquedaCumpleMinimo);
+    console.log("[L3 BUSQUEDA] texto(raw)=", JSON.stringify(busquedaTexto));
+    console.log("[L3 BUSQUEDA] letras=", letras, "digitos=", digitos);
     if (!busquedaCumpleMinimo) {
       setSugerencias([]);
       setBuscandoSugerencias(false);
@@ -366,17 +444,9 @@ export default function EncuestaLogros2() {
     const t = window.setTimeout(async () => {
       setBuscandoSugerencias(true);
       try {
-        const params = new URLSearchParams({
-          q,
-          limit: "25",
-        });
-        const url = apiUrl(`/encuestas/buscar-logros1?${params.toString()}`);
-        console.log(
-          "[L2 BUSQUEDA] t=",
-          new Date().toISOString(),
-          "llamando endpoint…",
-        );
-        console.log("[L2 BUSQUEDA] url=", url);
+        const params = new URLSearchParams({ q, limit: "25" });
+        const url = apiUrl(`/encuestas/buscar-logros2?${params.toString()}`);
+        console.log("[L3 BUSQUEDA] url=", url);
         const res = await fetch(url, { signal: ctrl.signal });
         const text = await res.text();
         let json = {};
@@ -385,16 +455,14 @@ export default function EncuestaLogros2() {
         } catch {
           json = {};
         }
-        console.log("[L2 BUSQUEDA] resp status=", res.status, "body(raw)=", text);
-        console.log("[L2 BUSQUEDA] json.ok=", json?.ok, "resultados.len=", Array.isArray(json?.resultados) ? json.resultados.length : "n/a");
-        console.log("[L2 BUSQUEDA] _debug=", json?._debug);
+        console.log("[L3 BUSQUEDA] status=", res.status, "body=", text);
         if (!res.ok) {
           setSugerencias([]);
           return;
         }
         setSugerencias(Array.isArray(json?.resultados) ? json.resultados : []);
       } catch (e) {
-        console.log("[L2 BUSQUEDA] fetch error=", e?.name, e?.message);
+        console.log("[L3 BUSQUEDA] fetch error=", e?.name, e?.message);
         if (e?.name !== "AbortError") setSugerencias([]);
       } finally {
         setBuscandoSugerencias(false);
@@ -466,11 +534,11 @@ export default function EncuestaLogros2() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    console.log("[ENCUESTA] Botón Enviar → onSubmit (preventDefault aplicado)");
-    if (!fase1 || !slots.length) {
+    console.log("[ENCUESTA L3] Botón Enviar → onSubmit");
+    if (!logros2 || !slots.length) {
       await alertWarning({
         title: "Datos insuficientes",
-        text: "Cargue primero la evaluación previa: búsqueda por nombre o cédula, o use el botón Cargar evaluación previa.",
+        text: "Cargue primero una evaluación Logros 2: búsqueda por nombre o cédula, o use el botón Cargar evaluación Logros 2.",
       });
       return;
     }
@@ -491,17 +559,11 @@ export default function EncuestaLogros2() {
       return;
     }
 
-    const refDoc = fase1Referencia?.documento;
-    const refAt = fase1Referencia?.created_at;
-    if (
-      refDoc == null ||
-      String(refDoc).replace(/\D/g, "").length < 6 ||
-      !refAt ||
-      !String(refAt).trim()
-    ) {
+    const l2Id = Number(logros2.id);
+    if (!Number.isFinite(l2Id) || l2Id <= 0) {
       await alertWarning({
-        title: "Evaluación previa incompleta",
-        text: "Falta la referencia a Logros Fase 1 (documento y fecha de la encuesta). Cargue de nuevo la evaluación con la búsqueda o con «Cargar evaluación previa».",
+        title: "Evaluación Logros 2 incompleta",
+        text: "Falta el identificador de la encuesta Logros 2 de referencia. Cargue de nuevo la evaluación.",
       });
       return;
     }
@@ -509,9 +571,10 @@ export default function EncuestaLogros2() {
     const items = slots.map((s) => {
       const sintomaBase = mapSymptomLabel(s.sintoma);
       const sintomaLabel =
-        s.sintoma === "otro" && s.otroSintomaText
+        s.sintomaLabel ||
+        (s.sintoma === "otro" && s.otroSintomaText
           ? `${sintomaBase}: ${s.otroSintomaText}`
-          : sintomaBase;
+          : sintomaBase);
       const nivel = respuestas[String(s.slot)].nivel;
       const nuevo = respuestas[String(s.slot)].nuevo;
       return {
@@ -534,8 +597,8 @@ export default function EncuestaLogros2() {
       .replace(/\D/g, "")
       .trim();
 
-    const tipoDocF1 = String(fase1.tipo_documento || "cedula").trim();
-    const preUrl = `${apiUrl("/encuestas/logros2-precheck")}?documento=${encodeURIComponent(docPaciente)}&tipo_documento=${encodeURIComponent(tipoDocF1)}`;
+    const tipoDoc = String(logros2.tipo_documento || "cedula").trim();
+    const preUrl = `${apiUrl("/encuestas/logros3-precheck")}?documento=${encodeURIComponent(docPaciente)}&tipo_documento=${encodeURIComponent(tipoDoc)}&seguimiento2_id=${encodeURIComponent(String(l2Id))}`;
     let preJson = {};
     try {
       const preRes = await fetch(preUrl);
@@ -554,16 +617,27 @@ export default function EncuestaLogros2() {
     } catch {
       await alertError({
         title: "Error de conexión",
-        text: "No fue posible verificar si ya existe un seguimiento para este documento.",
+        text: "No fue posible verificar si ya existe un seguimiento Logros 3 para este documento.",
       });
       return;
     }
 
-    let seguimiento2PadreId = null;
+    if (preJson.tiene_logros3_para_este_l2) {
+      const cod = String(preJson.codigo_logros3_para_este_l2 || "").trim();
+      await alertWarning({
+        title: "Logros 3 ya registrada",
+        text: cod
+          ? `Ya existe una Encuesta de Logros 3 (${cod}) para esta evaluación Logros 2. Solo se permite una Logros 3 por cada Logros 2. Elija otra Logros 2 si el paciente tiene más de una.`
+          : "Ya existe una Encuesta de Logros 3 para esta evaluación Logros 2. Solo se permite una Logros 3 por cada Logros 2. Elija otra Logros 2 si el paciente tiene más de una.",
+      });
+      return;
+    }
+
+    let seguimiento3PadreId = null;
     if (preJson.tiene_seguimientos_previos) {
       let confirmHtml = "";
       let confirmText =
-        "El documento de este usuario ya existe en nuestra base de datos. ¿Está seguro de enviar un segundo seguimiento?";
+        "El documento de este usuario ya tiene un seguimiento Logros 3 (de otra evaluación Logros 2). ¿Está seguro de enviar un segundo seguimiento a partir de otra Logros 2?";
       try {
         const regPack = await fetchRegistrosPorDocumento(docPaciente);
         const regs = Array.isArray(regPack?.registros) ? regPack.registros : [];
@@ -571,12 +645,12 @@ export default function EncuestaLogros2() {
           setRegistrosExistentes(regs);
           confirmHtml = buildRegistrosExistentesHtml(regs, {
             intro:
-              "El documento de este usuario ya tiene encuestas registradas. ¿Está seguro de enviar un seguimiento adicional?",
+              "El documento de este usuario ya tiene encuestas registradas. ¿Está seguro de enviar un seguimiento Logros 3 adicional a partir de otra evaluación Logros 2?",
           });
           confirmText = "";
         }
       } catch {
-        /* mantener mensaje genérico */
+        /* mensaje genérico */
       }
       const okSecond = await alertConfirm({
         title: "Seguimiento adicional",
@@ -585,68 +659,60 @@ export default function EncuestaLogros2() {
         confirmButtonText: "Sí, enviar",
         cancelButtonText: "No",
       });
-      if (!okSecond.isConfirmed) {
-        return;
-      }
-      seguimiento2PadreId = preJson.ultimo_seguimiento2_id ?? null;
-      if (seguimiento2PadreId == null) {
+      if (!okSecond.isConfirmed) return;
+      seguimiento3PadreId = preJson.ultimo_seguimiento3_id ?? null;
+      if (seguimiento3PadreId == null) {
         await alertError({
           title: "No se puede continuar",
-          text:
-            "Existe un registro previo pero no se pudo obtener el identificador del seguimiento anterior. Intente de nuevo o contacte al administrador.",
+          text: "Existe un registro Logros 3 previo pero no se pudo obtener su identificador. Intente de nuevo o contacte al administrador.",
         });
         return;
       }
     }
 
-    const queImpideTxt = labelsQueImpide(fase1.que_impide);
-    const refDocNum = parseInt(String(refDoc).replace(/\D/g, ""), 10);
     const payload = {
       encuestador: String(encuestadorCache),
       encuestador_nombre: String(headerUsuario || "").trim() || null,
       sede: sedeFormulario,
       documento: docPaciente,
-      seguimiento2_padre_id: seguimiento2PadreId,
-      fase1_referencia: {
-        documento: refDocNum,
-        created_at: String(refAt).trim(),
+      seguimiento3_padre_id: seguimiento3PadreId,
+      logros2_referencia: {
+        id: l2Id,
+        codigo_seguimiento: codigoL2 || null,
+        documento: Number(docPaciente),
+        created_at: logros2.created_at || null,
       },
       items,
-      fase1_resumen: {
-        tipo_documento: String(fase1.tipo_documento || "cedula"),
-        nombres: String(fase1.nombres || "").trim() || null,
-        apellidos: String(fase1.apellidos || "").trim() || null,
-        fecha_evaluacion_previa: fase1.created_at || null,
-        limitacion_moverse_label: limLabel || null,
-        actividades_afectadas_label: actLabel || null,
-        adicional_no_puede_label: String(fase1.adicional_no_puede || "").trim() || null,
-        ultima_vez_label: fase1.ultima_vez
-          ? mapLastTimeLabel(fase1.ultima_vez)
-          : null,
-        que_impide_label: queImpideTxt !== "—" ? queImpideTxt : null,
-        meta_complementaria_previa: String(fase1.objetivo_extra || "").trim() || null,
-        patologia_relacionada_label: (() => {
-          const label = formatPatologiaLabel(fase1.patologia_relacionada);
-          return label || null;
-        })(),
+      logros2_resumen: {
+        tipo_documento: tipoDoc,
+        nombres: String(logros2.nombres || "").trim() || null,
+        apellidos: String(logros2.apellidos || "").trim() || null,
+        fecha_evaluacion_previa: logros2.created_at || null,
+        codigo_seguimiento: codigoL2 || null,
+        limitacion_moverse_label: limLabel !== "—" ? limLabel : null,
+        actividades_afectadas_label: actLabel !== "—" ? actLabel : null,
+        adicional_no_puede_label:
+          String(logros2.adicional_no_puede_label || "").trim() || null,
+        ultima_vez_label: String(logros2.ultima_vez_label || "").trim() || null,
+        que_impide_label: String(logros2.que_impide_label || "").trim() || null,
+        meta_complementaria_previa:
+          String(logros2.meta_complementaria_previa || "").trim() || null,
       },
     };
 
-    console.log("[ENCUESTA] Payload a enviar:", payload);
-    console.log("[ENCUESTA] Iniciando request...");
+    console.log("[ENCUESTA L3] Payload:", payload);
 
     sweetLoading({
       title: "Registrando…",
-      text: "Guardando evaluación de seguimiento por objetivos.",
+      text: "Guardando evaluación de seguimiento Logros 3.",
     });
 
     try {
-      const res = await fetch(apiUrl("/encuestas/logros2"), {
+      const res = await fetch(apiUrl("/encuestas/logros3"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const json = await res.json().catch(() => ({}));
       sweetClose();
 
@@ -658,18 +724,12 @@ export default function EncuestaLogros2() {
             : det != null
               ? JSON.stringify(det)
               : "Revise los datos e intente nuevamente.";
-        await alertError({
-          title: "No se pudo guardar",
-          text: msg,
-        });
+        await alertError({ title: "No se pudo guardar", text: msg });
         return;
       }
 
       const ctr = json?.encuestador_contador;
-      if (
-        ctr?.ok === true &&
-        typeof ctr.encuestas_realizadas === "number"
-      ) {
+      if (ctr?.ok === true && typeof ctr.encuestas_realizadas === "number") {
         try {
           const prev = readAutorizadoCache();
           sessionStorage.setItem(
@@ -697,20 +757,28 @@ export default function EncuestaLogros2() {
               : "La evaluación quedó registrada, pero no se pudo actualizar el contador de encuestas del profesional en autorizados.",
         });
       } else {
+        const codigoNuevo =
+          json?.data?.seguimiento3?.codigo_seguimiento ||
+          json?.data?.codigo_seguimiento ||
+          "";
         await alertSuccess({
           title: "Registro completado",
-          text: "La evaluación de seguimiento quedó registrada y se sumó a tus encuestas realizadas.",
+          text: codigoNuevo
+            ? `La evaluación Logros 3 quedó registrada (${codigoNuevo}) y se sumó a tus encuestas realizadas.`
+            : "La evaluación Logros 3 quedó registrada y se sumó a tus encuestas realizadas.",
         });
       }
 
-      setFase1(null);
-      setFase1Referencia(null);
+      setLogros2(null);
+      setCandidatosL2([]);
+      setCandidatoSeleccionadoId("");
       setDocBusqueda("");
       setBusquedaTexto("");
       setSugerencias([]);
       setMostrarSugerencias(false);
       setRespuestas({});
       setErrors({});
+      setRegistrosExistentes([]);
     } catch {
       sweetClose();
       await alertError({
@@ -719,6 +787,8 @@ export default function EncuestaLogros2() {
       });
     }
   };
+
+  const mostrandoSelector = candidatosL2.length > 1 && !logros2;
 
   return (
     <>
@@ -747,15 +817,15 @@ export default function EncuestaLogros2() {
                 />
                 <PatientSearchHelpButton
                   title="Ayuda: buscar paciente"
-                  ariaLabel="Ayuda sobre cómo buscar paciente en Fase 2"
+                  ariaLabel="Ayuda sobre cómo buscar paciente en Fase 3"
                   html={BUSQUEDA_PACIENTE_HELP_HTML}
                 />
               </div>
               <h2 className="encuesta-logros-title">
-                Evaluación de Resultados Clínicos – Fase 2
+                Evaluación de Resultados Clínicos – Fase 3
               </h2>
               <p className="encuesta-logros-sub">
-                📄 Encuesta Logros fase 2, a partir de la encuesta de logros 1
+                📄 Seguimiento de resultados, a partir de la encuesta de Logros 2
               </p>
 
               <div
@@ -764,14 +834,14 @@ export default function EncuestaLogros2() {
               >
                 <label
                   className="field__label"
-                  htmlFor="logros2-busqueda-paciente"
+                  htmlFor="logros3-busqueda-paciente"
                 >
                   Buscar paciente
                 </label>
                 <div className="logros2-patient-search__control">
                   <input
-                    id="logros2-busqueda-paciente"
-                    name="logros2-busqueda-paciente"
+                    id="logros3-busqueda-paciente"
+                    name="logros3-busqueda-paciente"
                     type="text"
                     className={`field__input logros2-patient-search__input${errors.docBusqueda ? " field__input--error" : ""}`}
                     value={busquedaTexto}
@@ -786,11 +856,11 @@ export default function EncuestaLogros2() {
                     aria-expanded={
                       mostrarSugerencias && busquedaCumpleMinimo
                     }
-                    aria-controls="logros2-sugerencias-lista"
+                    aria-controls="logros3-sugerencias-lista"
                   />
                   {mostrarSugerencias && busquedaCumpleMinimo ? (
                     <ul
-                      id="logros2-sugerencias-lista"
+                      id="logros3-sugerencias-lista"
                       className="logros2-patient-search__dropdown"
                       role="listbox"
                     >
@@ -807,15 +877,15 @@ export default function EncuestaLogros2() {
                           className="logros2-patient-search__hint"
                           role="presentation"
                         >
-                          No hay coincidencias con ese texto. Pruebe otras
-                          letras o más dígitos del documento, o use{" "}
-                          <strong>Cargar evaluación previa</strong> con la cédula
-                          completa (6–11 dígitos).
+                          No hay coincidencias de Logros 2 con ese texto. Pruebe
+                          otras letras o más dígitos, o use{" "}
+                          <strong>Cargar evaluación Logros 2</strong> con la
+                          cédula completa (6–11 dígitos).
                         </li>
                       ) : null}
                       {sugerencias.map((r) => (
                         <li
-                          key={`${String(r.documento ?? "")}-${String(r.created_at ?? "")}`}
+                          key={`${String(r.id ?? "")}-${String(r.documento ?? "")}-${String(r.created_at ?? "")}`}
                         >
                           <button
                             type="button"
@@ -843,7 +913,7 @@ export default function EncuestaLogros2() {
                   disabled={cargando}
                   onClick={buscarEncuestaBase}
                 >
-                  {cargando ? "Consultando…" : "Cargar evaluación previa"}
+                  {cargando ? "Consultando…" : "Cargar evaluación Logros 2"}
                 </Button>
               </div>
 
@@ -852,138 +922,164 @@ export default function EncuestaLogros2() {
                 loading={registrosExistentesLoading}
               />
 
-          {fase1 && slots.length > 0 ? (
-            <form onSubmit={onSubmit}>
-              <div className="logros2-chat" role="region" aria-label="Resumen clínico">
-                <p style={{ margin: "0 0 0.75rem" }}>
-                  En la <strong>evaluación por logros</strong> del{" "}
-                  <strong>{fechaEval || "—"}</strong>, la persona evaluada{" "}
-                  <strong>
-                    {fase1.nombres || ""} {fase1.apellidos || ""}
-                  </strong>{" "}
-                  reportó una percepción de limitación <strong>{limLabel}</strong> para
-                  desplazarse y desempeñar actividades como:{" "}
-                  <strong>{actLabel}</strong>.
-                </p>
-                <p style={{ margin: 0 }}>
-                  Con base en ello se priorizaron síntomas y se definieron objetivos
-                  terapéuticos. Registre, para cada ítem, la evolución clínica y el
-                  objetivo de seguimiento.
-                </p>
-                {String(fase1.objetivo_extra || "").trim() ? (
-                  <p style={{ margin: "0.75rem 0 0", fontSize: "0.96rem" }}>
-                    <strong>Meta complementaria consignada en aquella evaluación:</strong>{" "}
-                    {String(fase1.objetivo_extra).trim()}
+              {mostrandoSelector ? (
+                <div className="logros3-pick" role="region" aria-label="Elegir Logros 2">
+                  <p className="logros3-pick__title">
+                    Seleccione una encuesta de Logros 2 disponible (sin Logros 3 aún)
                   </p>
-                ) : null}
-                {String(fase1.adicional_no_puede || "").trim() ? (
-                  <p style={{ margin: "0.65rem 0 0", fontSize: "0.96rem" }}>
-                    <strong>Actividad adicional mencionada:</strong>{" "}
-                    {String(fase1.adicional_no_puede).trim()}
-                    {fase1.ultima_vez ? (
-                      <>
-                        {" "}
-                        <strong>Última vez que la realizó:</strong>{" "}
-                        {mapLastTimeLabel(fase1.ultima_vez)}.
-                      </>
-                    ) : null}{" "}
-                    {labelsQueImpide(fase1.que_impide) !== "—" ? (
-                      <>
-                        <strong>Factores que limitan:</strong>{" "}
-                        {labelsQueImpide(fase1.que_impide)}.
-                      </>
-                    ) : null}
-                  </p>
-                ) : null}
-              </div>
-
-              {slots.map((s) => {
-                const sintomaBase = mapSymptomLabel(s.sintoma);
-                const sintomaLabel =
-                  s.sintoma === "otro" && s.otroSintomaText
-                    ? `${sintomaBase}: ${s.otroSintomaText}`
-                    : sintomaBase;
-
-                return (
-                  <div className="logros2-slot" key={s.slot}>
-                    <p className="logros2-slot__title">
-                      Ítem {s.slot}: {sintomaLabel}
-                    </p>
-                    <p className="logros2-slot__prev">
-                      <strong>Objetivo acordado previamente:</strong>{" "}
-                      {s.objetivoPrevioLabel}
-                    </p>
-
-                    <p className="field__label" style={{ marginBottom: 6 }}>
-                      <strong>Evolución respecto a dicho objetivo</strong>{" "}
-                      <span className="field__req">*</span>
-                    </p>
-                    <div className="logros2-radio-row">
-                      {NIVEL_MEJORA.map((opt) => (
-                        <label key={opt.value}>
-                          <input
-                            type="radio"
-                            name={`nivel_${s.slot}`}
-                            value={opt.value}
-                            checked={
-                              respuestas[String(s.slot)]?.nivel === opt.value
-                            }
-                            onChange={() => setNivel(s, opt.value)}
-                          />
-                          {opt.label}
-                        </label>
-                      ))}
-                    </div>
-                    {errors[`nivel_${s.slot}`] ? (
-                      <p className="field__error">{errors[`nivel_${s.slot}`]}</p>
-                    ) : null}
-
-                    {s.inputMode === "select" ? (
-                      <SelectInput
-                        label="Objetivo de seguimiento o a establecer"
-                        name={`nuevo_${s.slot}`}
-                        value={respuestas[String(s.slot)]?.nuevo || ""}
-                        onChange={(e) => setNuevo(s.slot, e.target.value)}
-                        options={getOpcionesNuevoObjetivo(
-                          s.sintoma,
-                          s.objetivoPrevioKey,
-                        )}
-                        required
-                        error={errors[`nuevo_${s.slot}`]}
-                      />
-                    ) : (
-                      <TextField
-                        label="Objetivo de seguimiento o a establecer"
-                        name={`nuevo_${s.slot}`}
-                        value={respuestas[String(s.slot)]?.nuevo || ""}
-                        onChange={(e) => setNuevo(s.slot, e.target.value)}
-                        required
-                        placeholder="Describa el objetivo de seguimiento"
-                        error={errors[`nuevo_${s.slot}`]}
-                      />
-                    )}
+                  <ul className="logros3-pick__list">
+                    {candidatosL2.map((r) => {
+                      const idStr = String(r.id ?? "");
+                      return (
+                        <li key={idStr}>
+                          <label className="logros3-pick__option">
+                            <input
+                              type="radio"
+                              name="logros3_candidato_l2"
+                              value={idStr}
+                              checked={candidatoSeleccionadoId === idStr}
+                              onChange={() => setCandidatoSeleccionadoId(idStr)}
+                            />
+                            <span>{etiquetaLogros2Opcion(r)}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="encuesta-logros-actions encuesta-logros-actions--single" style={{ marginTop: "0.85rem" }}>
+                    <Button
+                      type="button"
+                      variant="emphasis"
+                      onClick={confirmarCandidatoL2}
+                    >
+                      Continuar con esta Logros 2
+                    </Button>
                   </div>
-                );
-              })}
+                </div>
+              ) : null}
 
-              <div className="encuesta-logros-actions">
-                <Button type="submit" variant="emphasis">
-                  Registrar evaluación de seguimiento
-                </Button>
-                <NavBackButton
-                  variant="icon-text"
-                  to={encuestasListPath}
-                  state={encuestasListState}
-                  ariaLabel="Volver a encuestas disponibles"
-                />
-              </div>
-            </form>
-          ) : fase1 && slots.length === 0 ? (
-            <p className="logros2-empty">
-              La evaluación previa no incluye síntomas priorizados susceptibles de
-              seguimiento en este formulario.
-            </p>
-          ) : null}
+              {logros2 && slots.length > 0 ? (
+                <form onSubmit={onSubmit}>
+                  <div className="logros3-chat" role="region" aria-label="Resumen Logros 2">
+                    <p style={{ margin: "0 0 0.75rem" }}>
+                      En la <strong>evaluación Logros 2</strong>
+                      {codigoL2 ? (
+                        <>
+                          {" "}
+                          (<strong>{codigoL2}</strong>)
+                        </>
+                      ) : null}{" "}
+                      del <strong>{fechaEval || "—"}</strong>, la persona
+                      evaluada{" "}
+                      <strong>
+                        {logros2.nombres || ""} {logros2.apellidos || ""}
+                      </strong>{" "}
+                      tenía registrada una percepción de limitación{" "}
+                      <strong>{limLabel}</strong> y actividades como:{" "}
+                      <strong>{actLabel}</strong>.
+                    </p>
+                    <p style={{ margin: 0 }}>
+                      Con base en los objetivos de seguimiento definidos en
+                      Logros 2, registre la evolución clínica y el nuevo objetivo
+                      de seguimiento (Logros 3).
+                    </p>
+                    {String(logros2.meta_complementaria_previa || "").trim() ? (
+                      <p style={{ margin: "0.75rem 0 0", fontSize: "0.96rem" }}>
+                        <strong>Meta complementaria previa:</strong>{" "}
+                        {String(logros2.meta_complementaria_previa).trim()}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {slots.map((s) => {
+                    const sintomaLabel =
+                      s.sintomaLabel ||
+                      (s.sintoma === "otro" && s.otroSintomaText
+                        ? `${mapSymptomLabel(s.sintoma)}: ${s.otroSintomaText}`
+                        : mapSymptomLabel(s.sintoma));
+
+                    return (
+                      <div className="logros2-slot" key={s.slot}>
+                        <p className="logros2-slot__title">
+                          Ítem {s.slot}: {sintomaLabel}
+                        </p>
+                        <p className="logros2-slot__prev">
+                          <strong>Objetivo acordado en Logros 2:</strong>{" "}
+                          {s.objetivoPrevioLabel}
+                        </p>
+
+                        <p className="field__label" style={{ marginBottom: 6 }}>
+                          <strong>Evolución respecto a dicho objetivo</strong>{" "}
+                          <span className="field__req">*</span>
+                        </p>
+                        <div className="logros2-radio-row">
+                          {NIVEL_MEJORA.map((opt) => (
+                            <label key={opt.value}>
+                              <input
+                                type="radio"
+                                name={`nivel_${s.slot}`}
+                                value={opt.value}
+                                checked={
+                                  respuestas[String(s.slot)]?.nivel === opt.value
+                                }
+                                onChange={() => setNivel(s, opt.value)}
+                              />
+                              {opt.label}
+                            </label>
+                          ))}
+                        </div>
+                        {errors[`nivel_${s.slot}`] ? (
+                          <p className="field__error">
+                            {errors[`nivel_${s.slot}`]}
+                          </p>
+                        ) : null}
+
+                        {s.inputMode === "select" ? (
+                          <SelectInput
+                            label="Objetivo de seguimiento o a establecer"
+                            name={`nuevo_${s.slot}`}
+                            value={respuestas[String(s.slot)]?.nuevo || ""}
+                            onChange={(e) => setNuevo(s.slot, e.target.value)}
+                            options={getOpcionesNuevoObjetivo(
+                              s.sintoma,
+                              s.objetivoPrevioKey,
+                            )}
+                            required
+                            error={errors[`nuevo_${s.slot}`]}
+                          />
+                        ) : (
+                          <TextField
+                            label="Objetivo de seguimiento o a establecer"
+                            name={`nuevo_${s.slot}`}
+                            value={respuestas[String(s.slot)]?.nuevo || ""}
+                            onChange={(e) => setNuevo(s.slot, e.target.value)}
+                            required
+                            placeholder="Describa el objetivo de seguimiento"
+                            error={errors[`nuevo_${s.slot}`]}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <div className="encuesta-logros-actions">
+                    <Button type="submit" variant="emphasis">
+                      Registrar evaluación Logros 3
+                    </Button>
+                    <NavBackButton
+                      variant="icon-text"
+                      to={encuestasListPath}
+                      state={encuestasListState}
+                      ariaLabel="Volver a encuestas disponibles"
+                    />
+                  </div>
+                </form>
+              ) : logros2 && slots.length === 0 ? (
+                <p className="logros2-empty">
+                  La evaluación Logros 2 seleccionada no incluye ítems
+                  susceptibles de seguimiento en este formulario.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

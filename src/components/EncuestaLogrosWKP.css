@@ -1,5 +1,9 @@
 /* Complementos solo para Logros 1 (tarjetas de objetivos). El shell vive en EncuestaLogrosLayout.css */
 
+.negritas {
+  font-weight: 600;
+}
+
 .encuesta-logros-hint {
   margin: 0.375rem 0 0 0;
   padding: 0.625rem 0.75rem;

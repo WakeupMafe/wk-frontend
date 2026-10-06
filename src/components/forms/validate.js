@@ -5,6 +5,7 @@ import {
   objetivoRequiereHoras,
   objetivoRequiereTextoObjetivo,
   textoObjetivoFormKey,
+  isObjetivoSoloLimitacionPoca,
 } from "../../data/encuestaLogrosCatalog";
 
 const PATOLOGIA_RELACIONADA_VALUES = new Set(
@@ -99,43 +100,7 @@ export function validateEncuestaLogros(form, objetivosAResponder) {
     if (!obj) {
       nextErrors[`obj_${problema}`] = "Seleccione un objetivo.";
     } else if (
-      problema === "dolor" &&
-      obj === "dolor_desaparece" &&
-      form.limitacionMoverse !== "poco"
-    ) {
-      nextErrors[`obj_${problema}`] =
-        "Esa opción solo aplica si la limitación para moverse es «Poco».";
-    } else if (
-      problema === "trastorno_trabajo" &&
-      obj === "trabajo_jornada_completa" &&
-      form.limitacionMoverse !== "poco"
-    ) {
-      nextErrors[`obj_${problema}`] =
-        "Esa opción solo aplica si la limitación para moverse es «Poco».";
-    } else if (
-      (problema === "escaleras" || problema === "levantarse_silla_cama") &&
-      obj === "sin_dificultad" &&
-      form.limitacionMoverse !== "poco"
-    ) {
-      nextErrors[`obj_${problema}`] =
-        "Esa opción solo aplica si la limitación para moverse es «Poco».";
-    } else if (
-      problema === "autocuidado" &&
-      obj === "independencia_total" &&
-      form.limitacionMoverse !== "poco"
-    ) {
-      nextErrors[`obj_${problema}`] =
-        "Esa opción solo aplica si la limitación para moverse es «Poco».";
-    } else if (
-      problema === "recoger_objetos" &&
-      obj === "varias_maneras_sin_dolor" &&
-      form.limitacionMoverse !== "poco"
-    ) {
-      nextErrors[`obj_${problema}`] =
-        "Esa opción solo aplica si la limitación para moverse es «Poco».";
-    } else if (
-      problema === "cargar_paquetes" &&
-      obj === "cualquier" &&
+      isObjetivoSoloLimitacionPoca(problema, obj) &&
       form.limitacionMoverse !== "poco"
     ) {
       nextErrors[`obj_${problema}`] =

@@ -2,6 +2,7 @@ import {
   OBJETIVOS,
   parseObjetivoValue,
   formatObjetivoLabel,
+  filterOpcionesPorLimitacion,
 } from "../../data/encuestaLogrosCatalog";
 import { mapGoalLabel } from "./logros2Formatters";
 
@@ -51,7 +52,9 @@ const CUMPLIMIENTO = {
 
 /**
  * Opciones del desplegable «Objetivo de seguimiento o a establecer»:
- * catálogo Logros 1 + cumplimiento; incluye el objetivo previo si no estaba en la lista.
+ * catálogo Logros 1 completo + extras + cumplimiento.
+ * Intencional: `allowFullSet` — no aplica el filtro Logros 1 de limitación «poco»
+ * (p. ej. `trabajo_jornada_completa` siempre disponible en encuesta 2).
  * @param {string} sintomaKey
  * @param {string} [objetivoPrevioKey]
  */
@@ -73,10 +76,17 @@ export function getOpcionesNuevoObjetivo(sintomaKey, objetivoPrevioKey) {
     }
     return base;
   }
-  const opts = (OBJETIVOS[sintomaKey]?.opciones || []).map(({ value, label }) => ({
-    value,
-    label,
-  }));
+  const catalogOpts = (OBJETIVOS[sintomaKey]?.opciones || []).map(
+    ({ value, label }) => ({
+      value,
+      label,
+    }),
+  );
+  // Encuesta 2: set completo (incl. trabajo_jornada_completa y demás gated en L1).
+  const opts = filterOpcionesPorLimitacion(sintomaKey, catalogOpts, {
+    allowFullSet: true,
+    isLogros2: true,
+  });
   const extras = (LOGROS2_OBJETIVOS_EXTRA[sintomaKey] || []).map(
     ({ value, label }) => ({ value, label }),
   );

@@ -41,6 +41,8 @@ import {
   objetivoRequiereTextoObjetivo,
   textoObjetivoFormKey,
   composeObjetivoPersistido,
+  filterOpcionesPorLimitacion,
+  clearObjetivosSoloLimitacionPoca,
 } from "../data/encuestaLogrosCatalog";
 
 import { ENUNCIADOS_OBJETIVOS } from "../data/encuestaLogrosEnunciados";
@@ -333,29 +335,7 @@ export default function EncuestaLogrosWKP() {
       setForm((prev) => {
         const next = { ...prev, limitacionMoverse: value };
         if (value !== "poco") {
-          const nextObjetivos = { ...prev.objetivos };
-          if (nextObjetivos.dolor === "dolor_desaparece") {
-            nextObjetivos.dolor = "";
-          }
-          if (nextObjetivos.trastorno_trabajo === "trabajo_jornada_completa") {
-            nextObjetivos.trastorno_trabajo = "";
-          }
-          if (nextObjetivos.escaleras === "sin_dificultad") {
-            nextObjetivos.escaleras = "";
-          }
-          if (nextObjetivos.levantarse_silla_cama === "sin_dificultad") {
-            nextObjetivos.levantarse_silla_cama = "";
-          }
-          if (nextObjetivos.autocuidado === "independencia_total") {
-            nextObjetivos.autocuidado = "";
-          }
-          if (nextObjetivos.recoger_objetos === "varias_maneras_sin_dolor") {
-            nextObjetivos.recoger_objetos = "";
-          }
-          if (nextObjetivos.cargar_paquetes === "cualquier") {
-            nextObjetivos.cargar_paquetes = "";
-          }
-          next.objetivos = nextObjetivos;
+          next.objetivos = clearObjetivosSoloLimitacionPoca(prev.objetivos);
         }
         return next;
       });
@@ -1016,7 +996,14 @@ export default function EncuestaLogrosWKP() {
           onToggle={togglePatologiaTop}
           error={errors.patologiasTop}
           rankLabels={PATOLOGIA_RANK_LABELS}
-          note="Elija 1 a 3 zonas. El orden de selección define: 1. Prioritaria, 2. Secundaria, 3. Terciaria. Si tiene más de 3 molestias, elija solo las tres más importantes."
+          note={
+            <>
+              <span className="negritas">Seleccione de 1 a 3 zonas.</span> El
+              orden de selección indica la prioridad: 1.ª Prioritaria, 2.ª
+              Secundaria y 3.ª Terciaria. Si hay más de 3 molestias, elija solo
+              las tres más importantes.
+            </>
+          }
         />
 
         {form.patologiasTop.includes("otro") && (
@@ -1101,51 +1088,11 @@ export default function EncuestaLogrosWKP() {
 
             if (!meta) return null;
 
-            let opciones = meta.opciones;
-            if (problema === "dolor") {
-              opciones =
-                form.limitacionMoverse === "poco"
-                  ? meta.opciones
-                  : meta.opciones.filter(
-                      (o) => o.value !== "dolor_desaparece",
-                    );
-            } else if (problema === "trastorno_trabajo") {
-              opciones =
-                form.limitacionMoverse === "poco"
-                  ? meta.opciones
-                  : meta.opciones.filter(
-                      (o) => o.value !== "trabajo_jornada_completa",
-                    );
-            } else if (problema === "escaleras") {
-              opciones =
-                form.limitacionMoverse === "poco"
-                  ? meta.opciones
-                  : meta.opciones.filter((o) => o.value !== "sin_dificultad");
-            } else if (problema === "levantarse_silla_cama") {
-              opciones =
-                form.limitacionMoverse === "poco"
-                  ? meta.opciones
-                  : meta.opciones.filter((o) => o.value !== "sin_dificultad");
-            } else if (problema === "autocuidado") {
-              opciones =
-                form.limitacionMoverse === "poco"
-                  ? meta.opciones
-                  : meta.opciones.filter(
-                      (o) => o.value !== "independencia_total",
-                    );
-            } else if (problema === "recoger_objetos") {
-              opciones =
-                form.limitacionMoverse === "poco"
-                  ? meta.opciones
-                  : meta.opciones.filter(
-                      (o) => o.value !== "varias_maneras_sin_dolor",
-                    );
-            } else if (problema === "cargar_paquetes") {
-              opciones =
-                form.limitacionMoverse === "poco"
-                  ? meta.opciones
-                  : meta.opciones.filter((o) => o.value !== "cualquier");
-            }
+            const opciones = filterOpcionesPorLimitacion(
+              problema,
+              meta.opciones,
+              { limitacionMoverse: form.limitacionMoverse },
+            );
 
             const objVal = form.objetivos[problema] || "";
             const needsMinutos = objetivoRequiereMinutos(problema, objVal);

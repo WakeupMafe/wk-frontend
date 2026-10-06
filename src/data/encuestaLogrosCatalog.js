@@ -504,6 +504,59 @@ export const OBJETIVOS = {
   },
 };
 
+/**
+ * Objetivos ambiciosos: en Logros 1 solo si `limitacionMoverse === "poco"`.
+ * En Logros 2 / encuesta 2 (`allowFullSet` / `isLogros2`) siempre disponibles.
+ * Incluye `trabajo_jornada_completa` (excepción encuesta 2).
+ */
+export const OBJETIVOS_SOLO_LIMITACION_POCA = {
+  dolor: "dolor_desaparece",
+  trastorno_trabajo: "trabajo_jornada_completa",
+  escaleras: "sin_dificultad",
+  levantarse_silla_cama: "sin_dificultad",
+  autocuidado: "independencia_total",
+  recoger_objetos: "varias_maneras_sin_dolor",
+  cargar_paquetes: "cualquier",
+};
+
+/**
+ * @param {string} problema
+ * @param {string} objetivoValue
+ */
+export function isObjetivoSoloLimitacionPoca(problema, objetivoValue) {
+  return OBJETIVOS_SOLO_LIMITACION_POCA[problema] === objetivoValue;
+}
+
+/**
+ * Filtra opciones «solo con limitación poca» en Logros 1.
+ * Con `allowFullSet` / `isLogros2` no filtra (Logros 2 / encuesta 2).
+ *
+ * @param {string} problema
+ * @param {Array<{ value: string, label: string }>} opciones
+ * @param {{ limitacionMoverse?: string, allowFullSet?: boolean, isLogros2?: boolean }} [opts]
+ */
+export function filterOpcionesPorLimitacion(problema, opciones, opts = {}) {
+  const allowFullSet = Boolean(opts.allowFullSet || opts.isLogros2);
+  if (allowFullSet || opts.limitacionMoverse === "poco") {
+    return opciones;
+  }
+  const gated = OBJETIVOS_SOLO_LIMITACION_POCA[problema];
+  if (!gated) return opciones;
+  return opciones.filter((o) => o.value !== gated);
+}
+
+/**
+ * Limpia objetivos gated si la limitación deja de ser «poco» (Logros 1).
+ * @param {Record<string, string>} objetivos
+ */
+export function clearObjetivosSoloLimitacionPoca(objetivos) {
+  const next = { ...objetivos };
+  for (const [problema, value] of Object.entries(OBJETIVOS_SOLO_LIMITACION_POCA)) {
+    if (next[problema] === value) next[problema] = "";
+  }
+  return next;
+}
+
 /** Minutos para objetivos con selector flexible (de pie, sentado, trabajo). */
 export const MINUTOS_OBJETIVO_OPTIONS = [
   { value: "5", label: "5 minutos" },
@@ -513,17 +566,28 @@ export const MINUTOS_OBJETIVO_OPTIONS = [
   { value: "60", label: "1 hora o más" },
 ];
 
-/** Horas para objetivo sentado AVD/laborales. */
+/** Periodos de horas para objetivo sentado AVD/laborales (30 min–8 h+). */
 export const HORAS_OBJETIVO_OPTIONS = [
-  { value: "1", label: "1 hora" },
-  { value: "2", label: "2 horas" },
-  { value: "3", label: "3 horas" },
-  { value: "4", label: "4 horas" },
-  { value: "5", label: "5 horas" },
-  { value: "6", label: "6 horas" },
-  { value: "7", label: "7 horas" },
-  { value: "8", label: "8 horas o más" },
+  { value: "30m1h", label: "De 30 minutos a 1 hora" },
+  { value: "1a3", label: "De 1 a 3 horas" },
+  { value: "3a5", label: "De 3 a 5 horas" },
+  { value: "5a8", label: "De 5 a 8 horas" },
+  { value: "8", label: "Más de 8 horas" },
 ];
+
+/**
+ * Etiquetas de horas unitarias previas (persistidas como `@h1`…`@h7`).
+ * El valor `8` se reutiliza en el catálogo actual (“Más de 8 horas”).
+ */
+export const LEGACY_HORAS_LABELS = {
+  1: "1 hora",
+  2: "2 horas",
+  3: "3 horas",
+  4: "4 horas",
+  5: "5 horas",
+  6: "6 horas",
+  7: "7 horas",
+};
 
 /**
  * Etiquetas históricas de problemas (lectura de registros antiguos).
@@ -671,7 +735,7 @@ export function composeObjetivoValue(base, minutos = "") {
 }
 
 /**
- * Persiste horas en objetivo_i: `sentado_avd@h3`
+ * Persiste horas en objetivo_i: `sentado_avd@h1a3`, `sentado_avd@h30m1h`
  * @param {string} base
  * @param {string} [horas]
  */
@@ -749,7 +813,8 @@ export function parseObjetivoValue(raw) {
   if (at > 0) {
     const value = core.slice(0, at);
     const suffix = core.slice(at + 1);
-    if (suffix.startsWith("h") && /^\d+$/.test(suffix.slice(1))) {
+    // Horas: `@h1`, `@h8`, `@h1a3`, `@h30m1h` (clave tras la `h` inicial).
+    if (suffix.startsWith("h") && /^[A-Za-z0-9_]+$/.test(suffix.slice(1))) {
       return { value, minutos: "", horas: suffix.slice(1), detalle };
     }
     if (/^\d+$/.test(suffix)) {
@@ -781,7 +846,7 @@ export function formatObjetivoLabel(sintomaKey, objetivoRaw, detalleText = "") {
   }
   if (horas) {
     const hOpt = HORAS_OBJETIVO_OPTIONS.find((o) => o.value === horas);
-    label = `${label} (${hOpt?.label || `${horas} horas`})`;
+    label = `${label} (${hOpt?.label || LEGACY_HORAS_LABELS[horas] || `${horas} horas`})`;
   }
   const extra = String(detalleText || detalle || "").trim();
   if (extra) {

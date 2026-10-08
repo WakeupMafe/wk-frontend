@@ -42,6 +42,45 @@ export function validateDocumentoPorTipo(tipo, doc) {
   return null;
 }
 
+/**
+ * Textos libres de «Otro» (problema y/o zona) que ya tienen contenido.
+ * Cada uno exige su objetivo.
+ * @returns {{ id: "problema" | "zona", field: "objetivoExtra" | "objetivoZona", texto: string }[]}
+ */
+export function mencionesOtroConObjetivo(form) {
+  const out = [];
+  const zonas = Array.isArray(form?.patologiasTop) ? form.patologiasTop : [];
+  const problemas = Array.isArray(form?.problemasTop) ? form.problemasTop : [];
+
+  if (problemas.includes("otro")) {
+    const texto = String(form?.otroProblema || "").trim();
+    if (texto) out.push({ id: "problema", field: "objetivoExtra", texto });
+  }
+
+  if (zonas.includes("otro")) {
+    const texto = String(form?.otraPatologia || "").trim();
+    if (texto) out.push({ id: "zona", field: "objetivoZona", texto });
+  }
+
+  return out;
+}
+
+/** @param {string} texto */
+export function promptObjetivoMencion(texto) {
+  return `Mencionaste que ${String(texto || "").trim()}, ¿qué objetivo vamos a plantear?`;
+}
+
+/**
+ * Une los objetivos libres de cada «Otro» escrito (problema y/o zona).
+ * @returns {string | null}
+ */
+export function composeObjetivoExtra(form) {
+  const partes = mencionesOtroConObjetivo(form)
+    .map((m) => String(form?.[m.field] || "").trim())
+    .filter(Boolean);
+  return partes.length ? partes.join("\n") : null;
+}
+
 export function validateEncuestaLogros(form, objetivosAResponder) {
   const nextErrors = {};
 
@@ -125,6 +164,12 @@ export function validateEncuestaLogros(form, objetivosAResponder) {
               ? "Indique en qué actividad necesita esa ayuda."
               : "Indique el tipo de actividades.";
       }
+    }
+  }
+
+  for (const mencion of mencionesOtroConObjetivo(form)) {
+    if (!String(form[mencion.field] || "").trim()) {
+      nextErrors[mencion.field] = "Indique el objetivo para lo que escribió en Otro.";
     }
   }
 

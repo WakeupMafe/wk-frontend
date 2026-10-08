@@ -46,7 +46,12 @@ import {
 } from "../data/encuestaLogrosCatalog";
 
 import { ENUNCIADOS_OBJETIVOS } from "../data/encuestaLogrosEnunciados";
-import { validateEncuestaLogros } from "../components/forms/validate";
+import {
+  composeObjetivoExtra,
+  mencionesOtroConObjetivo,
+  promptObjetivoMencion,
+  validateEncuestaLogros,
+} from "../components/forms/validate";
 
 import { apiUrl } from "../lib/api/baseUrl";
 import {
@@ -323,6 +328,11 @@ export default function EncuestaLogrosWKP() {
     [problemasSeleccionados],
   );
 
+  const mencionesOtro = useMemo(
+    () => mencionesOtroConObjetivo(form),
+    [form],
+  );
+
   const showQ24Q25 = form.adicionalNoPuede.trim().length > 0;
 
   const setValue = (name, value) => {
@@ -432,7 +442,7 @@ export default function EncuestaLogrosWKP() {
           objetivosMinutos: nextMinutos,
           objetivosHoras: nextHoras,
           textos: nextTextos,
-          ...(value === "otro" ? { otroProblema: "" } : {}),
+          ...(value === "otro" ? { otroProblema: "", objetivoExtra: "" } : {}),
         };
       }
 
@@ -454,7 +464,7 @@ export default function EncuestaLogrosWKP() {
         return {
           ...prev,
           patologiasTop: arr.filter((x) => x !== value),
-          ...(value === "otro" ? { otraPatologia: "" } : {}),
+          ...(value === "otro" ? { otraPatologia: "", objetivoZona: "" } : {}),
         };
       }
 
@@ -738,7 +748,7 @@ export default function EncuestaLogrosWKP() {
       otroSintoma: form.otroProblema,
       objetivos: objetivosPayload,
       textos: textosPayload,
-      objetivoExtra: form.objetivoExtra || null,
+      objetivoExtra: composeObjetivoExtra(form),
       adicionalNoPuede: form.adicionalNoPuede || null,
       ultimaVez: form.ultimaVez || null,
       queImpide: form.queImpide,
@@ -1077,12 +1087,16 @@ export default function EncuestaLogrosWKP() {
 
                 <h3 className="encuesta-logros-seccion">Sección 3: Objetivos</h3>
 
-        {objetivosAResponder.length === 0 ? (
+        {objetivosAResponder.length === 0 && mencionesOtro.length === 0 ? (
           <p className="encuesta-logros-textos" style={{ opacity: 0.85 }}>
-            Seleccione al menos un problema para habilitar esta sección.
+            {form.problemasTop.includes("otro") ||
+            form.patologiasTop.includes("otro")
+              ? "Escriba el detalle de «Otro» para plantear el objetivo."
+              : "Seleccione al menos un problema para habilitar esta sección."}
           </p>
         ) : (
-          objetivosAResponder.map((problema) => {
+          <>
+          {objetivosAResponder.map((problema) => {
             const meta = OBJETIVOS[problema];
             const enunciado = ENUNCIADOS_OBJETIVOS[problema];
 
@@ -1176,20 +1190,31 @@ export default function EncuestaLogrosWKP() {
                 </div>
               </div>
             );
-          })
+          })}
+          {mencionesOtro.map((mencion) => (
+            <div className="objetivo-card" key={`otro_obj_${mencion.id}`}>
+              <p className="objetivo-card__title">
+                {promptObjetivoMencion(mencion.texto)}
+              </p>
+              <div className="objetivo-card__content">
+                <TextField
+                  label="Objetivo"
+                  name={mencion.field}
+                  value={form[mencion.field] || ""}
+                  onChange={onChange}
+                  required
+                  error={errors[mencion.field]}
+                  placeholder="Escriba el objetivo"
+                />
+              </div>
+            </div>
+          ))}
+          </>
         )}
 
                 <h3 className="encuesta-logros-seccion">
                   Sección 4: Preguntas finales
                 </h3>
-
-        <TextField
-          label="Si su problema o síntoma no estaba en la lista y marcó otro, agregue el objetivo o meta que quiere conseguir"
-          name="objetivoExtra"
-          value={form.objetivoExtra}
-          onChange={onChange}
-          placeholder="Escriba el objetivo adicional (opcional)"
-        />
 
         <TextField
           label="¿Hay algo adicional que ahora no puede hacer, pero que le gustaría volverlo a intentar?"

@@ -257,7 +257,7 @@ export const OBJETIVOS = {
       {
         value: "ejercicio_leve_sudor",
         label:
-          "Que pueda hacer ejercicio de leve intensidad pero que me hace sudar y me agita un poco",
+          "Que pueda hacer ejercicio de leve intensidad pero que me hace sudar y me agite un poco",
         requiereTextoObjetivo: true,
       },
       {
@@ -888,6 +888,8 @@ export const INITIAL_FORM = {
   /** Aclaraciones Q8 y textos abiertos de objetivos (Sección 3). */
   textos: {},
   objetivoExtra: "",
+  /** Objetivo libre cuando la zona «Otro» tiene texto propio. */
+  objetivoZona: "",
   adicionalNoPuede: "",
   ultimaVez: "",
   queImpide: [],

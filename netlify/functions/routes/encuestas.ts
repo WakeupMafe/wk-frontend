@@ -719,7 +719,18 @@ async function crearEncuesta(
 
   const objetivos = (data.objetivos as Record<string, string>) || {};
   const objetivosKeys = Object.keys(objetivos);
-  validarMinMax(objetivosKeys, "Objetivos", 1, 3);
+  const extra = String(data.objetivoExtra ?? "").trim();
+  const otraZona = String(data.otraPatologia ?? "").trim();
+  const sintomasCatalogo = sintomasTop.filter((s) => s !== "otro");
+  if (sintomasCatalogo.length > 0) {
+    validarMinMax(objetivosKeys, "Objetivos", 1, 3);
+  } else if (!extra) {
+    return jsonResponse(
+      400,
+      errBody("Debe indicar el objetivo para lo que escribió en «Otro»."),
+      origin,
+    );
+  }
 
   const sintomasSet = new Set(sintomasTop);
   for (const s of objetivosKeys) {
@@ -743,6 +754,21 @@ async function crearEncuesta(
         origin,
       );
     }
+    if (!extra) {
+      return jsonResponse(
+        400,
+        errBody("Debe indicar el objetivo para el problema «Otro»."),
+        origin,
+      );
+    }
+  }
+
+  if (otraZona && !extra) {
+    return jsonResponse(
+      400,
+      errBody("Debe indicar el objetivo para la zona «Otro»."),
+      origin,
+    );
   }
 
   const patologiaRel = serializePatologiaRelacionada(
@@ -788,7 +814,7 @@ async function crearEncuesta(
   const objetivosSeleccionados = objetivosOrdenados.filter(
     (o): o is string => o != null && String(o).trim() !== "",
   ).length;
-  if (objetivosSeleccionados < 1) {
+  if (objetivosSeleccionados < 1 && !extra) {
     return jsonResponse(
       400,
       errBody("Debe seleccionar mínimo 1 objetivo."),

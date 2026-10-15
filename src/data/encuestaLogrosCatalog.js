@@ -396,11 +396,6 @@ export const OBJETIVOS = {
         requiereTextoObjetivo: true,
       },
       {
-        value: "zapatos_medias",
-        label:
-          "Que pueda realizarlas, pero aún con ayuda para amarrarme los zapatos o ponerme las medias",
-      },
-      {
         value: "independencia_total",
         label: "Poder bañarme y vestirme con independencia total",
       },

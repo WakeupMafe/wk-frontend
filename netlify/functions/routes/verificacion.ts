@@ -9,6 +9,26 @@ function onlyDigits(s: string): string {
   return (s || "").replace(/\D+/g, "").trim();
 }
 
+/**
+ * Documento de paciente (cédula numérica o pasaporte/registro civil alfanumérico).
+ * No usar para cédula de autorizado / login.
+ */
+function limpiarDocumentoPacienteLookup(raw: string): string {
+  const s = (raw || "").trim();
+  if (!s) return "";
+  if (/[A-Za-z]/.test(s) || (s.includes("-") && /[A-Za-z0-9]/.test(s))) {
+    return s.replace(/[^A-Za-z0-9\-]/g, "").toUpperCase();
+  }
+  return onlyDigits(s);
+}
+
+function docsPacienteIguales(a: unknown, b: unknown): boolean {
+  return (
+    limpiarDocumentoPacienteLookup(String(a ?? "")) ===
+    limpiarDocumentoPacienteLookup(String(b ?? ""))
+  );
+}
+
 function cleanStr(s: string | undefined | null): string {
   return (s || "").trim();
 }
@@ -118,7 +138,9 @@ async function logros1TieneSeguimiento2Dependiente(
   l1IdInt: number,
 ): Promise<boolean> {
   const f1At = fase1CreatedAt != null ? String(fase1CreatedAt).trim() : "";
-  const docExpectedDigits = onlyDigits(String(documentoPacienteStr));
+  const docExpectedNorm = limpiarDocumentoPacienteLookup(
+    String(documentoPacienteStr),
+  );
 
   const fetchL2 = async (docVal: number | string) =>
     supabase
@@ -126,8 +148,20 @@ async function logros1TieneSeguimiento2Dependiente(
       .select("id, deleted_at, payload_origen")
       .eq("documento", docVal);
 
-  let l2 = await fetchL2(documentoPacienteInt);
-  if (l2.error || !l2.data?.length) {
+  let l2 =
+    documentoPacienteInt > 0
+      ? await fetchL2(documentoPacienteInt)
+      : await fetchL2(documentoPacienteStr);
+  if (
+    (l2.error || !l2.data?.length) &&
+    documentoPacienteInt > 0 &&
+    String(documentoPacienteStr) !== String(documentoPacienteInt)
+  ) {
+    const l2s = await fetchL2(documentoPacienteStr);
+    if (!l2s.error && l2s.data?.length) {
+      l2 = l2s;
+    }
+  } else if (l2.error || !l2.data?.length) {
     const l2s = await fetchL2(documentoPacienteStr);
     if (!l2s.error && l2s.data?.length) {
       l2 = l2s;
@@ -150,11 +184,10 @@ async function logros1TieneSeguimiento2Dependiente(
         // Referencia explícita a otra fila L1: no usar created_at como señal.
         continue;
       }
-      const refDocDigits = onlyDigits(String(ref.documento ?? ""));
-      if (
-        refDocDigits &&
-        refDocDigits !== docExpectedDigits
-      ) {
+      const refDocNorm = limpiarDocumentoPacienteLookup(
+        String(ref.documento ?? ""),
+      );
+      if (refDocNorm && refDocNorm !== docExpectedNorm) {
         continue;
       }
       if (f1At && sameInstantIso(ref.created_at, f1At)) {
@@ -617,7 +650,9 @@ export async function handleVerificacion(
         documento?: string;
         delete_spec?: Record<string, unknown>;
       } | null;
-      const docExpected = onlyDigits(String(payload?.documento ?? ""));
+      const docExpected = limpiarDocumentoPacienteLookup(
+        String(payload?.documento ?? ""),
+      );
       if (!docExpected) {
         return jsonResponse(400, errBody("Documento requerido"), origin);
       }
@@ -649,8 +684,7 @@ export async function handleVerificacion(
         if (!sel.data) {
           return jsonResponse(404, errBody("Registro no encontrado"), origin);
         }
-        const docRow = onlyDigits(String(sel.data.documento ?? ""));
-        if (docRow !== docExpected) {
+        if (!docsPacienteIguales(sel.data.documento, docExpected)) {
           return jsonResponse(
             403,
             errBody("El registro no corresponde al documento indicado."),
@@ -658,17 +692,14 @@ export async function handleVerificacion(
           );
         }
 
-        const docInt = parseInt(docExpected, 10);
-        const bloqueado =
-          Number.isFinite(docInt) &&
-          docInt > 0 &&
-          (await logros1TieneSeguimiento2Dependiente(
-            supabase,
-            docInt,
-            docExpected,
-            sel.data.created_at,
-            idInt,
-          ));
+        const docInt = parseInt(onlyDigits(docExpected), 10);
+        const bloqueado = await logros1TieneSeguimiento2Dependiente(
+          supabase,
+          Number.isFinite(docInt) && docInt > 0 ? docInt : 0,
+          docExpected,
+          sel.data.created_at,
+          idInt,
+        );
         if (bloqueado) {
           return jsonResponse(
             409,
@@ -730,8 +761,7 @@ export async function handleVerificacion(
           if (!sel.data) {
             return jsonResponse(404, errBody("Registro no encontrado"), origin);
           }
-          const docRow = onlyDigits(String(sel.data.documento ?? ""));
-          if (docRow !== docExpected) {
+          if (!docsPacienteIguales(sel.data.documento, docExpected)) {
             return jsonResponse(
               403,
               errBody("El registro no corresponde al documento indicado."),
@@ -776,8 +806,7 @@ export async function handleVerificacion(
           if (!sel.data) {
             return jsonResponse(404, errBody("Registro no encontrado"), origin);
           }
-          const docRow = onlyDigits(String(sel.data.documento ?? ""));
-          if (docRow !== docExpected) {
+          if (!docsPacienteIguales(sel.data.documento, docExpected)) {
             return jsonResponse(
               403,
               errBody("El registro no corresponde al documento indicado."),
@@ -821,8 +850,7 @@ export async function handleVerificacion(
         if (!sel.data) {
           return jsonResponse(404, errBody("Registro no encontrado"), origin);
         }
-        const docRow = onlyDigits(String(sel.data.documento ?? ""));
-        if (docRow !== docExpected) {
+        if (!docsPacienteIguales(sel.data.documento, docExpected)) {
           return jsonResponse(
             403,
             errBody("El registro no corresponde al documento indicado."),
@@ -858,12 +886,13 @@ export async function handleVerificacion(
       } catch {
         /* mantener raw si % mal formado */
       }
-      const cedulaStr = onlyDigits(rawCed);
+      const cedulaStr = limpiarDocumentoPacienteLookup(rawCed);
       if (!cedulaStr) {
         return jsonResponse(400, errBody("Documento inválido"), origin);
       }
 
-      const cedulaInt = toIntOr400(cedulaStr, "Documento");
+      const digitsOnly = onlyDigits(cedulaStr);
+      const cedulaInt = digitsOnly ? parseInt(digitsOnly, 10) : NaN;
       const supabase = getSupabase();
 
       const l1Select = `
@@ -905,6 +934,9 @@ export async function handleVerificacion(
           .order("created_at", { ascending: true });
 
         if (l1TryString.error) {
+          if (!Number.isFinite(cedulaInt)) {
+            return { ok: false, message: l1TryString.error.message };
+          }
           const l1TryInt = await supabase
             .from("wakeup_seguimientos")
             .select(l1Select)
@@ -950,38 +982,46 @@ export async function handleVerificacion(
             respuestas
           `;
 
-      const docIsNumeric = cedulaStr === String(cedulaInt);
+      const docIsNumeric =
+        Number.isFinite(cedulaInt) && cedulaStr === String(cedulaInt);
 
       /** Búsqueda por JSONB `contains` puede ser muy lenta sin índice GIN; acotamos tiempo y filas. */
       const payloadOrigenTimeoutMs = 12_000;
       const queryL2ByPayloadOrigen = async (): Promise<
         Record<string, unknown>[]
       > => {
-        let q = supabase
-          .from("wakeup_seguimiento2")
-          .select(l2Select)
-          .contains("payload_origen", {
-            fase1_referencia: { documento: cedulaInt },
-          })
-          .order("created_at", { ascending: true })
-          .limit(100);
-        if (
-          typeof AbortSignal !== "undefined" &&
-          typeof AbortSignal.timeout === "function"
-        ) {
-          q = q.abortSignal(AbortSignal.timeout(payloadOrigenTimeoutMs));
-        }
-        const res = await q;
-        if (res.error) {
-          if (res.error.code !== "42P01" && res.error.name !== "AbortError") {
-            console.warn(
-              "[verificacion/registros] payload_origen contains:",
-              res.error.message,
-            );
+        const docKeys: Array<string | number> = [cedulaStr];
+        if (docIsNumeric) docKeys.unshift(cedulaInt);
+
+        for (const docKey of docKeys) {
+          let q = supabase
+            .from("wakeup_seguimiento2")
+            .select(l2Select)
+            .contains("payload_origen", {
+              fase1_referencia: { documento: docKey },
+            })
+            .order("created_at", { ascending: true })
+            .limit(100);
+          if (
+            typeof AbortSignal !== "undefined" &&
+            typeof AbortSignal.timeout === "function"
+          ) {
+            q = q.abortSignal(AbortSignal.timeout(payloadOrigenTimeoutMs));
           }
-          return [];
+          const res = await q;
+          if (res.error) {
+            if (res.error.code !== "42P01" && res.error.name !== "AbortError") {
+              console.warn(
+                "[verificacion/registros] payload_origen contains:",
+                res.error.message,
+              );
+            }
+            continue;
+          }
+          const rows = (res.data || []) as Record<string, unknown>[];
+          if (rows.length) return rows;
         }
-        return (res.data || []) as Record<string, unknown>[];
+        return [];
       };
 
       const loadL2ModernRows = async (): Promise<
@@ -1412,16 +1452,14 @@ export async function handleVerificacion(
     const logrosMatch = path.match(/^\/verificacion\/logros-fase1\/(.+)$/);
     if (logrosMatch && method === "GET") {
       const rawCed = decodeURIComponent(logrosMatch[1] || "");
-      const cedulaStr = onlyDigits(rawCed);
+      const cedulaStr = limpiarDocumentoPacienteLookup(rawCed);
       if (!cedulaStr) {
-        return jsonResponse(400, errBody("Cédula inválida"), origin);
+        return jsonResponse(400, errBody("Documento inválido"), origin);
       }
-      const cedulaInt = toIntOr400(cedulaStr);
       const supabase = getSupabase();
       const createdAtQ = (query?.created_at ?? query?.createdAt ?? "").trim();
 
-      let qb = supabase.from("wakeup_seguimientos").select(
-        `
+      const selectCols = `
                 created_at,
                 nombres,
                 apellidos,
@@ -1445,16 +1483,37 @@ export async function handleVerificacion(
                 id_int,
                 sede,
                 encuestador
-            `,
-      );
-      qb = qb.eq("documento", cedulaInt);
+            `;
+
+      let qb = supabase.from("wakeup_seguimientos").select(selectCols);
+      qb = qb.eq("documento", cedulaStr);
       if (createdAtQ) {
         qb = qb.eq("created_at", createdAtQ);
       } else {
         qb = qb.order("created_at", { ascending: false }).limit(1);
       }
 
-      const resp = await qb.maybeSingle();
+      let resp = await qb.maybeSingle();
+
+      // Compatibilidad residual: filas numéricas antiguas (si la columna aún admite int).
+      if ((resp.error || !resp.data) && /^\d+$/.test(cedulaStr)) {
+        const asInt = parseInt(cedulaStr, 10);
+        if (Number.isFinite(asInt)) {
+          let qbInt = supabase.from("wakeup_seguimientos").select(selectCols);
+          qbInt = qbInt.eq("documento", asInt);
+          if (createdAtQ) {
+            qbInt = qbInt.eq("created_at", createdAtQ);
+          } else {
+            qbInt = qbInt.order("created_at", { ascending: false }).limit(1);
+          }
+          const retry = await qbInt.maybeSingle();
+          if (!retry.error && retry.data) {
+            resp = retry;
+          } else if (resp.error && retry.error) {
+            resp = retry;
+          }
+        }
+      }
 
       if (resp.error) {
         return jsonResponse(
@@ -1473,8 +1532,8 @@ export async function handleVerificacion(
           404,
           errBody(
             createdAtQ
-              ? "No se encontró una evaluación Logros Fase 1 con esta cédula y la fecha indicada. Verifique la selección en el listado."
-              : "No se encontró encuesta de Logros Fase 1 para esta cédula",
+              ? "No se encontró una evaluación Logros Fase 1 con este documento y la fecha indicada. Verifique la selección en el listado."
+              : "No se encontró encuesta de Logros Fase 1 para este documento",
           ),
           origin,
         );

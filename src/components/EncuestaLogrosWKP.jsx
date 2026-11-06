@@ -598,7 +598,7 @@ export default function EncuestaLogrosWKP() {
         fetch(
           `${apiUrl(`/encuestas/exists/${encodeURIComponent(documento)}`)}?tipo_documento=${tipoQ}`,
         ),
-        fetchRegistrosPorDocumento(documento),
+        fetchRegistrosPorDocumento(documento, tipoDocumento),
       ]);
       checkJson = await check.json().catch(() => ({}));
       const registrosResult = registrosFetched;
@@ -753,30 +753,6 @@ export default function EncuestaLogrosWKP() {
       ultimaVez: form.ultimaVez || null,
       queImpide: form.queImpide,
     };
-
-    // #region agent log
-    fetch("http://127.0.0.1:7824/ingest/0b4a9a59-f4c8-4fc1-bc15-332e88853d32", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "1643f0",
-      },
-      body: JSON.stringify({
-        sessionId: "1643f0",
-        location: "EncuestaLogrosWKP.jsx:submit",
-        message: "frontend payload summary",
-        data: {
-          payloadKeys: Object.keys(payload),
-          sintomasTop: payload.sintomasTop,
-          objetivoKeys: Object.keys(payload.objetivos || {}),
-          textosKeys: Object.keys(payload.textos || {}),
-          patologiaRelacionada: payload.patologiaRelacionada,
-          objetivos: payload.objetivos,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
 
     console.log("[ENCUESTA] Payload a enviar:", payload);
     console.log("[ENCUESTA] Iniciando request...");

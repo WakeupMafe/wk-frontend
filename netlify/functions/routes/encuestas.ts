@@ -53,6 +53,30 @@ function limpiarDocumentoPaciente(
   return d;
 }
 
+/** Si no hay tipo, infiere pasaporte cuando el valor tiene letras. */
+function inferTipoDocumentoPaciente(
+  doc: string,
+  tipoHint?: string | null,
+): string {
+  const t = (tipoHint || "").trim().toLowerCase();
+  if (t) return t;
+  if (/[A-Za-z]/.test(doc) || (doc.includes("-") && !/^\d+$/.test(doc))) {
+    return "pasaporte";
+  }
+  return "cedula";
+}
+
+function docsPacienteIguales(a: unknown, b: unknown): boolean {
+  return (
+    String(a ?? "")
+      .trim()
+      .toUpperCase() ===
+    String(b ?? "")
+      .trim()
+      .toUpperCase()
+  );
+}
+
 function validarMinMax(
   lista: unknown[],
   campo: string,
@@ -104,33 +128,6 @@ function embedDetalleEnObjetivo(
     .replace(/\|/g, " ");
   if (!det) return obj;
   return `${obj}${OBJETIVO_DETALLE_SEP}${det}`;
-}
-
-const DEBUG_INGEST =
-  "http://127.0.0.1:7824/ingest/0b4a9a59-f4c8-4fc1-bc15-332e88853d32";
-const DEBUG_SESSION = "1643f0";
-
-function agentDebugLog(
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-): void {
-  // #region agent log
-  fetch(DEBUG_INGEST, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": DEBUG_SESSION,
-    },
-    body: JSON.stringify({
-      sessionId: DEBUG_SESSION,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 }
 
 class HttpErr extends Error {
@@ -802,15 +799,6 @@ async function crearEncuesta(
     }
   }
 
-  agentDebugLog("encuestas.ts:crearEncuesta", "payload summary", {
-    payloadKeys: Object.keys(data),
-    sintomasTop,
-    objetivoKeys: Object.keys(objetivos),
-    textosKeys: Object.keys(textos),
-    patologiaRel,
-    objetivosPersistidos: objetivosOrdenados.filter(Boolean),
-  });
-
   const objetivosSeleccionados = objetivosOrdenados.filter(
     (o): o is string => o != null && String(o).trim() !== "",
   ).length;
@@ -880,17 +868,9 @@ async function crearEncuesta(
 
     res = await supabase.from("wakeup_seguimientos").insert(row).select();
     if (!res.error) {
-      agentDebugLog("encuestas.ts:crearEncuesta", "insert success", {
-        idRegistro,
-        referenciaRegistro,
-      });
       break;
     }
     if (!esErrorDuplicadoSupabase(res.error)) {
-      agentDebugLog("encuestas.ts:crearEncuesta", "insert failure", {
-        error: res.error.message,
-        code: res.error.code,
-      });
       return jsonResponse(
         400,
         errBody({
@@ -946,22 +926,15 @@ async function logros2PrecheckDocumento(
   if (!docStr) {
     return jsonResponse(400, errBody("Falta el parámetro documento."), origin);
   }
-  const tipoDoc = String(queryParams?.tipo_documento ?? "cedula").trim();
+  const tipoDoc = inferTipoDocumentoPaciente(
+    docStr,
+    queryParams?.tipo_documento,
+  );
   let docPaciente: string;
   try {
     docPaciente = limpiarDocumentoPaciente(docStr, tipoDoc);
   } catch {
     return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
-  }
-  const docNum = parseInt(docPaciente, 10);
-  if (!Number.isFinite(docNum) || docNum <= 0) {
-    return jsonResponse(
-      400,
-      errBody(
-        "Para el precheck de seguimiento L2 use documento numérico (cédula) o indique tipo_documento compatible.",
-      ),
-      origin,
-    );
   }
 
   const supabase = getSupabase();
@@ -970,14 +943,14 @@ async function logros2PrecheckDocumento(
   const countFirst = await supabase
     .from("wakeup_seguimiento2")
     .select("*", { count: "exact", head: true })
-    .eq("documento", docNum)
+    .eq("documento", docPaciente)
     .is("deleted_at", null);
 
   if (countFirst.error) {
     const retry = await supabase
       .from("wakeup_seguimiento2")
       .select("*", { count: "exact", head: true })
-      .eq("documento", docNum);
+      .eq("documento", docPaciente);
     if (retry.error) {
       return jsonResponse(
         400,
@@ -993,7 +966,7 @@ async function logros2PrecheckDocumento(
   let lastQ = supabase
     .from("wakeup_seguimiento2")
     .select("id, codigo_seguimiento")
-    .eq("documento", docNum)
+    .eq("documento", docPaciente)
     .order("id", { ascending: false })
     .limit(1);
   let lastRes = await lastQ.is("deleted_at", null).maybeSingle();
@@ -1001,7 +974,7 @@ async function logros2PrecheckDocumento(
     lastRes = await supabase
       .from("wakeup_seguimiento2")
       .select("id, codigo_seguimiento")
-      .eq("documento", docNum)
+      .eq("documento", docPaciente)
       .order("id", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1024,7 +997,8 @@ async function logros2PrecheckDocumento(
     200,
     {
       ok: true,
-      documento: docNum,
+      documento: docPaciente,
+      tipo_documento: tipoDoc,
       cantidad: count ?? 0,
       tiene_seguimientos_previos: (count ?? 0) >= 1,
       ultimo_seguimiento2_id:
@@ -1040,7 +1014,26 @@ async function crearLogros2(
   data: Record<string, unknown>,
   origin: string | null,
 ): Promise<HandlerResponse> {
-  const docPaciente = limpiarDocumentoPaciente(String(data.documento ?? ""), "cedula");
+  const fr = (data.fase1_resumen as Record<string, unknown>) || {};
+  const f1Ref = (data.fase1_referencia as Record<string, unknown>) || {};
+  const tipoDoc = inferTipoDocumentoPaciente(
+    String(data.documento ?? f1Ref.documento ?? ""),
+    String(
+      data.tipo_documento ??
+        fr.tipo_documento ??
+        f1Ref.tipo_documento ??
+        "",
+    ),
+  );
+  let docPaciente: string;
+  try {
+    docPaciente = limpiarDocumentoPaciente(String(data.documento ?? ""), tipoDoc);
+  } catch (e) {
+    if (e instanceof HttpErr) {
+      return jsonResponse(e.status, errBody(e.detail), origin);
+    }
+    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
+  }
   const docEncuestador = limpiarDocumentoEncuestador(String(data.encuestador ?? ""));
 
   const sedeClean = String(data.sede ?? "").trim();
@@ -1087,8 +1080,6 @@ async function crearLogros2(
     }
   }
 
-  const fr = (data.fase1_resumen as Record<string, unknown>) || {};
-  const f1Ref = (data.fase1_referencia as Record<string, unknown>) || {};
   const refDocRaw = f1Ref.documento ?? data.documento;
   const refCreatedAt = String(f1Ref.created_at ?? "").trim();
 
@@ -1102,12 +1093,27 @@ async function crearLogros2(
     );
   }
 
-  const refDocNum = parseInt(String(refDocRaw ?? "").replace(/\D/g, ""), 10);
-  if (!Number.isFinite(refDocNum) || refDocNum <= 0) {
+  let refDoc: string;
+  try {
+    refDoc = limpiarDocumentoPaciente(
+      String(refDocRaw ?? ""),
+      inferTipoDocumentoPaciente(String(refDocRaw ?? ""), tipoDoc),
+    );
+  } catch {
     return jsonResponse(
       400,
       errBody(
         "Indique la evaluación Logros Fase 1 de referencia: documento inválido.",
+      ),
+      origin,
+    );
+  }
+
+  if (!docsPacienteIguales(refDoc, docPaciente)) {
+    return jsonResponse(
+      400,
+      errBody(
+        "El documento del payload no coincide con fase1_referencia.documento.",
       ),
       origin,
     );
@@ -1120,7 +1126,7 @@ async function crearLogros2(
     .select(
       "id_int, documento, nombres, apellidos, tipo_documento, created_at, patologia_relacionada, limitacion_moverse, actividades_afectadas, adicional_no_puede, ultima_vez, que_impide, objetivo_extra",
     )
-    .eq("documento", refDocNum)
+    .eq("documento", refDoc)
     .eq("created_at", refCreatedAt)
     .maybeSingle();
 
@@ -1147,10 +1153,7 @@ async function crearLogros2(
   const rowF1 = check.data as Record<string, unknown>;
   const f1IdInt = Number(rowF1.id_int);
   const docF1 = rowF1.documento;
-  if (
-    docF1 != null &&
-    String(docF1).trim() !== String(docPaciente).trim()
-  ) {
+  if (docF1 != null && !docsPacienteIguales(docF1, docPaciente)) {
     return jsonResponse(
       400,
       errBody(
@@ -1159,21 +1162,6 @@ async function crearLogros2(
       origin,
     );
   }
-  const docPayloadNum = parseInt(String(docPaciente).replace(/\D/g, ""), 10);
-  if (docPayloadNum !== refDocNum) {
-    return jsonResponse(
-      400,
-      errBody(
-        "El documento del payload no coincide con fase1_referencia.documento.",
-      ),
-      origin,
-    );
-  }
-
-  const docNum = parseInt(docPaciente, 10);
-  if (!Number.isFinite(docNum) || docNum <= 0) {
-    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
-  }
 
   const encNum = parseInt(docEncuestador, 10);
   if (!Number.isFinite(encNum)) {
@@ -1181,6 +1169,9 @@ async function crearLogros2(
   }
 
   const encuestadorNombre = String(data.encuestador_nombre ?? "").trim() || null;
+  const tipoDocFinal = String(
+    fr.tipo_documento ?? rowF1.tipo_documento ?? tipoDoc,
+  ).trim() || tipoDoc;
 
   const padreRaw = data.seguimiento2_padre_id;
   let seguimiento2PadreId: number | null = null;
@@ -1225,8 +1216,8 @@ async function crearLogros2(
         origin,
       );
     }
-    const docPadre = Number((padreRow.data as { documento: unknown }).documento);
-    if (docPadre !== docNum) {
+    const docPadre = (padreRow.data as { documento: unknown }).documento;
+    if (!docsPacienteIguales(docPadre, docPaciente)) {
       return jsonResponse(
         400,
         errBody(
@@ -1239,8 +1230,8 @@ async function crearLogros2(
   }
 
   const parentRow: Record<string, unknown> = {
-    tipo_documento: String(fr.tipo_documento ?? rowF1.tipo_documento ?? "cedula"),
-    documento: docNum,
+    tipo_documento: tipoDocFinal,
+    documento: docPaciente,
     nombres: (fr.nombres ?? rowF1.nombres) as string | null,
     apellidos: (fr.apellidos ?? rowF1.apellidos) as string | null,
     seguimiento2_padre_id: seguimiento2PadreId,
@@ -1264,7 +1255,7 @@ async function crearLogros2(
       (fr.meta_complementaria_previa as string | null) ?? null,
     payload_origen: {
       fase1_referencia: {
-        documento: refDocNum,
+        documento: refDoc,
         created_at: refCreatedAt,
         ...(Number.isFinite(f1IdInt) && f1IdInt > 0 ? { id_int: f1IdInt } : {}),
       },
@@ -1370,10 +1361,10 @@ async function crearLogros2(
   );
 }
 
-/** Genera documento-L3-## (ej. 1234567890-L3-01). */
+/** Genera documento-L3-## (ej. 1234567890-L3-01 o AB123456-L3-01). */
 async function siguienteCodigoLogros3(
   supabase: ReturnType<typeof getSupabase>,
-  documento: number,
+  documento: string | number,
 ): Promise<string> {
   const res = await supabase
     .from("wakeup_seguimiento3")
@@ -1442,20 +1433,15 @@ async function listarLogros2PorDocumento(
   if (!docStr) {
     return jsonResponse(400, errBody("Falta el parámetro documento."), origin);
   }
-  const tipoDoc = String(queryParams?.tipo_documento ?? "cedula").trim();
+  const tipoDoc = inferTipoDocumentoPaciente(
+    docStr,
+    queryParams?.tipo_documento,
+  );
   let docPaciente: string;
   try {
     docPaciente = limpiarDocumentoPaciente(docStr, tipoDoc);
   } catch {
     return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
-  }
-  const docNum = parseInt(docPaciente, 10);
-  if (!Number.isFinite(docNum) || docNum <= 0) {
-    return jsonResponse(
-      400,
-      errBody("Para listar Logros 2 use documento numérico (cédula)."),
-      origin,
-    );
   }
 
   const supabase = getSupabase();
@@ -1485,7 +1471,7 @@ async function listarLogros2PorDocumento(
   let res = await supabase
     .from("wakeup_seguimiento2")
     .select(cols)
-    .eq("documento", docNum)
+    .eq("documento", docPaciente)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
@@ -1493,7 +1479,7 @@ async function listarLogros2PorDocumento(
     res = await supabase
       .from("wakeup_seguimiento2")
       .select(cols)
-      .eq("documento", docNum)
+      .eq("documento", docPaciente)
       .order("created_at", { ascending: true });
   }
 
@@ -1550,7 +1536,8 @@ async function listarLogros2PorDocumento(
     200,
     {
       ok: true,
-      documento: docNum,
+      documento: docPaciente,
+      tipo_documento: tipoDoc,
       cantidad: enriched.length,
       cantidad_total_logros2: rows.length,
       cantidad_con_logros3: conL3.size,
@@ -1571,22 +1558,15 @@ async function logros3PrecheckDocumento(
   if (!docStr) {
     return jsonResponse(400, errBody("Falta el parámetro documento."), origin);
   }
-  const tipoDoc = String(queryParams?.tipo_documento ?? "cedula").trim();
+  const tipoDoc = inferTipoDocumentoPaciente(
+    docStr,
+    queryParams?.tipo_documento,
+  );
   let docPaciente: string;
   try {
     docPaciente = limpiarDocumentoPaciente(docStr, tipoDoc);
   } catch {
     return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
-  }
-  const docNum = parseInt(docPaciente, 10);
-  if (!Number.isFinite(docNum) || docNum <= 0) {
-    return jsonResponse(
-      400,
-      errBody(
-        "Para el precheck de seguimiento L3 use documento numérico (cédula).",
-      ),
-      origin,
-    );
   }
 
   const supabase = getSupabase();
@@ -1595,14 +1575,14 @@ async function logros3PrecheckDocumento(
   const countFirst = await supabase
     .from("wakeup_seguimiento3")
     .select("*", { count: "exact", head: true })
-    .eq("documento", docNum)
+    .eq("documento", docPaciente)
     .is("deleted_at", null);
 
   if (countFirst.error) {
     const retry = await supabase
       .from("wakeup_seguimiento3")
       .select("*", { count: "exact", head: true })
-      .eq("documento", docNum);
+      .eq("documento", docPaciente);
     if (retry.error) {
       return jsonResponse(
         400,
@@ -1618,7 +1598,7 @@ async function logros3PrecheckDocumento(
   let lastRes = await supabase
     .from("wakeup_seguimiento3")
     .select("id, codigo_seguimiento")
-    .eq("documento", docNum)
+    .eq("documento", docPaciente)
     .is("deleted_at", null)
     .order("id", { ascending: false })
     .limit(1)
@@ -1628,7 +1608,7 @@ async function logros3PrecheckDocumento(
     lastRes = await supabase
       .from("wakeup_seguimiento3")
       .select("id, codigo_seguimiento")
-      .eq("documento", docNum)
+      .eq("documento", docPaciente)
       .order("id", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -1682,7 +1662,8 @@ async function logros3PrecheckDocumento(
     200,
     {
       ok: true,
-      documento: docNum,
+      documento: docPaciente,
+      tipo_documento: tipoDoc,
       cantidad: count ?? 0,
       tiene_seguimientos_previos: (count ?? 0) >= 1,
       ultimo_seguimiento3_id:
@@ -1701,10 +1682,29 @@ async function crearLogros3(
   data: Record<string, unknown>,
   origin: string | null,
 ): Promise<HandlerResponse> {
-  const docPaciente = limpiarDocumentoPaciente(
-    String(data.documento ?? ""),
-    "cedula",
+  const frEarly = (data.logros2_resumen as Record<string, unknown>) || {};
+  const l2RefEarly = (data.logros2_referencia as Record<string, unknown>) || {};
+  const tipoDoc = inferTipoDocumentoPaciente(
+    String(data.documento ?? l2RefEarly.documento ?? ""),
+    String(
+      data.tipo_documento ??
+        frEarly.tipo_documento ??
+        l2RefEarly.tipo_documento ??
+        "",
+    ),
   );
+  let docPaciente: string;
+  try {
+    docPaciente = limpiarDocumentoPaciente(
+      String(data.documento ?? ""),
+      tipoDoc,
+    );
+  } catch (e) {
+    if (e instanceof HttpErr) {
+      return jsonResponse(e.status, errBody(e.detail), origin);
+    }
+    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
+  }
   const docEncuestador = limpiarDocumentoEncuestador(
     String(data.encuestador ?? ""),
   );
@@ -1753,8 +1753,8 @@ async function crearLogros3(
     }
   }
 
-  const fr = (data.logros2_resumen as Record<string, unknown>) || {};
-  const l2Ref = (data.logros2_referencia as Record<string, unknown>) || {};
+  const fr = (data.logros2_resumen as Record<string, unknown>) || frEarly;
+  const l2Ref = (data.logros2_referencia as Record<string, unknown>) || l2RefEarly;
   const l2IdRaw = l2Ref.id ?? data.seguimiento2_id;
   const l2Id = Number(l2IdRaw);
   if (!Number.isFinite(l2Id) || l2Id <= 0) {
@@ -1765,11 +1765,6 @@ async function crearLogros3(
       ),
       origin,
     );
-  }
-
-  const docNum = parseInt(docPaciente, 10);
-  if (!Number.isFinite(docNum) || docNum <= 0) {
-    return jsonResponse(400, errBody("Documento del paciente inválido."), origin);
   }
 
   const encNum = parseInt(docEncuestador, 10);
@@ -1823,8 +1818,7 @@ async function crearLogros3(
   }
 
   const rowL2 = checkL2.data as Row;
-  const docL2 = Number(rowL2.documento);
-  if (docL2 !== docNum) {
+  if (!docsPacienteIguales(rowL2.documento, docPaciente)) {
     return jsonResponse(
       400,
       errBody(
@@ -1919,8 +1913,8 @@ async function crearLogros3(
         origin,
       );
     }
-    const docPadre = Number((padreRow.data as { documento: unknown }).documento);
-    if (docPadre !== docNum) {
+    const docPadre = (padreRow.data as { documento: unknown }).documento;
+    if (!docsPacienteIguales(docPadre, docPaciente)) {
       return jsonResponse(
         400,
         errBody(
@@ -1934,16 +1928,18 @@ async function crearLogros3(
 
   let codigoSeguimiento: string | null = null;
   try {
-    codigoSeguimiento = await siguienteCodigoLogros3(supabase, docNum);
+    codigoSeguimiento = await siguienteCodigoLogros3(supabase, docPaciente);
   } catch {
     codigoSeguimiento = null;
   }
 
+  const tipoDocFinal = String(
+    fr.tipo_documento ?? rowL2.tipo_documento ?? tipoDoc,
+  ).trim() || tipoDoc;
+
   const parentRow: Record<string, unknown> = {
-    tipo_documento: String(
-      fr.tipo_documento ?? rowL2.tipo_documento ?? "cedula",
-    ),
-    documento: docNum,
+    tipo_documento: tipoDocFinal,
+    documento: docPaciente,
     nombres: (fr.nombres ?? rowL2.nombres) as string | null,
     apellidos: (fr.apellidos ?? rowL2.apellidos) as string | null,
     seguimiento2_id: l2Id,
@@ -1987,7 +1983,7 @@ async function crearLogros3(
         codigo_seguimiento:
           String(fr.codigo_seguimiento ?? rowL2.codigo_seguimiento ?? "").trim() ||
           null,
-        documento: docNum,
+        documento: docPaciente,
         created_at: rowL2.created_at ?? null,
       },
       sede: sedeClean,
@@ -2171,14 +2167,18 @@ export async function handleEncuestas(
       const soloLetras = qTrim.replace(/[^\p{L}]/gu, "");
       const soloDigitosInput = /^\d+$/.test(qTrim);
       const qDigits = qTrim.replace(/\D/g, "");
-      const puedeDoc = soloDigitosInput && qDigits.length >= 5;
-      const puedeNombre = soloLetras.length >= 4;
+      const qAlphanum = qTrim.replace(/[^A-Za-z0-9\-]/g, "").toUpperCase();
+      const pareceDocAlfanum =
+        /[A-Za-z]/.test(qAlphanum) && qAlphanum.length >= 5;
+      const puedeDoc =
+        (soloDigitosInput && qDigits.length >= 5) || pareceDocAlfanum;
+      const puedeNombre = soloLetras.length >= 4 && !pareceDocAlfanum;
 
       if (!puedeNombre && !puedeDoc) {
         return jsonResponse(
           400,
           errBody(
-            "Use al menos 4 letras (nombre o apellido) o solo dígitos (≥5) para cédula.",
+            "Use al menos 4 letras (nombre o apellido), ≥5 dígitos (cédula) o un documento alfanumérico (≥5, p. ej. pasaporte).",
           ),
           origin,
         );
@@ -2224,9 +2224,7 @@ export async function handleEncuestas(
 
       if (puedeDoc) {
         modo = "documento_eq";
-        const n = Number(qDigits);
-        const docEq: number | string =
-          Number.isSafeInteger(n) && String(n) === qDigits ? n : qDigits;
+        const docEq: string = pareceDocAlfanum ? qAlphanum : qDigits;
         filterDesc = `documento.eq(${JSON.stringify(docEq)})`;
         console.log(`${LOG} modo=documento_eq filtro=${filterDesc}`);
         let res = await l2Base()
@@ -2346,17 +2344,21 @@ export async function handleEncuestas(
       const soloLetras = qTrim.replace(/[^\p{L}]/gu, "");
       const soloDigitosInput = /^\d+$/.test(qTrim);
       const qDigits = qTrim.replace(/\D/g, "");
-      const puedeDoc = soloDigitosInput && qDigits.length >= 5;
-      const puedeNombre = soloLetras.length >= 4;
+      const qAlphanum = qTrim.replace(/[^A-Za-z0-9\-]/g, "").toUpperCase();
+      const pareceDocAlfanum =
+        /[A-Za-z]/.test(qAlphanum) && qAlphanum.length >= 5;
+      const puedeDoc =
+        (soloDigitosInput && qDigits.length >= 5) || pareceDocAlfanum;
+      const puedeNombre = soloLetras.length >= 4 && !pareceDocAlfanum;
 
       if (!puedeNombre && !puedeDoc) {
         console.log(
-          `${LOG} rechazo: letras=${soloLetras.length} soloDigitos=${soloDigitosInput} digitos=${qDigits.length}`,
+          `${LOG} rechazo: letras=${soloLetras.length} soloDigitos=${soloDigitosInput} digitos=${qDigits.length} alphanum=${qAlphanum.length}`,
         );
         return jsonResponse(
           400,
           errBody(
-            "Use al menos 4 letras (nombre o apellido) o solo dígitos (≥5) para cédula.",
+            "Use al menos 4 letras (nombre o apellido), ≥5 dígitos (cédula) o un documento alfanumérico (≥5, p. ej. pasaporte).",
           ),
           origin,
         );
@@ -2403,9 +2405,7 @@ export async function handleEncuestas(
 
       if (puedeDoc) {
         modo = "documento_eq";
-        const n = Number(qDigits);
-        const docEq: number | string =
-          Number.isSafeInteger(n) && String(n) === qDigits ? n : qDigits;
+        const docEq: string = pareceDocAlfanum ? qAlphanum : qDigits;
         filterDesc = `documento.eq(${JSON.stringify(docEq)})`;
         console.log(`${LOG} modo=documento_eq filtro=${filterDesc}`);
         const res = await seguimientosBase().eq("documento", docEq).limit(20);

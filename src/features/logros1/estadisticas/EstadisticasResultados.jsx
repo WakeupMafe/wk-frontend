@@ -31,6 +31,10 @@ import "./EstadisticasFiltros.css";
 import "./EstadisticasResultados.css";
 
 import { apiUrl } from "../../../lib/api/baseUrl";
+import {
+  esDocumentoPacienteValido,
+  limpiarDocumentoPaciente,
+} from "../../../lib/encuestas/documentoPaciente";
 import ReferenciaHelpButton from "./ReferenciaHelpButton";
 
 /** Cédula del fisioterapeuta en sesión (`wk_autorizado`). */
@@ -711,7 +715,10 @@ export default function EstadisticasResultados() {
   };
 
   const handleVerMisEncuesta = async (fila) => {
-    const documento = String(fila?.documento ?? "").replace(/\D/g, "").trim();
+    const documento = limpiarDocumentoPaciente(
+      fila?.documento,
+      fila?.tipo_documento,
+    );
     if (!documento) {
       await alertWarning({
         title: "Documento no disponible",
@@ -776,7 +783,7 @@ export default function EstadisticasResultados() {
       return;
     }
 
-    const documento = String(cedulaBusqueda).trim();
+    const documento = limpiarDocumentoPaciente(cedulaBusqueda);
 
     if (!documento) {
       await alertWarning({
@@ -786,10 +793,10 @@ export default function EstadisticasResultados() {
       return;
     }
 
-    if (!/^\d+$/.test(documento)) {
+    if (!esDocumentoPacienteValido(documento)) {
       await alertWarning({
         title: "Documento inválido",
-        text: "El documento debe contener solo números.",
+        text: "Use cédula (6–11 dígitos) o pasaporte/registro civil alfanumérico (5–30 caracteres).",
       });
       return;
     }
@@ -943,8 +950,10 @@ export default function EstadisticasResultados() {
     const ok2 = await confirmSwalEliminarEscribirPalabra();
     if (!ok2) return;
 
-    const documento =
-      String(registro?.data?.documento ?? cedulaBusqueda).replace(/\D/g, "").trim();
+    const documento = limpiarDocumentoPaciente(
+      registro?.data?.documento ?? cedulaBusqueda,
+      registro?.data?.tipo_documento,
+    );
     if (!documento) {
       await alertWarning({
         title: "Documento no disponible",
@@ -1122,11 +1131,13 @@ export default function EstadisticasResultados() {
             id="res-cedula-input"
             type="text"
             className="estad-filtros__input"
-            placeholder="Documento del paciente"
+            placeholder="Cédula o pasaporte del paciente"
             value={cedulaBusqueda}
             onChange={(e) => setCedulaBusqueda(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleBuscar()}
             disabled={filtroTipo !== "cedula"}
+            inputMode="text"
+            autoCapitalize="characters"
           />
           <Button
             variant="teal"

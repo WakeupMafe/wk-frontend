@@ -26,15 +26,22 @@ import {
   buildRegistrosExistentesHtml,
   fetchRegistrosPorDocumento,
 } from "../../lib/encuestas/registrosExistentes";
+import {
+  busquedaPacienteCumpleMinimo,
+  esDocumentoPacienteValido,
+  inferTipoDocumentoPaciente,
+  limpiarDocumentoPaciente,
+} from "../../lib/encuestas/documentoPaciente";
 
 /** Ayuda búsqueda paciente — Fase 2 (requiere Logros Fase 1). */
 const BUSQUEDA_PACIENTE_HELP_HTML = `
   <div style="text-align:left;line-height:1.45;font-size:0.95rem">
     <p style="margin:0 0 0.75rem">
-      Escriba al menos <strong>4 letras</strong> del nombre o apellido, o al menos
-      <strong>5 dígitos</strong> de la cédula, para buscar en la base de datos.
-      Luego elija una fila o use <strong>Cargar evaluación previa</strong> con la
-      cédula completa (6–11 dígitos).
+      Escriba al menos <strong>4 letras</strong> del nombre o apellido, al menos
+      <strong>5 dígitos</strong> de la cédula, o un <strong>pasaporte / registro civil</strong>
+      alfanumérico (≥5 caracteres), para buscar en la base de datos.
+      Luego elija una fila o use <strong>Cargar evaluación previa</strong> con el
+      documento completo.
     </p>
     <p style="margin:0">
       El paciente debe tener una evaluación <strong>Logros Fase 1</strong> previa.
@@ -198,13 +205,11 @@ export default function EncuestaLogros2() {
     [fase1],
   );
 
-  /** Alineado con API buscar-logros1: ≥4 letras o ≥5 dígitos (sin barrer tablas enteras). */
-  const busquedaCumpleMinimo = useMemo(() => {
-    const q = busquedaTexto.trim();
-    const digitos = q.replace(/\D/g, "").length;
-    const letras = q.replace(/[^\p{L}]/gu, "").length;
-    return letras >= 4 || digitos >= 5;
-  }, [busquedaTexto]);
+  /** Alineado con API buscar-logros1: ≥4 letras, ≥5 dígitos o doc alfanumérico. */
+  const busquedaCumpleMinimo = useMemo(
+    () => busquedaPacienteCumpleMinimo(busquedaTexto),
+    [busquedaTexto],
+  );
 
   const fechaEval = fase1 ? formatFechaEvaluacion(fase1.created_at) : "";
   const limLabel = fase1
@@ -213,9 +218,11 @@ export default function EncuestaLogros2() {
   const actLabel = fase1 ? labelsActividades(fase1.actividades_afectadas) : "";
 
   const documentoDesdeCampos = () => {
-    const d = docBusqueda.replace(/\D/g, "").trim();
-    if (d.length >= 6) return d;
-    return busquedaTexto.replace(/\D/g, "").trim();
+    const tipoHint =
+      fase1Referencia?.tipo_documento || fase1?.tipo_documento || "";
+    const fromDoc = limpiarDocumentoPaciente(docBusqueda, tipoHint || undefined);
+    if (esDocumentoPacienteValido(fromDoc, tipoHint || undefined)) return fromDoc;
+    return limpiarDocumentoPaciente(busquedaTexto, tipoHint || undefined);
   };
 
   const etiquetaFilaPaciente = (r) => {
@@ -225,14 +232,17 @@ export default function EncuestaLogros2() {
     return `${nom} · Doc. ${doc}${sedeR ? ` · ${sedeR}` : ""}`;
   };
 
-  const cargarFase1PorDocumento = async (docRaw, createdAtOpcional) => {
-    const doc = String(docRaw || "")
-      .replace(/\D/g, "")
-      .trim();
-    if (doc.length < 6) {
+  const cargarFase1PorDocumento = async (
+    docRaw,
+    createdAtOpcional,
+    tipoDocumentoHint,
+  ) => {
+    const tipoHint = inferTipoDocumentoPaciente(docRaw, tipoDocumentoHint);
+    const doc = limpiarDocumentoPaciente(docRaw, tipoHint);
+    if (!esDocumentoPacienteValido(doc, tipoHint)) {
       await alertWarning({
         title: "Identificación",
-        text: "Se requiere un documento numérico válido (mínimo 6 dígitos). Seleccione una opción de la lista o escriba la cédula completa.",
+        text: "Se requiere un documento válido (cédula 6–11 dígitos, o pasaporte/registro civil alfanumérico de 5–30 caracteres). Seleccione una opción de la lista o escriba el documento completo.",
       });
       return false;
     }
@@ -332,13 +342,14 @@ export default function EncuestaLogros2() {
   };
 
   const seleccionarPaciente = (r) => {
-    const doc = String(r.documento ?? "").replace(/\D/g, "").trim();
+    const tipo = String(r.tipo_documento || "").trim();
+    const doc = limpiarDocumentoPaciente(r.documento, tipo || undefined);
     skipBusquedaRef.current = true;
     setBusquedaTexto(etiquetaFilaPaciente(r));
     setDocBusqueda(doc);
     setMostrarSugerencias(false);
     setSugerencias([]);
-    void cargarFase1PorDocumento(doc, r.created_at);
+    void cargarFase1PorDocumento(doc, r.created_at, tipo);
   };
 
   useEffect(() => {
@@ -493,9 +504,13 @@ export default function EncuestaLogros2() {
 
     const refDoc = fase1Referencia?.documento;
     const refAt = fase1Referencia?.created_at;
+    const tipoDocRef = inferTipoDocumentoPaciente(
+      refDoc,
+      fase1Referencia?.tipo_documento || fase1?.tipo_documento,
+    );
+    const refDocLimpio = limpiarDocumentoPaciente(refDoc, tipoDocRef);
     if (
-      refDoc == null ||
-      String(refDoc).replace(/\D/g, "").length < 6 ||
+      !esDocumentoPacienteValido(refDocLimpio, tipoDocRef) ||
       !refAt ||
       !String(refAt).trim()
     ) {
@@ -530,11 +545,14 @@ export default function EncuestaLogros2() {
       };
     });
 
-    const docPaciente = String(docBusqueda || documentoDesdeCampos() || "")
-      .replace(/\D/g, "")
-      .trim();
+    const tipoDocF1 = String(
+      fase1.tipo_documento || fase1Referencia?.tipo_documento || tipoDocRef,
+    ).trim();
+    const docPaciente = limpiarDocumentoPaciente(
+      docBusqueda || documentoDesdeCampos() || refDocLimpio,
+      tipoDocF1,
+    );
 
-    const tipoDocF1 = String(fase1.tipo_documento || "cedula").trim();
     const preUrl = `${apiUrl("/encuestas/logros2-precheck")}?documento=${encodeURIComponent(docPaciente)}&tipo_documento=${encodeURIComponent(tipoDocF1)}`;
     let preJson = {};
     try {
@@ -600,20 +618,21 @@ export default function EncuestaLogros2() {
     }
 
     const queImpideTxt = labelsQueImpide(fase1.que_impide);
-    const refDocNum = parseInt(String(refDoc).replace(/\D/g, ""), 10);
     const payload = {
       encuestador: String(encuestadorCache),
       encuestador_nombre: String(headerUsuario || "").trim() || null,
       sede: sedeFormulario,
       documento: docPaciente,
+      tipo_documento: tipoDocF1,
       seguimiento2_padre_id: seguimiento2PadreId,
       fase1_referencia: {
-        documento: refDocNum,
+        documento: refDocLimpio,
         created_at: String(refAt).trim(),
+        tipo_documento: tipoDocF1,
       },
       items,
       fase1_resumen: {
-        tipo_documento: String(fase1.tipo_documento || "cedula"),
+        tipo_documento: tipoDocF1,
         nombres: String(fase1.nombres || "").trim() || null,
         apellidos: String(fase1.apellidos || "").trim() || null,
         fecha_evaluacion_previa: fase1.created_at || null,
@@ -780,7 +799,7 @@ export default function EncuestaLogros2() {
                       setMostrarSugerencias(true);
                     }}
                     onFocus={() => setMostrarSugerencias(true)}
-                    placeholder="Mín. 4 letras o 5 dígitos de cédula"
+                    placeholder="Nombre, cédula o pasaporte"
                     autoComplete="off"
                     aria-autocomplete="list"
                     aria-expanded={
@@ -809,7 +828,7 @@ export default function EncuestaLogros2() {
                         >
                           No hay coincidencias con ese texto. Pruebe otras
                           letras o más dígitos del documento, o use{" "}
-                          <strong>Cargar evaluación previa</strong> con la cédula
+                          <strong>Cargar evaluación previa</strong> con el documento
                           completa (6–11 dígitos).
                         </li>
                       ) : null}

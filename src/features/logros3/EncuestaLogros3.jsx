@@ -26,15 +26,22 @@ import {
   buildRegistrosExistentesHtml,
   fetchRegistrosPorDocumento,
 } from "../../lib/encuestas/registrosExistentes";
+import {
+  busquedaPacienteCumpleMinimo,
+  esDocumentoPacienteValido,
+  inferTipoDocumentoPaciente,
+  limpiarDocumentoPaciente,
+} from "../../lib/encuestas/documentoPaciente";
 
 /** Ayuda búsqueda paciente — Fase 3 (requiere Logros 2). */
 const BUSQUEDA_PACIENTE_HELP_HTML = `
   <div style="text-align:left;line-height:1.45;font-size:0.95rem">
     <p style="margin:0 0 0.75rem">
-      Escriba al menos <strong>4 letras</strong> del nombre o apellido, o al menos
-      <strong>5 dígitos</strong> de la cédula, para buscar en la base de datos.
-      Luego elija una fila o use <strong>Cargar evaluación Logros 2</strong> con la
-      cédula completa (6–11 dígitos).
+      Escriba al menos <strong>4 letras</strong> del nombre o apellido, al menos
+      <strong>5 dígitos</strong> de la cédula, o un <strong>pasaporte / registro civil</strong>
+      alfanumérico (≥5 caracteres), para buscar en la base de datos.
+      Luego elija una fila o use <strong>Cargar evaluación Logros 2</strong> con el
+      documento completo.
     </p>
     <p style="margin:0">
       El paciente debe tener una evaluación <strong>Logros 2</strong> (Fase 2) previa
@@ -196,12 +203,10 @@ export default function EncuestaLogros3() {
     [logros2],
   );
 
-  const busquedaCumpleMinimo = useMemo(() => {
-    const q = busquedaTexto.trim();
-    const digitos = q.replace(/\D/g, "").length;
-    const letras = q.replace(/[^\p{L}]/gu, "").length;
-    return letras >= 4 || digitos >= 5;
-  }, [busquedaTexto]);
+  const busquedaCumpleMinimo = useMemo(
+    () => busquedaPacienteCumpleMinimo(busquedaTexto),
+    [busquedaTexto],
+  );
 
   const fechaEval = logros2 ? formatFechaEvaluacion(logros2.created_at) : "";
   const limLabel = logros2
@@ -215,9 +220,10 @@ export default function EncuestaLogros3() {
     : "";
 
   const documentoDesdeCampos = () => {
-    const d = docBusqueda.replace(/\D/g, "").trim();
-    if (d.length >= 6) return d;
-    return busquedaTexto.replace(/\D/g, "").trim();
+    const tipoHint = logros2?.tipo_documento || "";
+    const fromDoc = limpiarDocumentoPaciente(docBusqueda, tipoHint || undefined);
+    if (esDocumentoPacienteValido(fromDoc, tipoHint || undefined)) return fromDoc;
+    return limpiarDocumentoPaciente(busquedaTexto, tipoHint || undefined);
   };
 
   const etiquetaFilaPaciente = (r) => {
@@ -270,14 +276,17 @@ export default function EncuestaLogros3() {
    * @param {string} docRaw
    * @param {number|string|null} [preferId]
    */
-  const cargarLogros2PorDocumento = async (docRaw, preferId = null) => {
-    const doc = String(docRaw || "")
-      .replace(/\D/g, "")
-      .trim();
-    if (doc.length < 6) {
+  const cargarLogros2PorDocumento = async (
+    docRaw,
+    preferId = null,
+    tipoDocumentoHint = null,
+  ) => {
+    const tipoHint = inferTipoDocumentoPaciente(docRaw, tipoDocumentoHint);
+    const doc = limpiarDocumentoPaciente(docRaw, tipoHint);
+    if (!esDocumentoPacienteValido(doc, tipoHint)) {
       await alertWarning({
         title: "Identificación",
-        text: "Se requiere un documento numérico válido (mínimo 6 dígitos). Seleccione una opción de la lista o escriba la cédula completa.",
+        text: "Se requiere un documento válido (cédula 6–11 dígitos, o pasaporte/registro civil alfanumérico de 5–30 caracteres). Seleccione una opción de la lista o escriba el documento completo.",
       });
       return false;
     }
@@ -290,7 +299,7 @@ export default function EncuestaLogros3() {
     setRespuestas({});
 
     try {
-      const url = `${apiUrl("/encuestas/logros2-por-documento")}?documento=${encodeURIComponent(doc)}`;
+      const url = `${apiUrl("/encuestas/logros2-por-documento")}?documento=${encodeURIComponent(doc)}&tipo_documento=${encodeURIComponent(tipoHint)}`;
       console.log("[L3 LOAD] url=", url);
       const res = await fetch(url);
       const json = await res.json().catch(() => ({}));
@@ -413,13 +422,14 @@ export default function EncuestaLogros3() {
   };
 
   const seleccionarPaciente = (r) => {
-    const doc = String(r.documento ?? "").replace(/\D/g, "").trim();
+    const tipo = String(r.tipo_documento || "").trim();
+    const doc = limpiarDocumentoPaciente(r.documento, tipo || undefined);
     skipBusquedaRef.current = true;
     setBusquedaTexto(etiquetaFilaPaciente(r));
     setDocBusqueda(doc);
     setMostrarSugerencias(false);
     setSugerencias([]);
-    void cargarLogros2PorDocumento(doc, r.id ?? null);
+    void cargarLogros2PorDocumento(doc, r.id ?? null, tipo);
   };
 
   useEffect(() => {
@@ -593,11 +603,11 @@ export default function EncuestaLogros3() {
       };
     });
 
-    const docPaciente = String(docBusqueda || documentoDesdeCampos() || "")
-      .replace(/\D/g, "")
-      .trim();
-
     const tipoDoc = String(logros2.tipo_documento || "cedula").trim();
+    const docPaciente = limpiarDocumentoPaciente(
+      docBusqueda || documentoDesdeCampos() || logros2.documento,
+      tipoDoc,
+    );
     const preUrl = `${apiUrl("/encuestas/logros3-precheck")}?documento=${encodeURIComponent(docPaciente)}&tipo_documento=${encodeURIComponent(tipoDoc)}&seguimiento2_id=${encodeURIComponent(String(l2Id))}`;
     let preJson = {};
     try {
@@ -675,11 +685,13 @@ export default function EncuestaLogros3() {
       encuestador_nombre: String(headerUsuario || "").trim() || null,
       sede: sedeFormulario,
       documento: docPaciente,
+      tipo_documento: tipoDoc,
       seguimiento3_padre_id: seguimiento3PadreId,
       logros2_referencia: {
         id: l2Id,
         codigo_seguimiento: codigoL2 || null,
-        documento: Number(docPaciente),
+        documento: docPaciente,
+        tipo_documento: tipoDoc,
         created_at: logros2.created_at || null,
       },
       items,
@@ -850,7 +862,7 @@ export default function EncuestaLogros3() {
                       setMostrarSugerencias(true);
                     }}
                     onFocus={() => setMostrarSugerencias(true)}
-                    placeholder="Mín. 4 letras o 5 dígitos de cédula"
+                    placeholder="Nombre, cédula o pasaporte"
                     autoComplete="off"
                     aria-autocomplete="list"
                     aria-expanded={
@@ -880,7 +892,7 @@ export default function EncuestaLogros3() {
                           No hay coincidencias de Logros 2 con ese texto. Pruebe
                           otras letras o más dígitos, o use{" "}
                           <strong>Cargar evaluación Logros 2</strong> con la
-                          cédula completa (6–11 dígitos).
+                          documento completo.
                         </li>
                       ) : null}
                       {sugerencias.map((r) => (

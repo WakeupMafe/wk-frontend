@@ -1,4 +1,5 @@
 import { apiUrl } from "../api/baseUrl";
+import { limpiarDocumentoPaciente } from "./documentoPaciente";
 
 /**
  * Fecha legible para listados de encuestas existentes (tablet/móvil).
@@ -113,12 +114,14 @@ export function buildRegistrosExistentesHtml(registros, opts = {}) {
 }
 
 /**
- * GET /verificacion/registros/:documento — L1 + L2 (moderno y legado).
+ * GET /verificacion/registros/:documento — L1 + L2 + L3.
+ * Acepta cédula (dígitos) o pasaporte/registro civil (alfanumérico).
  * @param {string|number} documento
+ * @param {string|null|undefined} [tipoDocumento]
  */
-export async function fetchRegistrosPorDocumento(documento) {
-  const docDigits = String(documento ?? "").replace(/\D/g, "").trim();
-  if (!docDigits) {
+export async function fetchRegistrosPorDocumento(documento, tipoDocumento) {
+  const docLimpio = limpiarDocumentoPaciente(documento, tipoDocumento);
+  if (!docLimpio) {
     return {
       ok: false,
       status: 0,
@@ -127,13 +130,13 @@ export async function fetchRegistrosPorDocumento(documento) {
       resumen: [],
       conteo: { logros1: 0, logros2: 0, logros3: 0 },
       total: 0,
-      detail: "Documento sin dígitos válidos",
+      detail: "Documento inválido",
     };
   }
 
   try {
     const res = await fetch(
-      apiUrl(`/verificacion/registros/${encodeURIComponent(docDigits)}`),
+      apiUrl(`/verificacion/registros/${encodeURIComponent(docLimpio)}`),
     );
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -144,7 +147,7 @@ export async function fetchRegistrosPorDocumento(documento) {
       return {
         ok: false,
         status: res.status,
-        documento: docDigits,
+        documento: docLimpio,
         registros: [],
         resumen: [],
         conteo: { logros1: 0, logros2: 0, logros3: 0 },
@@ -166,7 +169,7 @@ export async function fetchRegistrosPorDocumento(documento) {
     return {
       ok: true,
       status: res.status,
-      documento: String(json?.documento || docDigits),
+      documento: String(json?.documento || docLimpio),
       registros,
       resumen,
       conteo,
@@ -176,7 +179,7 @@ export async function fetchRegistrosPorDocumento(documento) {
     return {
       ok: false,
       status: 0,
-      documento: docDigits,
+      documento: docLimpio,
       registros: [],
       resumen: [],
       conteo: { logros1: 0, logros2: 0, logros3: 0 },

@@ -1,12 +1,13 @@
 /**
- * Carga y ensambla trayectos E1→E2→E3 para Análisis de logros.
+ * Carga y ensambla trayectos para Análisis de logros.
  *
- * Emparejamiento de objetivos:
- * - L2 items.orden = slot del objetivo (alineado a sintoma_i / objetivo_i de L1).
- * - L2.objetivo_previo_label = texto del objetivo levantado en E1.
- * - L3 se vincula a L2 por seguimiento2_id; items L3 se emparejan por orden.
- * - Si hay varias L2 por documento, se elige la cadena más completa
- *   (prioriza L3, luego L2 más reciente).
+ * Modelo real (sin tabla wakeup_seguimiento3):
+ * - Encuesta 1 = Logros 1 (`wakeup_seguimientos`) — levanta objetivos.
+ * - Encuesta 2 = primera Logros 2 (`wakeup_seguimiento2`, p. ej. L2-01).
+ * - Encuesta 3 = última Logros 2 distinta de la primera (L2-02…L2-0N).
+ *   Si solo hay L2-01, no hay Encuesta 3.
+ *
+ * Emparejamiento de objetivos: items.orden + objetivo_previo_label (texto E1).
  */
 
 import { getSupabase } from "./supabase";
@@ -39,9 +40,7 @@ export type AnalisisFiltros = {
 };
 
 const L2_COLS =
-  "id,created_at,documento,tipo_documento,nombres,apellidos,sede,encuestador,encuestador_nombre,payload_origen,fecha_evaluacion_previa,deleted_at";
-const L3_COLS =
-  "id,created_at,documento,tipo_documento,nombres,apellidos,sede,encuestador,encuestador_nombre,seguimiento2_id,deleted_at";
+  "id,created_at,documento,tipo_documento,nombres,apellidos,sede,encuestador,encuestador_nombre,payload_origen,fecha_evaluacion_previa,consecutivo_paciente,codigo_seguimiento,deleted_at";
 const L1_COLS =
   "id_int,created_at,documento,tipo_documento,nombres,apellidos,sede,encuestador,objetivo_1,objetivo_2,objetivo_3,objetivo_extra,sintoma_1,sintoma_2,sintoma_3";
 
@@ -58,6 +57,15 @@ function resolveSedeFiltro(f: AnalisisFiltros): string | undefined {
   return sede || undefined;
 }
 
+function sortL2Asc(a: Row, b: Row): number {
+  const ca = Number(a.consecutivo_paciente) || 0;
+  const cb = Number(b.consecutivo_paciente) || 0;
+  if (ca > 0 && cb > 0 && ca !== cb) return ca - cb;
+  const ta = new Date(String(a.created_at || "")).getTime();
+  const tb = new Date(String(b.created_at || "")).getTime();
+  return (Number.isFinite(ta) ? ta : 0) - (Number.isFinite(tb) ? tb : 0);
+}
+
 async function fetchL2Batch(
   supabase: ReturnType<typeof getSupabase>,
   sede: string | undefined,
@@ -72,64 +80,51 @@ async function fetchL2Batch(
   if (sede) q = q.eq("sede", sede);
   let res = await q;
   if (res.error) {
-    // Fallback si deleted_at no existe en algún entorno legado
+    // Fallback: sin deleted_at / sin consecutivo en entornos legados
+    const colsLite = L2_COLS.replace(",consecutivo_paciente", "").replace(
+      ",codigo_seguimiento",
+      "",
+    );
     let q2 = supabase
       .from("wakeup_seguimiento2")
-      .select(L2_COLS)
+      .select(colsLite)
       .order("created_at", { ascending: false })
       .limit(limit);
     if (sede) q2 = q2.eq("sede", sede);
     res = await q2;
+    if (res.error) {
+      let q3 = supabase
+        .from("wakeup_seguimiento2")
+        .select(colsLite)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (sede) q3 = q3.eq("sede", sede);
+      res = await q3;
+    }
   }
   if (res.error) throw new Error(`L2: ${res.error.message}`);
-  return (res.data || []) as Row[];
-}
-
-async function fetchL3ForL2Ids(
-  supabase: ReturnType<typeof getSupabase>,
-  l2Ids: number[],
-): Promise<Row[]> {
-  if (!l2Ids.length) return [];
-  const out: Row[] = [];
-  const chunk = 80;
-  for (let i = 0; i < l2Ids.length; i += chunk) {
-    const slice = l2Ids.slice(i, i + chunk);
-    let res = await supabase
-      .from("wakeup_seguimiento3")
-      .select(L3_COLS)
-      .in("seguimiento2_id", slice)
-      .is("deleted_at", null);
-    if (res.error) {
-      res = await supabase
-        .from("wakeup_seguimiento3")
-        .select(L3_COLS)
-        .in("seguimiento2_id", slice);
-    }
-    if (res.error) throw new Error(`L3: ${res.error.message}`);
-    out.push(...((res.data || []) as Row[]));
-  }
-  return out.filter((r) => r.deleted_at == null);
+  return ((res.data || []) as Row[]).filter((r) => r.deleted_at == null);
 }
 
 async function fetchItems(
   supabase: ReturnType<typeof getSupabase>,
-  table: "wakeup_seguimiento2_items" | "wakeup_seguimiento3_items",
-  fk: "seguimiento2_id" | "seguimiento3_id",
   ids: number[],
 ): Promise<Map<number, Row[]>> {
   const map = new Map<number, Row[]>();
   if (!ids.length) return map;
   const cols =
-    "id,orden,sintoma_codigo,sintoma_label,objetivo_previo_codigo,objetivo_previo_label,evolucion,objetivo_seguimiento,es_meta_complementaria";
+    "id,seguimiento2_id,orden,sintoma_codigo,sintoma_label,objetivo_previo_codigo,objetivo_previo_label,evolucion,objetivo_seguimiento,es_meta_complementaria";
   const chunk = 80;
   for (let i = 0; i < ids.length; i += chunk) {
     const slice = ids.slice(i, i + chunk);
-    const res = await supabase.from(table).select(cols).in(fk, slice).order("orden", {
-      ascending: true,
-    });
-    if (res.error) throw new Error(`${table}: ${res.error.message}`);
+    const res = await supabase
+      .from("wakeup_seguimiento2_items")
+      .select(cols)
+      .in("seguimiento2_id", slice)
+      .order("orden", { ascending: true });
+    if (res.error) throw new Error(`wakeup_seguimiento2_items: ${res.error.message}`);
     for (const row of (res.data || []) as Row[]) {
-      const parent = Number(row[fk]);
+      const parent = Number(row.seguimiento2_id);
       if (!Number.isFinite(parent)) continue;
       const list = map.get(parent) || [];
       list.push(row);
@@ -174,8 +169,9 @@ function fase1RefFromL2(l2: Row): { id_int?: number; created_at?: string } {
   };
 }
 
-function pickL1ForL2(l1List: Row[] | undefined, l2: Row): Row | null {
+function pickL1ForL2(l1List: Row[] | undefined, l2: Row | null): Row | null {
   if (!l1List?.length) return null;
+  if (!l2) return l1List[0] || null;
   const ref = fase1RefFromL2(l2);
   if (ref.id_int != null) {
     const byId = l1List.find((r) => Number(r.id_int) === ref.id_int);
@@ -187,7 +183,6 @@ function pickL1ForL2(l1List: Row[] | undefined, l2: Row): Row | null {
     );
     if (byDate) return byDate;
   }
-  // Fallback: L1 más cercana anterior a L2, o la más reciente
   const l2t = new Date(String(l2.created_at || "")).getTime();
   const prev = l1List
     .filter((r) => {
@@ -239,108 +234,140 @@ function objetivosFromL1Fallback(l1: Row | null): Array<{
   return out;
 }
 
-type Chain = {
+type Trayecto = {
   l1: Row | null;
-  l2: Row | null;
-  l3: Row | null;
-  itemsL2: Row[];
-  itemsL3: Row[];
+  /** Primera Logros 2 (Encuesta 2). */
+  l2First: Row | null;
+  /** Última Logros 2 distinta de la primera (Encuesta 3). Null si solo hay una L2. */
+  l2Last: Row | null;
+  itemsFirst: Row[];
+  itemsLast: Row[];
 };
 
-function scoreChain(c: Chain): number {
-  let s = 0;
-  if (c.l3) s += 100;
-  if (c.l2) s += 10;
-  if (c.l1) s += 1;
-  const t = c.l3
-    ? new Date(String(c.l3.created_at)).getTime()
-    : c.l2
-      ? new Date(String(c.l2.created_at)).getTime()
-      : 0;
-  return s * 1e15 + (Number.isFinite(t) ? t : 0);
+function mapItemE2(it: Row) {
+  return {
+    orden: Number(it.orden) || 0,
+    objetivo_previo_label: String(it.objetivo_previo_label ?? "") || "—",
+    sintoma_codigo: it.sintoma_codigo ? String(it.sintoma_codigo) : null,
+    sintoma_label: it.sintoma_label ? String(it.sintoma_label) : null,
+    evolucion: it.evolucion != null ? String(it.evolucion) : null,
+    objetivo_seguimiento: it.objetivo_seguimiento
+      ? String(it.objetivo_seguimiento)
+      : null,
+  };
 }
 
-function chainToPaciente(c: Chain): PacienteLogrosAnalisis {
-  const baseRow = c.l3 || c.l2 || c.l1 || {};
-  const itemsE2 =
-    c.itemsL2.length > 0
-      ? c.itemsL2.map((it) => ({
-          orden: Number(it.orden) || 0,
-          objetivo_previo_label: String(it.objetivo_previo_label ?? "") || "—",
-          sintoma_codigo: it.sintoma_codigo
-            ? String(it.sintoma_codigo)
-            : null,
-          sintoma_label: it.sintoma_label ? String(it.sintoma_label) : null,
-          evolucion: it.evolucion != null ? String(it.evolucion) : null,
-          objetivo_seguimiento: it.objetivo_seguimiento
-            ? String(it.objetivo_seguimiento)
-            : null,
-        }))
-      : objetivosFromL1Fallback(c.l1);
-
-  const itemsE3 = c.itemsL3.map((it) => ({
+function mapItemE3(it: Row) {
+  return {
     orden: Number(it.orden) || 0,
     evolucion: it.evolucion != null ? String(it.evolucion) : null,
     objetivo_seguimiento: it.objetivo_seguimiento
       ? String(it.objetivo_seguimiento)
       : null,
-  }));
+  };
+}
+
+function trayectoToPaciente(t: Trayecto): PacienteLogrosAnalisis {
+  const baseRow = t.l2Last || t.l2First || t.l1 || {};
+  const tieneSegundaL2 =
+    !!t.l2First &&
+    !!t.l2Last &&
+    Number(t.l2First.id) !== Number(t.l2Last.id);
+
+  const itemsE2 =
+    t.itemsFirst.length > 0
+      ? t.itemsFirst.map(mapItemE2)
+      : objetivosFromL1Fallback(t.l1);
+
+  const itemsE3 = tieneSegundaL2 ? t.itemsLast.map(mapItemE3) : null;
 
   const objetivos = buildObjetivosDesdeItems({
     itemsE2,
-    itemsE3: c.l3 ? itemsE3 : null,
+    itemsE3,
   });
 
-  const fecha_e1: string | null = c.l1?.created_at
-    ? String(c.l1.created_at)
-    : c.l2?.fecha_evaluacion_previa
-      ? String(c.l2.fecha_evaluacion_previa)
+  const fecha_e1: string | null = t.l1?.created_at
+    ? String(t.l1.created_at)
+    : t.l2First?.fecha_evaluacion_previa
+      ? String(t.l2First.fecha_evaluacion_previa)
       : null;
-  const fecha_e2: string | null = c.l2?.created_at
-    ? String(c.l2.created_at)
+  const fecha_e2: string | null = t.l2First?.created_at
+    ? String(t.l2First.created_at)
     : null;
-  const fecha_e3: string | null = c.l3?.created_at
-    ? String(c.l3.created_at)
+  const fecha_e3: string | null = tieneSegundaL2 && t.l2Last?.created_at
+    ? String(t.l2Last.created_at)
     : null;
+
+  const profRow = t.l2Last || t.l2First;
 
   return enriquecerPacienteAnalisis({
     documento: String(baseRow.documento ?? ""),
     tipo_documento: baseRow.tipo_documento
       ? String(baseRow.tipo_documento)
       : null,
-    nombres: String(baseRow.nombres ?? c.l1?.nombres ?? ""),
-    apellidos: String(baseRow.apellidos ?? c.l1?.apellidos ?? ""),
+    nombres: String(baseRow.nombres ?? t.l1?.nombres ?? ""),
+    apellidos: String(baseRow.apellidos ?? t.l1?.apellidos ?? ""),
     sede: baseRow.sede
       ? String(baseRow.sede)
-      : c.l1?.sede
-        ? String(c.l1.sede)
+      : t.l1?.sede
+        ? String(t.l1.sede)
         : null,
     plan: null,
     profesional_nombre: (() => {
-      const n =
-        c.l3?.encuestador_nombre ??
-        c.l2?.encuestador_nombre ??
-        null;
+      const n = profRow?.encuestador_nombre ?? null;
       const s = n != null ? String(n).trim() : "";
       return s || null;
     })(),
     profesional_cedula: (() => {
       const n =
-        c.l3?.encuestador ?? c.l2?.encuestador ?? c.l1?.encuestador ?? null;
+        profRow?.encuestador ?? t.l1?.encuestador ?? null;
       if (n == null || n === "") return null;
       return String(n);
     })(),
     fecha_e1,
     fecha_e2,
     fecha_e3,
-    tiene_e1: !!c.l1 || !!fecha_e1,
-    tiene_e2: !!c.l2,
-    tiene_e3: !!c.l3,
+    tiene_e1: !!t.l1 || !!fecha_e1,
+    tiene_e2: !!t.l2First,
+    tiene_e3: tieneSegundaL2,
     objetivos,
   });
 }
 
-function matchesQuery(p: PacienteLogrosAnalisis, q: string | null | undefined): boolean {
+function buildTrayectoFromL2List(
+  l2List: Row[],
+  l1List: Row[] | undefined,
+  itemsByL2: Map<number, Row[]>,
+): Trayecto {
+  const sorted = [...l2List].sort(sortL2Asc);
+  const l2First = sorted[0] || null;
+  const l2Last =
+    sorted.length >= 2 ? sorted[sorted.length - 1] : null;
+  const firstId = l2First ? Number(l2First.id) : NaN;
+  const lastId = l2Last ? Number(l2Last.id) : NaN;
+  return {
+    l1: pickL1ForL2(l1List, l2First),
+    l2First,
+    l2Last:
+      Number.isFinite(lastId) &&
+      Number.isFinite(firstId) &&
+      lastId !== firstId
+        ? l2Last
+        : null,
+    itemsFirst: Number.isFinite(firstId)
+      ? itemsByL2.get(firstId) || []
+      : [],
+    itemsLast:
+      Number.isFinite(lastId) && lastId !== firstId
+        ? itemsByL2.get(lastId) || []
+        : [],
+  };
+}
+
+function matchesQuery(
+  p: PacienteLogrosAnalisis,
+  q: string | null | undefined,
+): boolean {
   const raw = String(q ?? "").trim();
   if (!raw) return true;
   const needle = raw.toLowerCase();
@@ -352,6 +379,18 @@ function matchesQuery(p: PacienteLogrosAnalisis, q: string | null | undefined): 
   return name.includes(needle);
 }
 
+function groupL2ByDoc(l2Rows: Row[]): Map<string, Row[]> {
+  const map = new Map<string, Row[]>();
+  for (const row of l2Rows) {
+    const d = normDoc(row.documento);
+    if (!d) continue;
+    const list = map.get(d) || [];
+    list.push(row);
+    map.set(d, list);
+  }
+  return map;
+}
+
 export async function loadPacientesAnalisisFull(
   filtros: AnalisisFiltros,
 ): Promise<PacienteLogrosAnalisis[]> {
@@ -360,34 +399,16 @@ export async function loadPacientesAnalisisFull(
   const cap = Math.min(3000, Math.max(50, filtros.cap ?? 1500));
   const minEnc = Math.max(1, Math.min(3, filtros.min_encuestas ?? 2));
 
-  const l2Rows = await fetchL2Batch(supabase, sede, cap);
+  // Pedimos más filas L2 que el cap de pacientes (varios L2 por doc).
+  const l2Rows = await fetchL2Batch(supabase, sede, Math.min(8000, cap * 4));
+  const l2ByDoc = groupL2ByDoc(l2Rows);
+
   const l2Ids = l2Rows
     .map((r) => Number(r.id))
     .filter((id) => Number.isFinite(id) && id > 0);
+  const itemsByL2 = await fetchItems(supabase, l2Ids);
 
-  const [l3Rows, itemsL2] = await Promise.all([
-    fetchL3ForL2Ids(supabase, l2Ids),
-    fetchItems(supabase, "wakeup_seguimiento2_items", "seguimiento2_id", l2Ids),
-  ]);
-  const l3Ids = l3Rows
-    .map((r) => Number(r.id))
-    .filter((id) => Number.isFinite(id) && id > 0);
-  const itemsL3 = await fetchItems(
-    supabase,
-    "wakeup_seguimiento3_items",
-    "seguimiento3_id",
-    l3Ids,
-  );
-
-  const l3ByL2 = new Map<number, Row>();
-  for (const r of l3Rows) {
-    const sid = Number(r.seguimiento2_id);
-    if (Number.isFinite(sid)) l3ByL2.set(sid, r);
-  }
-
-  const docs = [
-    ...new Set(l2Rows.map((r) => normDoc(r.documento)).filter(Boolean)),
-  ];
+  const docs = [...l2ByDoc.keys()];
   const l1ByDoc = await fetchL1ByDocs(supabase, docs);
 
   if (minEnc <= 1) {
@@ -412,40 +433,26 @@ export async function loadPacientesAnalisisFull(
     }
   }
 
-  const bestByDoc = new Map<string, Chain>();
-  for (const l2 of l2Rows) {
-    const d = normDoc(l2.documento);
-    if (!d) continue;
-    const l2Id = Number(l2.id);
-    const l3 = l3ByL2.get(l2Id) || null;
-    const chain: Chain = {
-      l1: pickL1ForL2(l1ByDoc.get(d), l2),
-      l2,
-      l3,
-      itemsL2: itemsL2.get(l2Id) || [],
-      itemsL3: l3 ? itemsL3.get(Number(l3.id)) || [] : [],
-    };
-    const prev = bestByDoc.get(d);
-    if (!prev || scoreChain(chain) > scoreChain(prev)) {
-      bestByDoc.set(d, chain);
-    }
+  const trayectos = new Map<string, Trayecto>();
+  for (const [d, list] of l2ByDoc) {
+    trayectos.set(d, buildTrayectoFromL2List(list, l1ByDoc.get(d), itemsByL2));
   }
   if (minEnc <= 1) {
     for (const [d, list] of l1ByDoc) {
-      if (bestByDoc.has(d)) continue;
+      if (trayectos.has(d)) continue;
       const l1 = list[0];
       if (!l1) continue;
-      bestByDoc.set(d, {
+      trayectos.set(d, {
         l1,
-        l2: null,
-        l3: null,
-        itemsL2: objetivosFromL1Fallback(l1),
-        itemsL3: [],
+        l2First: null,
+        l2Last: null,
+        itemsFirst: objetivosFromL1Fallback(l1),
+        itemsLast: [],
       });
     }
   }
 
-  let pacientes = [...bestByDoc.values()].map(chainToPaciente);
+  let pacientes = [...trayectos.values()].map(trayectoToPaciente);
   pacientes = pacientes.filter((p) =>
     pacienteEnRangoFechas(p, filtros.fecha_desde, filtros.fecha_hasta),
   );
@@ -465,7 +472,7 @@ export async function loadPacientesAnalisisFull(
     const tb = b.ultima_fecha ? new Date(b.ultima_fecha).getTime() : 0;
     return tb - ta;
   });
-  return pacientes;
+  return pacientes.slice(0, cap);
 }
 
 /** Recalcula listado con KPIs sobre el set filtrado completo. */
@@ -503,22 +510,28 @@ export async function loadComparativaPorDocumento(
     .select(L2_COLS)
     .eq("documento", doc)
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(40);
+    .order("created_at", { ascending: true })
+    .limit(80);
   if (scopeSede) l2q = l2q.eq("sede", scopeSede);
   let l2Res = await l2q;
   if (l2Res.error) {
+    const colsLite = L2_COLS.replace(",consecutivo_paciente", "").replace(
+      ",codigo_seguimiento",
+      "",
+    );
     let l2q2 = supabase
       .from("wakeup_seguimiento2")
-      .select(L2_COLS)
+      .select(colsLite)
       .eq("documento", doc)
-      .order("created_at", { ascending: false })
-      .limit(40);
+      .order("created_at", { ascending: true })
+      .limit(80);
     if (scopeSede) l2q2 = l2q2.eq("sede", scopeSede);
     l2Res = await l2q2;
   }
   if (l2Res.error) throw new Error(`L2 doc: ${l2Res.error.message}`);
-  const l2Rows = (l2Res.data || []) as Row[];
+  const l2Rows = ((l2Res.data || []) as Row[]).filter(
+    (r) => r.deleted_at == null,
+  );
 
   const l1ByDoc = await fetchL1ByDocs(supabase, [doc]);
 
@@ -526,49 +539,23 @@ export async function loadComparativaPorDocumento(
     const l1 = (l1ByDoc.get(doc) || [])[0];
     if (!l1) return null;
     if (scopeSede && String(l1.sede ?? "") !== scopeSede) return null;
-    return chainToPaciente({
+    return trayectoToPaciente({
       l1,
-      l2: null,
-      l3: null,
-      itemsL2: objetivosFromL1Fallback(l1),
-      itemsL3: [],
+      l2First: null,
+      l2Last: null,
+      itemsFirst: objetivosFromL1Fallback(l1),
+      itemsLast: [],
     });
   }
 
   const l2Ids = l2Rows
     .map((r) => Number(r.id))
     .filter((id) => Number.isFinite(id) && id > 0);
-  const [l3Rows, itemsL2] = await Promise.all([
-    fetchL3ForL2Ids(supabase, l2Ids),
-    fetchItems(supabase, "wakeup_seguimiento2_items", "seguimiento2_id", l2Ids),
-  ]);
-  const l3Ids = l3Rows
-    .map((r) => Number(r.id))
-    .filter((id) => Number.isFinite(id) && id > 0);
-  const itemsL3 = await fetchItems(
-    supabase,
-    "wakeup_seguimiento3_items",
-    "seguimiento3_id",
-    l3Ids,
+  const itemsByL2 = await fetchItems(supabase, l2Ids);
+  const trayecto = buildTrayectoFromL2List(
+    l2Rows,
+    l1ByDoc.get(doc),
+    itemsByL2,
   );
-  const l3ByL2 = new Map<number, Row>();
-  for (const r of l3Rows) {
-    const sid = Number(r.seguimiento2_id);
-    if (Number.isFinite(sid)) l3ByL2.set(sid, r);
-  }
-
-  let best: Chain | null = null;
-  for (const l2 of l2Rows) {
-    const l2Id = Number(l2.id);
-    const l3 = l3ByL2.get(l2Id) || null;
-    const chain: Chain = {
-      l1: pickL1ForL2(l1ByDoc.get(doc), l2),
-      l2,
-      l3,
-      itemsL2: itemsL2.get(l2Id) || [],
-      itemsL3: l3 ? itemsL3.get(Number(l3.id)) || [] : [],
-    };
-    if (!best || scoreChain(chain) > scoreChain(best)) best = chain;
-  }
-  return best ? chainToPaciente(best) : null;
+  return trayectoToPaciente(trayecto);
 }

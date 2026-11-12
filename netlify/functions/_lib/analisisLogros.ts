@@ -375,7 +375,7 @@ export function enriquecerPacienteAnalisis(
       id: null,
       fecha: base.fecha_e2,
       titulo: "Encuesta 2",
-      subtitulo: "Primer seguimiento",
+      subtitulo: "Primer seguimiento (Logros 2)",
       conteos: conteos_e2,
     });
   }
@@ -385,7 +385,7 @@ export function enriquecerPacienteAnalisis(
       id: null,
       fecha: base.fecha_e3,
       titulo: "Encuesta 3",
-      subtitulo: "Último seguimiento",
+      subtitulo: "Último seguimiento (Logros 2)",
       conteos: conteos_e3,
     });
   }

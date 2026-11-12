@@ -211,7 +211,7 @@ export default function AnalisisLogrosPage() {
           <p className="al-page__lead">
             Compara, paciente a paciente, si cada objetivo levantado en la
             Encuesta 1 mejoró, se mantuvo igual o desmejoró en los seguimientos
-            2 y 3.
+            Logros 2 (el primero y, si hay más, el último).
           </p>
         </div>
         <button

@@ -107,6 +107,30 @@ export function emptyResponse(
   };
 }
 
+/** Respuesta binaria (p. ej. Excel) en base64 para Netlify Functions. */
+export function binaryResponse(
+  statusCode: number,
+  buffer: Buffer,
+  contentType: string,
+  filename: string,
+  origin: string | null,
+  extraHeaders?: Record<string, string>,
+): HandlerResponse {
+  const safeName = filename.replace(/[^\w.\-]+/g, "_");
+  return {
+    statusCode,
+    isBase64Encoded: true,
+    headers: {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${safeName}"`,
+      "Cache-Control": "no-store",
+      ...corsHeaders(origin),
+      ...extraHeaders,
+    },
+    body: buffer.toString("base64"),
+  };
+}
+
 export function handleOptions(event: HandlerEvent): HandlerResponse | null {
   if (event.httpMethod !== "OPTIONS") return null;
   const origin = pickCorsOrigin(event.headers.origin || event.headers.Origin);

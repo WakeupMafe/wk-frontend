@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Button from "../../../components/ButtonComponente";
 import AutorizadosHeader from "../../../components/AutorizadosHeader";
@@ -12,6 +12,8 @@ import "./EstadisticasPage.css";
 
 export default function EstadisticasLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAnalisis = location.pathname.includes("/analisis-logros");
   const [usuario, setUsuario] = useState("Usuario");
   const [sede, setSede] = useState("Sin sede");
   const [correo, setCorreo] = useState("");
@@ -91,6 +93,14 @@ export default function EstadisticasLayout() {
           >
             Búsqueda individual
           </NavLink>
+          <NavLink
+            to="/estadisticas/analisis-logros"
+            className={({ isActive }) =>
+              `estad-sidebar__link${isActive ? " estad-sidebar__link--active" : ""}`
+            }
+          >
+            Análisis de logros
+          </NavLink>
         </nav>
 
         <Button
@@ -118,7 +128,9 @@ export default function EstadisticasLayout() {
       </aside>
 
       <div className="estad-main">
-        <div className="estad-main__inner">
+        <div
+          className={`estad-main__inner${isAnalisis ? " estad-main__inner--wide" : ""}`}
+        >
           <AutorizadosHeader
             usuario={usuario}
             sede={sede}
@@ -154,6 +166,14 @@ export default function EstadisticasLayout() {
                   }
                 >
                   Búsqueda individual
+                </NavLink>
+                <NavLink
+                  to="/estadisticas/analisis-logros"
+                  className={({ isActive }) =>
+                    `estad-mobile-nav__link${isActive ? " estad-mobile-nav__link--active" : ""}`
+                  }
+                >
+                  Análisis de logros
                 </NavLink>
               </nav>
             }

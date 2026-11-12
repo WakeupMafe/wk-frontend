@@ -11,6 +11,7 @@ import { SupabaseEnvError } from "./_lib/supabase";
 import { handleVerificacion } from "./routes/verificacion";
 import { handleAutorizados } from "./routes/autorizados";
 import { handleEncuestas } from "./routes/encuestas";
+import { handleAnalisisLogros } from "./routes/analisisLogros";
 
 loadNetlifyFunctionEnv();
 
@@ -82,6 +83,16 @@ export const handler: Handler = async (event) => {
     }
     if (pathname.startsWith("/autorizados")) {
       const r = await handleAutorizados(pathname, method, body, origin);
+      if (r) return r;
+    }
+    if (pathname.startsWith("/encuestas/analisis-logros")) {
+      const r = await handleAnalisisLogros(
+        pathname,
+        method,
+        body,
+        origin,
+        query,
+      );
       if (r) return r;
     }
     if (pathname.startsWith("/encuestas")) {

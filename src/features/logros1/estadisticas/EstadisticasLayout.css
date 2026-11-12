@@ -136,6 +136,10 @@
   overflow: hidden;
 }
 
+.estad-main__inner--wide {
+  max-width: min(100%, 72rem);
+}
+
 /* Scroll único bajo el header de usuario (pestañas) */
 .estad-main__scroll {
   flex: 1 1 auto;
